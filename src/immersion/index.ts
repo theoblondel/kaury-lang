@@ -3,24 +3,16 @@
 
 import { corpsDe, souris, mouvementReduit, ecritBulle } from '../runtime/mouvements.js'
 
-type T3 = typeof import('three')
-let THREE: T3
-let chargement: Promise<void> | null = null
-let GLTFLoader: any, RoomEnvironment: any, OrbitControls: any, MeshoptDecoder: any, DRACOLoader: any
+// Imports statiques : ce module est déjà chargé à la demande, et l'outil de construction
+// ne garde que les morceaux de Three.js réellement utilisés.
+import * as THREE from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 
-async function chargeThree() {
-  if (!chargement) {
-    chargement = (async () => {
-      THREE = await import('three')
-      ;({ GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js'))
-      ;({ RoomEnvironment } = await import('three/examples/jsm/environments/RoomEnvironment.js'))
-      ;({ OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js'))
-      ;({ MeshoptDecoder } = await import('three/examples/jsm/libs/meshopt_decoder.module.js'))
-      ;({ DRACOLoader } = await import('three/examples/jsm/loaders/DRACOLoader.js'))
-    })()
-  }
-  return chargement
-}
+let OrbitControls: any
+async function chargeThree() {}
 
 const rad = (d: number) => (d * Math.PI) / 180
 const faible = () => (navigator.hardwareConcurrency ?? 8) <= 2 || ((navigator as any).deviceMemory ?? 8) <= 2
@@ -195,6 +187,7 @@ async function creeMonde(hote: HTMLElement, reglages: Record<string, any>, seul:
   const modeCam = String(reglages.camera ?? 'fixe')
   let controles: any = null
   if (modeCam === 'libre' || modeCam === 'orbite') {
+    OrbitControls ??= (await import('three/examples/jsm/controls/OrbitControls.js')).OrbitControls
     controles = new OrbitControls(cam, toile)
     controles.enableDamping = true
     controles.enableZoom = false
