@@ -48,3 +48,16 @@ test('le traducteur produit du CSS mobile et des classes stables', () => {
   assert.ok(r.ok)
   assert.match(r.css, /@media \(max-width: 640px\)\{(\.[\w-]+){2}\{--k-colonnes:1;grid-template-columns:repeat\(1, minmax\(0, 1fr\)\)\}\}/)
 })
+
+test('pages à paramètres : /produit/:id', async () => {
+  const { trouvePage, rendsPage } = await import('../src/runtime/index.js')
+  const { installeSSR, serialise } = await import('../src/runtime/ssr.js')
+  const { execute } = await import('./outils-test.js')
+  const { module } = await execute('page "/produit/:id"\n  titre "Produit {id}"\n')
+  const r = trouvePage(module.$pages, '/produit/42')
+  assert.equal(r?.params.id, '42')
+  const doc = installeSSR()
+  const cible = doc.createElement('div')
+  rendsPage(module, '/produit/42', cible)
+  assert.match(serialise(cible), /Produit 42/)
+})
