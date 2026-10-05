@@ -8,7 +8,7 @@ You write **Kaury**, a language that produces complete, immersive websites. A `.
 - Comment: `// text`.
 - Text: only between double quotes `"…"`. Interpolation: `"Hello {name}, total {price * 2}"`. Literal brace: `\{`.
 - Numbers: `12`, `3.5`, `-4`. Glued units: `24px`, `2s`, `300ms`, `50%`, `100vh`, `90deg`, `20/s`.
-- Names: letters, digits, hyphens (`total-price`). **Subtraction always has spaces** `a - b` (otherwise `a-b` is a name).
+- Names: letters, digits, hyphens (`total-price`). Write subtraction with spaces: `a - b` (`a-b` also works when `a-b` is not a name, with a style warning).
 - Values: `true`, `false`, `none`, lists `[1, 2]`, objects `{ name: "Strawberry", price: 3 }`.
 - Operators: `+ - * / % **`, comparison `== != < > <= >=`, logic `and or not`, membership `x in list`, range `1..5` (inclusive).
 - Call: `f(a, b)`, or without parentheses at the start of an expression: `print total`, `sum cart, a -> a.price`.
@@ -165,7 +165,7 @@ Automatic rules: the 3D loads only on pages that contain it, when it becomes vis
 3. Files (images, `.glb`, sounds) go in `public/` and are written without `/`: `"photo.jpg"`.
 4. `==` compares, `=` stores. `let` never changes.
 5. Lambdas inside a UI line go between parentheses: `text (list.filter(x -> x.active)).length`.
-6. A variable named like an option (e.g. `size`) goes between parentheses in a UI line: `text (size)`.
+6. The first item of a content element is its content: `text size` shows the variable `size`; options come after a comma (`text size, bold`).
 
 ## 6. Complete example
 

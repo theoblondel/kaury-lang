@@ -61,6 +61,8 @@ export function check(program: Stmt[], options: { file?: string } = {}): {
 
 const NAMED_CONTAINERS = ['section', 'box', 'grid', 'row', 'column', 'scene', 'card', 'form', 'list', 'header', 'footer', 'nav']
 const FIELD_HEADS = ['field', 'textarea', 'select', 'checkbox']
+/** Elements whose first item is their content (a text, an image…). */
+const CONTENT_HEADS = new Set(['title', 'subtitle', 'text', 'item', 'icon', 'button', 'link', 'image', 'video', 'card', 'logo'])
 const SITE_SETTINGS = ['colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'seo', 'style', 'transition', 'mobile', 'tablet', 'desktop', 'sound']
 
 class Checker {
@@ -418,6 +420,19 @@ class Checker {
           e.binding = { kind: 'js', name: e.name }
           return
         }
+        // « a-b » when « a » and « b » exist but « a-b » does not: it is a subtraction
+        const parts = e.name.split('-')
+        if (parts.length > 1 && parts.every((m) => m && (s.find(m) || kauryGlobal(m)))) {
+          this.warn({ ...e.pos, length: e.name.length }, msg(`${q(e.name)} is read as a subtraction.`, `${q(e.name)} est lu comme une soustraction.`),
+            msg(`write it with spaces to make it clear: ${parts.join(' - ')}`, `écris-la avec des espaces pour plus de clarté : ${parts.join(' - ')}`))
+          const pos = e.pos
+          let tree: Expr = { k: 'name', name: parts[0], pos }
+          for (const p of parts.slice(1)) tree = { k: 'binary', op: '-', l: tree, r: { k: 'name', name: p, pos }, pos }
+          for (const key of Object.keys(e)) delete (e as any)[key]
+          Object.assign(e, tree)
+          this.expr(e, s)
+          return
+        }
         this.unknownName(e.name, e.pos, s)
         return
       }
@@ -501,8 +516,11 @@ class Checker {
         continue
       }
       let opt = word ? (elementOption(optionHead, word) ?? (kind !== 'motion' && kind !== 'event' && kind !== 'setting' ? styleOption(word) : undefined)) : undefined
-      // a declared variable wins over an option of the same name when it is alone (text size)
-      if (opt && word && a.length === 1 && s.find(word) && (optionSpec(optionHead, opt)?.args ?? '').replace(/\?/g, '').length > 0) opt = undefined
+      // a declared variable wins over an option of the same name:
+      // - as the first item of an element that shows content (text size → shows « size »)
+      // - or alone where the option would need a value
+      const firstContent = it === c.items[0] && CONTENT_HEADS.has(head)
+      if (opt && word && a.length === 1 && s.find(word) && (firstContent || (optionSpec(optionHead, opt)?.args ?? '').replace(/\?/g, '').length > 0)) opt = undefined
       if (opt) {
         const values = a.slice(1)
         values.forEach((x) => this.checkValue(x, s))

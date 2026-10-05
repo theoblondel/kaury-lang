@@ -182,7 +182,6 @@ const cases: [string, string, RegExp][] = [
   ['spin fast', 'page "/"\n  object "a.glb"\n    spin quick\n', /expects a speed/],
   ['else alone', 'else\n  print 1\n', /without an « if »/],
   ['state without =', 'state count\n', /« = » is missing/],
-  ['glued subtraction', 'let a = 3\nlet b = 1\nprint a-b\n', /a - b/],
   ['unclosed parenthesis', 'print (1 + 2\n', /never closed/],
   ['orphan indentation', 'print 1\n    print 2\n', /indent/],
   ['element mid-line', 'let x = title\n', /must start a line/],
@@ -202,4 +201,18 @@ for (const [name, src, expected] of cases) {
 
 test('an inline action can be followed by a block of children', () => {
   assert.deepEqual(errors('function go-on\n  print 1\npage "/"\n  form -> go-on()\n    field email "Email"\n    button "Send"\n'), [])
+})
+
+test('pitfall fixed: a-b is read as a subtraction (with a style warning)', async () => {
+  const src = 'let a = 3\nlet b = 1\nprint a-b\n'
+  const { output } = await run(src)
+  assert.deepEqual(output, ['2'])
+  assert.match(compile(src).warnings[0].format(), /a - b/)
+})
+
+test('pitfall fixed: a variable named like an option is shown as content', () => {
+  const r = compile('let size = 3\nlet bold = "x"\npage "/"\n  text size\n  text bold, bold\n')
+  assert.deepEqual(r.errors, [])
+  assert.match(r.js, /\$k\.text\(\$n\d+, \(\) => size\)/)
+  assert.match(r.js, /\$k\.text\(\$n\d+, \(\) => bold\)/)
 })

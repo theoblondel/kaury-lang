@@ -2079,6 +2079,7 @@ function check(program, options = {}) {
 }
 var NAMED_CONTAINERS = ["section", "box", "grid", "row", "column", "scene", "card", "form", "list", "header", "footer", "nav"];
 var FIELD_HEADS = ["field", "textarea", "select", "checkbox"];
+var CONTENT_HEADS = /* @__PURE__ */ new Set(["title", "subtitle", "text", "item", "icon", "button", "link", "image", "video", "card", "logo"]);
 var SITE_SETTINGS = ["colors", "font", "fonts", "lang", "favicon", "url", "seo", "style", "transition", "mobile", "tablet", "desktop", "sound"];
 var Checker = class {
   errors = [];
@@ -2478,6 +2479,21 @@ var Checker = class {
           e2.binding = { kind: "js", name: e2.name };
           return;
         }
+        const parts = e2.name.split("-");
+        if (parts.length > 1 && parts.every((m) => m && (s.find(m) || kauryGlobal(m)))) {
+          this.warn(
+            { ...e2.pos, length: e2.name.length },
+            msg(`${q(e2.name)} is read as a subtraction.`, `${q(e2.name)} est lu comme une soustraction.`),
+            msg(`write it with spaces to make it clear: ${parts.join(" - ")}`, `\xE9cris-la avec des espaces pour plus de clart\xE9 : ${parts.join(" - ")}`)
+          );
+          const pos = e2.pos;
+          let tree = { k: "name", name: parts[0], pos };
+          for (const p of parts.slice(1)) tree = { k: "binary", op: "-", l: tree, r: { k: "name", name: p, pos }, pos };
+          for (const key of Object.keys(e2)) delete e2[key];
+          Object.assign(e2, tree);
+          this.expr(e2, s);
+          return;
+        }
         this.unknownName(e2.name, e2.pos, s);
         return;
       }
@@ -2583,7 +2599,8 @@ var Checker = class {
         continue;
       }
       let opt = word ? elementOption(optionHead, word) ?? (kind !== "motion" && kind !== "event" && kind !== "setting" ? styleOption(word) : void 0) : void 0;
-      if (opt && word && a.length === 1 && s.find(word) && (optionSpec(optionHead, opt)?.args ?? "").replace(/\?/g, "").length > 0) opt = void 0;
+      const firstContent = it === c.items[0] && CONTENT_HEADS.has(head);
+      if (opt && word && a.length === 1 && s.find(word) && (firstContent || (optionSpec(optionHead, opt)?.args ?? "").replace(/\?/g, "").length > 0)) opt = void 0;
       if (opt) {
         const values = a.slice(1);
         values.forEach((x) => this.checkValue(x, s));
