@@ -12,7 +12,7 @@ export const TETES_INTERFACE = new Set([
   'section', 'entete', 'pied', 'nav', 'grille', 'colonne', 'ligne', 'boite', 'carte', 'titre', 'sous-titre',
   'texte', 'image', 'video', 'lien', 'liens', 'logo', 'bouton', 'formulaire', 'champ', 'zone', 'choix', 'case',
   'liste', 'element', 'icone', 'separateur', 'espaceur', 'contenu', 'style', 'mobile', 'tablette', 'ordinateur', 'seo',
-  'couleurs', 'police', 'polices', 'langue', 'favicon',
+  'couleurs', 'police', 'polices', 'langue', 'favicon', 'adresse',
   // immersion
   'scene', 'objet', 'personnage', 'lumiere', 'camera', 'au', 'suit', 'entre', 'tourne', 'flotte', 'saute',
   'pulse', 'balance', 'dit', 'joue', 'son', 'transition', 'parallaxe',

@@ -251,7 +251,15 @@ export async function construis(entree: string, o: OptionsBuild = {}): Promise<R
 
   // 4. fichiers publics (images, modèles 3D, sons…)
   copiePublic(dossierSite, sortie)
-  if (!existsSync(join(sortie, 'robots.txt'))) writeFileSync(join(sortie, 'robots.txt'), 'User-agent: *\nAllow: /\n')
+  // plan du site pour Google, si le site connaît son adresse publique (site … / adresse "https://…")
+  const adresse = typeof site.adresse === 'string' ? site.adresse.replace(/\/$/, '') : ''
+  if (adresse) {
+    const urls = pages.filter((p) => p !== '/404').map((p) => `  <url><loc>${adresse}${p === '/' ? '/' : p + '/'}</loc></url>`).join('\n')
+    writeFileSync(join(sortie, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`)
+  }
+  if (!existsSync(join(sortie, 'robots.txt'))) {
+    writeFileSync(join(sortie, 'robots.txt'), `User-agent: *\nAllow: /\n${adresse ? `\nSitemap: ${adresse}/sitemap.xml\n` : ''}`)
+  }
 
   return { pages, fichiers: sorties.length, dossier: sortie, collecte, duree: Date.now() - t0 }
 }

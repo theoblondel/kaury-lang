@@ -163,6 +163,9 @@ class Traducteur {
           props.push(`langue: ${this.ex(p0[0])}`)
           this.site.langue = String(litteral(p0[0], {}) ?? 'fr')
           break
+        case 'adresse':
+          props.push(`adresse: ${this.ex(p0[0])}`)
+          break
         case 'favicon':
           props.push(`favicon: ${this.ex(p0[0])}`)
           break
@@ -502,7 +505,7 @@ class Traducteur {
     const dynamique: [string, string][] = []
     const media: Record<string, string> = {
       mobile: '@media (max-width: 640px)',
-      tablette: '@media (max-width: 1024px)',
+      tablette: '@media (min-width: 641px) and (max-width: 1024px)',
       ordinateur: '@media (min-width: 1025px)',
     }
     for (const r of regles) {

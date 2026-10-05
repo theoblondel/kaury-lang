@@ -330,7 +330,7 @@ class Verificateur {
       case 'site': {
         if (i.nom) this.expr(i.nom, p)
         for (const c of i.corps) {
-          if (c.k !== 'commande' || !['couleurs', 'police', 'polices', 'langue', 'favicon', 'seo', 'style', 'transition', 'mobile', 'tablette', 'ordinateur', 'son'].includes(c.tete)) {
+          if (c.k !== 'commande' || !['couleurs', 'police', 'polices', 'langue', 'favicon', 'adresse', 'seo', 'style', 'transition', 'mobile', 'tablette', 'ordinateur', 'son'].includes(c.tete)) {
             this.err(c.pos, 'dans « site », on ne met que des réglages : couleurs, police, langue, favicon, seo, style, transition.',
               'déplace cet élément dans une page "/".')
             continue

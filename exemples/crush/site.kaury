@@ -4,6 +4,7 @@ site "Crush"
   couleurs accent #EA4374, nuit #05060F, bleu-crush #23347A, creme #FDF7F2, braise #3E0A1C
   police "Outfit"
   langue "fr"
+  adresse "https://crush.example"
   style fond nuit, couleur creme
   transition fondu
 

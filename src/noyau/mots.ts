@@ -84,6 +84,7 @@ const TABLE: Record<string, string[]> = {
   polices: ['fonts'],
   langue: ['lang', 'language'],
   favicon: [],
+  adresse: ['url', 'domain'],
   // ---- immersion ----
   scene: [],
   objet: ['object', 'model'],

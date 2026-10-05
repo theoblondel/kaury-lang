@@ -93,7 +93,7 @@ h3.k-titre{font-size:clamp(22px,2.2vw,30px)}
 /* ---- responsive ---- */
 .k-seul-mobile,.k-seul-tablette{display:none}
 @media (max-width:640px){.k-seul-mobile{display:contents}.k-seul-ordinateur{display:none}}
-@media (max-width:1024px){.k-seul-tablette{display:contents}.k-seul-ordinateur{display:none}}
+@media (min-width:641px) and (max-width:1024px){.k-seul-tablette{display:contents}}@media (max-width:1024px){.k-seul-ordinateur{display:none}}
 
 /* ---- apparitions ---- */
 .k-entre{transition:opacity .9s var(--k-ressort),transform .9s var(--k-ressort),filter .9s;will-change:transform,opacity}

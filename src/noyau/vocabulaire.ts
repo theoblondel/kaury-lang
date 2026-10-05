@@ -212,7 +212,7 @@ export const ELEMENTS: Record<string, SpecElement> = {
 }
 
 /** Ces têtes règlent l'élément parent au lieu d'en créer un. */
-export const REGLAGES = new Set(['style', 'mobile', 'tablette', 'ordinateur', 'seo', 'couleurs', 'police', 'polices', 'langue', 'favicon', 'lumiere', 'camera', 'transition'])
+export const REGLAGES = new Set(['style', 'mobile', 'tablette', 'ordinateur', 'seo', 'couleurs', 'police', 'polices', 'langue', 'favicon', 'adresse', 'lumiere', 'camera', 'transition'])
 export const EVENEMENTS = new Set(['au-clic', 'au-survol', 'au-defilement', 'au-chargement'])
 
 // Index des alias d'options

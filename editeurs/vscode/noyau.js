@@ -515,6 +515,7 @@ var TABLE = {
   polices: ["fonts"],
   langue: ["lang", "language"],
   favicon: [],
+  adresse: ["url", "domain"],
   // ---- immersion ----
   scene: [],
   objet: ["object", "model"],
@@ -651,6 +652,7 @@ var TETES_INTERFACE = /* @__PURE__ */ new Set([
   "polices",
   "langue",
   "favicon",
+  "adresse",
   // immersion
   "scene",
   "objet",
@@ -1757,7 +1759,7 @@ var ELEMENTS = {
   personnage: { balise: "div", genre: "immersion", positionnels: "[nom] source", aide: "objet anim\xE9 avec animations nomm\xE9es", exemple: 'personnage "mascotte.glb"' },
   son: { balise: "audio", genre: "immersion", positionnels: "source", aide: "son ou musique, avec bouton muet", exemple: 'son "ambiance.mp3", boucle' }
 };
-var REGLAGES = /* @__PURE__ */ new Set(["style", "mobile", "tablette", "ordinateur", "seo", "couleurs", "police", "polices", "langue", "favicon", "lumiere", "camera", "transition"]);
+var REGLAGES = /* @__PURE__ */ new Set(["style", "mobile", "tablette", "ordinateur", "seo", "couleurs", "police", "polices", "langue", "favicon", "adresse", "lumiere", "camera", "transition"]);
 var EVENEMENTS = /* @__PURE__ */ new Set(["au-clic", "au-survol", "au-defilement", "au-chargement"]);
 var ALIAS_STYLE = /* @__PURE__ */ new Map();
 for (const [nom, s] of Object.entries(STYLES)) {
@@ -2267,7 +2269,7 @@ var Verificateur = class {
       case "site": {
         if (i.nom) this.expr(i.nom, p);
         for (const c of i.corps) {
-          if (c.k !== "commande" || !["couleurs", "police", "polices", "langue", "favicon", "seo", "style", "transition", "mobile", "tablette", "ordinateur", "son"].includes(c.tete)) {
+          if (c.k !== "commande" || !["couleurs", "police", "polices", "langue", "favicon", "adresse", "seo", "style", "transition", "mobile", "tablette", "ordinateur", "son"].includes(c.tete)) {
             this.err(
               c.pos,
               "dans \xAB site \xBB, on ne met que des r\xE9glages : couleurs, police, langue, favicon, seo, style, transition.",
@@ -2523,7 +2525,7 @@ var Verificateur = class {
           continue;
         }
       }
-      if (a.length === 1 && (a0.k === "couleur" || mot && !p.cherche(mot) && (this.infos.couleurs[mot] || couleurConnue(mot)))) {
+      if (genre !== "reglage" && genre !== "mouvement" && a.length === 1 && (a0.k === "couleur" || mot && !p.cherche(mot) && (this.infos.couleurs[mot] || couleurConnue(mot)))) {
         options.push({ nom: dansSurvol ? "survol:teinte" : "teinte", valeurs: [a0], pos: it.pos });
         continue;
       }
@@ -3079,6 +3081,9 @@ var Traducteur = class {
           props.push(`langue: ${this.ex(p0[0])}`);
           this.site.langue = String(litteral(p0[0], {}) ?? "fr");
           break;
+        case "adresse":
+          props.push(`adresse: ${this.ex(p0[0])}`);
+          break;
         case "favicon":
           props.push(`favicon: ${this.ex(p0[0])}`);
           break;
@@ -3400,7 +3405,7 @@ var Traducteur = class {
     const dynamique = [];
     const media = {
       mobile: "@media (max-width: 640px)",
-      tablette: "@media (max-width: 1024px)",
+      tablette: "@media (min-width: 641px) and (max-width: 1024px)",
       ordinateur: "@media (min-width: 1025px)"
     };
     for (const r of regles) {
@@ -3540,7 +3545,8 @@ var Traducteur = class {
   optionsObjet(options) {
     const props = [];
     for (const o of options) {
-      const vals = o.valeurs.map((v) => v.k === "nom" && !v.liaison ? JSON.stringify(canon(v.nom) ?? sansAccents(v.nom)) : o.nom === "secours" ? this.exChemin(v) : this.exVal(v));
+      const couleur = ["fond", "brouillard", "sol"].includes(o.nom);
+      const vals = o.valeurs.map((v) => couleur ? this.exVal(v) : v.k === "nom" && !v.liaison ? JSON.stringify(canon(v.nom) ?? sansAccents(v.nom)) : o.nom === "secours" ? this.exChemin(v) : this.exVal(v));
       props.push(`${cleJs(o.nom)}: ${vals.length === 0 ? "true" : vals.length === 1 ? vals[0] : `[${vals.join(", ")}]`}`);
     }
     return `{ ${props.join(", ")} }`;
