@@ -61,3 +61,29 @@ test('pages à paramètres : /produit/:id', async () => {
   rendsPage(module, '/produit/42', cible)
   assert.match(serialise(cible), /Produit 42/)
 })
+
+test('les exemples de la documentation compilent sans erreur', async () => {
+  const blocs = (f: string) => readFileSync(f, 'utf8').split('```').filter((_, i) => i % 2 === 1).filter((b) => !/^(bash|\w+\n)/.test(b))
+  const readme = blocs('README.md')[0]
+  const ia = readFileSync('docs/kaury-ia.md', 'utf8').split('## 6. Exemple complet')[1].split('```')[1]
+  for (const [nom, code] of [['README', readme], ['kaury-ia exemple complet', ia]]) {
+    const r = compile(code.replace(/^\n/, ''), { fichier: nom })
+    assert.deepEqual(r.erreurs.map((e) => e.formate(code)), [], nom)
+  }
+})
+
+test('kaury verifie --json : sortie lisible par une IA', async () => {
+  const { execFileSync } = await import('node:child_process')
+  const f = join(TMP, 'faux.kaury')
+  writeFileSync(f, 'etat compteur = 0\naffiche compteurr\n')
+  let sortie = ''
+  try {
+    execFileSync(process.execPath, ['bin/kaury.js', 'verifie', f, '--json'], { encoding: 'utf8' })
+  } catch (e: any) {
+    sortie = e.stdout
+  }
+  const j = JSON.parse(sortie)
+  assert.equal(j.ok, false)
+  assert.equal(j.problemes[0].ligne, 2)
+  assert.match(j.problemes[0].essaie, /compteur/)
+})
