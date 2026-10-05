@@ -87,3 +87,53 @@ test('kaury verifie --json : sortie lisible par une IA', async () => {
   assert.equal(j.problemes[0].ligne, 2)
   assert.match(j.problemes[0].essaie, /compteur/)
 })
+
+test('les tournures de kaury-ia.md compilent', () => {
+  const morceaux = [
+    'etat compteur = 0\nrepete 2s, -> compteur += 1\n',
+    'etat menu = faux\npage "/"\n  bouton "Menu" -> bascule menu\n  si menu\n    texte "ouvert"\n',
+    'soit liste = [{ actif: vrai }]\npage "/"\n  texte (liste.filtre(x -> x.actif)).longueur\n',
+    'soit taille = 3\npage "/"\n  texte (taille)\n',
+    'page "/"\n  scene\n    objet canette "c.glb"\n    bouton "Saute" -> saute canette\n',
+    'page "/"\n  personnage p "m.glb"\n    au clic -> joue "danse"\n    dit "Salut !"\n',
+    'page "/"\n  son "a.mp3", boucle, volume 0.4\n  bouton "Clic" -> son "clic.mp3"\n',
+    'page "/produit/:id"\n  produit = attends charge "/api/produits/{id}"\n  si produit\n    titre produit.nom\n',
+    'composant Boite titre\n  boite\n    sous-titre titre\n    contenu\npage "/"\n  Boite "Salut"\n    texte "dedans"\n',
+    'page "/"\n  section\n    style survol monte 4, ombre forte\n    mobile cache\n',
+    'page "/"\n  grille 3 colonnes\n    tablette 2 colonnes\n    mobile 1 colonne\n',
+    'importe confetti de "canvas-confetti"\npage "/"\n  bouton "Fête" -> confetti()\n',
+    'page "/"\n  au chargement -> affiche "prêt"\n  au defilement -> affiche defilement\n',
+    'site "X"\n  adresse "https://x.ch"\n  transition glisse\npage "/"\n  titre "x"\n',
+  ]
+  for (const m of morceaux) {
+    const r = compile(m, { fichier: 'm.kaury' })
+    assert.deepEqual(r.erreurs.map((e) => e.formate(m)), [], m)
+  }
+})
+
+test('rendu serveur : composant avec contenu, si/pour réactifs', async () => {
+  const { rendsPage } = await import('../src/runtime/index.js')
+  const { installeSSR, serialise } = await import('../src/runtime/ssr.js')
+  const { execute } = await import('./outils-test.js')
+  const { module } = await execute([
+    'etat fruits = ["pomme", "kiwi"]',
+    'composant Boite titre',
+    '  boite',
+    '    sous-titre titre',
+    '    contenu',
+    'page "/"',
+    '  Boite "Panier"',
+    '    pour f, i dans fruits',
+    '      texte "{i + 1}. {f}"',
+    '    si fruits.longueur > 1',
+    '      texte "plusieurs"',
+    '',
+  ].join('\n'))
+  const doc = installeSSR()
+  const cible = doc.createElement('div')
+  rendsPage(module, '/', cible)
+  const html = serialise(cible)
+  assert.match(html, /<h2 class="k-sous-titre">Panier<\/h2>/)
+  assert.match(html, /1\. pomme.*2\. kiwi.*plusieurs/s)
+  assert.match(html, /class="k-boite k-contenu"|k-contenu/)
+})
