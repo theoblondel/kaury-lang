@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kaury Playground</title>
+<meta name="description" content="Write Kaury on the left, see the site on the right. Nothing to install.">
+<style>
+  :root{--bg:#0f0d14;--panel:#17141f;--line:#2a2535;--text:#f3eef7;--muted:#a9a1b6;--pink:#ff4f8b}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+  header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--line)}
+  h1{font-size:18px;letter-spacing:-.02em;margin:0}
+  h1 span{color:var(--pink)}
+  select,button{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:7px 12px;font:inherit;cursor:pointer;min-height:40px}
+  .status{margin-left:auto;color:var(--muted);font-size:13px}
+  main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);height:calc(100% - 61px)}
+  .code{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line)}
+  textarea{flex:1;width:100%;resize:none;border:0;outline:0;padding:18px;background:var(--bg);color:var(--text);font:14px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2;white-space:pre}
+  #problems{max-height:40%;overflow:auto;margin:0;padding:0;font:13px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;color:#ffc6d6;background:#21122a;border-top:1px solid #ff4f8b55}
+  #problems:not(:empty){padding:14px 18px}
+  iframe{width:100%;height:100%;border:0;background:#fff}
+  @media (max-width:800px){main{grid-template-columns:1fr;grid-template-rows:1fr 1fr}.code{border-right:0;border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Kaury <span>·</span> playground</h1>
+  <select id="examples" aria-label="Examples">
+    <option value="counter">Counter</option>
+    <option value="scene">Immersive scene</option>
+    <option value="todo">To-do list</option>
+    <option value="form">Form</option>
+  </select>
+  <button id="share" type="button">Copy link</button>
+  <span class="status" id="status" role="status">ready</span>
+</header>
+<main>
+  <div class="code">
+    <textarea id="source" spellcheck="false" aria-label="Kaury code"></textarea>
+    <pre id="problems" role="alert"></pre>
+  </div>
+  <iframe id="preview" title="Site preview"></iframe>
+</main>
+<script type="module">
+import { compile } from './kaury-compiler.js'
+
+const EXAMPLES = {
+  counter: `state likes = 0
+let double = likes * 2
+
+page "/"
+  section fullscreen, center
+    title "Kaury", size 96, text-gradient pink purple
+      enters from bottom
+    text "Click: the double computes itself ({double})."
+    button "I like it {likes}", large -> likes += 1
+    if likes >= 5
+      text "You really like it!", bold, pink
+`,
+  scene: `page "/"
+  scene fullscreen, particles stars, background night, immediate
+    light night
+    object star "star.svg", size 0.8
+      float
+      follows mouse, smooth
+      on click -> jump
+      says "Click me!"
+    title "A universe in 10 lines", size 72, color white
+      enters from bottom
+`,
+  todo: `state tasks = ["Write the spec", "Code the lexer"]
+state next = ""
+
+page "/"
+  section center
+    title "My tasks ({tasks.length})", size 48
+    form -> add-task()
+      row gap 8
+        field next "New task…"
+        button "Add"
+    for t in tasks
+      row gap 12
+        text t
+        button "✓", small, ghost -> tasks.remove t
+    if tasks.length == 0
+      text "All done 🎉"
+
+function add-task
+  if next.trim() != ""
+    tasks.add next
+    next = ""
+`,
+  form: `page "/"
+  section center
+    title "Contact", size 56
+    form -> sent = true
+      field name "Your first name", required, label "First name"
+      field email "name@example.com", type email, required, label "Email"
+      select topic "A website", "A video", "Other", label "Topic"
+      checkbox agree "I agree to be contacted"
+      button "Send", disabled not agree
+    if sent
+      text "Thanks {name}, answer to {email} within 24 h.", bold
+`,
+}
+
+const src = document.getElementById('source')
+const problems = document.getElementById('problems')
+const preview = document.getElementById('preview')
+const status = document.getElementById('status')
+const base = new URL('./', location.href).href
+
+function fromLink() {
+  const h = location.hash.slice(1)
+  if (!h) return null
+  try { return decodeURIComponent(escape(atob(h))) } catch { return null }
+}
+src.value = fromLink() ?? EXAMPLES.counter
+
+let timer
+function runIt() {
+  const t0 = performance.now()
+  const r = compile(src.value, { file: 'site.kaury', runtime: 'kaury/runtime' })
+  problems.textContent = [...r.errors, ...r.warnings].map((e) => e.format(src.value)).join('\n\n')
+  if (!r.ok) { status.textContent = `${r.errors.length} error(s)`; return }
+  status.textContent = `compiled in ${Math.round(performance.now() - t0)} ms`
+  const code = r.js.replaceAll('</script', '<\\/script')
+  preview.srcdoc = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<base href="${base}">
+${r.fonts.map((p) => `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${p.replace(/ /g, '+')}:wght@400;600;700&display=swap">`).join('')}
+<script type="importmap">{"imports":{"kaury/runtime":"${base}rt/runtime.js"}}<\/script>
+<style id="css"></style><script>document.documentElement.classList.add('k-js')<\/script></head>
+<body><div id="app"></div>
+<script type="module">
+import * as $k from 'kaury/runtime'
+document.getElementById('css').textContent = $k.BASE_STYLE + ${JSON.stringify(r.css)}
+globalThis.__kauryDev = true
+const url = URL.createObjectURL(new Blob([${JSON.stringify(code)}], { type: 'text/javascript' }))
+const mod = await import(url)
+const app = document.getElementById('app')
+$k.startGlobals()
+const go = (path) => { document.title = $k.renderPage(mod, path, app).title }
+go('/')
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a'); if (!a) return
+  const h = a.getAttribute('href') || ''
+  if (h.startsWith('/')) { e.preventDefault(); go(h) }
+})
+<\/script></body></html>`
+}
+src.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(runIt, 300) })
+src.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault()
+    src.setRangeText('  ', src.selectionStart, src.selectionEnd, 'end')
+    runIt()
+  }
+})
+document.getElementById('examples').addEventListener('change', (e) => { src.value = EXAMPLES[e.target.value]; runIt() })
+document.getElementById('share').addEventListener('click', async () => {
+  location.hash = btoa(unescape(encodeURIComponent(src.value)))
+  await navigator.clipboard?.writeText(location.href)
+  status.textContent = 'link copied'
+})
+runIt()
+</script>
+</body>
+</html>

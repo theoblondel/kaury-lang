@@ -1,0 +1,105 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Kaury",
+  "scopeName": "source.kaury",
+  "patterns": [
+    {
+      "name": "comment.line.double-slash.kaury",
+      "match": "//.*$"
+    },
+    {
+      "include": "#text"
+    },
+    {
+      "name": "constant.other.color.kaury",
+      "match": "#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\\b"
+    },
+    {
+      "name": "constant.numeric.kaury",
+      "match": "-?\\b\\d+(?:\\.\\d+)?(?:px|rem|em|%|vh|vw|ms|s|deg|fr|/s)?"
+    },
+    {
+      "name": "constant.language.kaury",
+      "match": "(?<![\\w-])(true|false|none|vrai|faux|rien)(?![\\w-])"
+    },
+    {
+      "match": "^\\s*(component|composant)\\s+([A-Z][\\w-]*)",
+      "captures": {
+        "1": {
+          "name": "storage.type.kaury"
+        },
+        "2": {
+          "name": "entity.name.type.kaury"
+        }
+      }
+    },
+    {
+      "match": "^\\s*(function|fonction)\\s+([\\p{L}_][\\w-]*)",
+      "captures": {
+        "1": {
+          "name": "storage.type.kaury"
+        },
+        "2": {
+          "name": "entity.name.function.kaury"
+        }
+      }
+    },
+    {
+      "name": "keyword.control.kaury",
+      "match": "(?<![\\w-])(fonction|function|continue|retourne|bascule|attends|importe|exporte|import|erreur|arrete|toggle|export|return|essaie|aller|comme|ouvre|sinon|alors|close|state|await|while|catch|ferme|break|pour|dans|tant|open|etat|soit|état|puis|else|then|from|let|try|for|que|de|in|go|if|js|as|si)(?![\\w-])"
+    },
+    {
+      "name": "storage.type.kaury",
+      "match": "(?<![\\w-])(composant|component|site|page)(?![\\w-])"
+    },
+    {
+      "name": "entity.name.tag.kaury",
+      "match": "^\\s*(sous-titre|formulaire|separateur|transition|ordinateur|checkbox|textarea|tablette|subtitle|espaceur|couleurs|colonne|desktop|polices|favicon|divider|section|adresse|contenu|element|select|bouton|grille|langue|entete|spacer|header|colors|police|column|tablet|footer|mobile|button|field|boite|links|carte|icone|liste|texte|video|ligne|titre|liens|choix|style|fonts|champ|image|title|item|grid|text|lang|icon|lien|form|zone|list|slot|case|link|font|card|pied|logo|nav|url|box|row|seo)(?![\\w-])"
+    },
+    {
+      "name": "support.function.immersion.kaury",
+      "match": "(?<![\\w-])(défilement|personnage|defilement|chargement|character|parallaxe|parallax|follows|lumiere|lumière|balance|enters|camera|tourne|survol|scroll|souris|depuis|object|flotte|sound|scène|hover|mouse|objet|saute|pulse|entre|light|click|scene|float|sway|says|clic|joue|play|load|jump|suit|spin|dit|son|au|on)(?![\\w-])"
+    },
+    {
+      "name": "entity.name.type.component.kaury",
+      "match": "^\\s*[A-Z][\\w-]*"
+    },
+    {
+      "name": "keyword.operator.kaury",
+      "match": "->|==|!=|<=|>=|\\+=|-=|\\*=|/=|\\.\\.|[+*/%<>=]|(?<![\\w-])(and|or|not|et|ou|non)(?![\\w-])"
+    }
+  ],
+  "repository": {
+    "text": {
+      "name": "string.quoted.double.kaury",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.kaury",
+          "match": "\\."
+        },
+        {
+          "name": "meta.embedded.kaury",
+          "begin": "\\{",
+          "end": "\\}",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.section.embedded.kaury"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.embedded.kaury"
+            }
+          },
+          "patterns": [
+            {
+              "include": "source.kaury"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

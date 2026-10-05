@@ -1,0 +1,55 @@
+{
+  "Page": {
+    "prefix": "page",
+    "body": [
+      "page \"/${1}\"",
+      "  seo \"${2:Title}\", \"${3:Description}\"",
+      "  section ${4:hero}, fullscreen, center",
+      "    title \"${5:Hello}\"",
+      "    $0"
+    ]
+  },
+  "Component": {
+    "prefix": "component",
+    "body": [
+      "component ${1:Card} ${2:name}",
+      "  card",
+      "    text ${2:name}",
+      "  style shadow soft, hover lift 4"
+    ]
+  },
+  "3D scene": {
+    "prefix": "scene",
+    "body": [
+      "scene fullscreen",
+      "  light ${1|studio,soft,sunset,night,neon,day,dramatic|}",
+      "  object ${2:name} \"${3:model.glb}\"",
+      "    spin on scroll",
+      "    follows mouse, smooth",
+      "  title \"${4:Title}\""
+    ]
+  },
+  "Button": {
+    "prefix": "button",
+    "body": [
+      "button \"${1:Text}\" -> ${2:count += 1}"
+    ]
+  },
+  "For": {
+    "prefix": "for",
+    "body": [
+      "for ${1:item} in ${2:list}",
+      "  $0"
+    ]
+  },
+  "Form": {
+    "prefix": "form",
+    "body": [
+      "form -> sent = true",
+      "  field email \"Your email\", type email, required",
+      "  button \"Send\"",
+      "if sent",
+      "  text \"Thanks!\""
+    ]
+  }
+}

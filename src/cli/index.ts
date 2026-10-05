@@ -1,199 +1,184 @@
 #!/usr/bin/env node
-// La commande « kaury » : nouveau, dev, build, verifie, lance, traduit, publie.
+// The « kaury » command: new, dev, build, check, run, compile, deploy.
+// French aliases work too: nouveau, verifie, lance, traduit, publie.
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, watch } from 'node:fs'
 import { createServer } from 'node:http'
 import { join, resolve, extname, dirname, relative } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { compile, formateErreurs } from '../noyau/index.js'
-import { construis, lance, trouveEntree, EchecCompilation, racinePaquet } from './projet.js'
-import { modeleNouveauSite } from './modele.js'
+import { compile, formatErrors, msg, setLanguage } from '../core/index.js'
+import { build, run, findEntry, CompileFailure, packageRoot } from './project.js'
+import { newSiteTemplate } from './template.js'
 
 const c = {
-  gras: (s: string) => `\x1b[1m${s}\x1b[0m`,
-  rose: (s: string) => `\x1b[38;5;205m${s}\x1b[0m`,
-  vert: (s: string) => `\x1b[32m${s}\x1b[0m`,
-  rouge: (s: string) => `\x1b[31m${s}\x1b[0m`,
-  jaune: (s: string) => `\x1b[33m${s}\x1b[0m`,
-  gris: (s: string) => `\x1b[90m${s}\x1b[0m`,
+  bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
+  pink: (s: string) => `\x1b[38;5;205m${s}\x1b[0m`,
+  green: (s: string) => `\x1b[32m${s}\x1b[0m`,
+  red: (s: string) => `\x1b[31m${s}\x1b[0m`,
+  yellow: (s: string) => `\x1b[33m${s}\x1b[0m`,
+  gray: (s: string) => `\x1b[90m${s}\x1b[0m`,
 }
 
-const version = () => JSON.parse(readFileSync(join(racinePaquet(), 'package.json'), 'utf8')).version as string
+const version = () => JSON.parse(readFileSync(join(packageRoot(), 'package.json'), 'utf8')).version as string
 
-function aide() {
+function help() {
   console.log(`
-${c.rose(c.gras('Kaury'))} ${c.gris('v' + version())} — le langage des sites immersifs
+${c.pink(c.bold('Kaury'))} ${c.gray('v' + version())} — ${msg('the language for immersive websites', 'le langage des sites immersifs')}
 
-${c.gras('Commandes')}
-  kaury nouveau ${c.gris('mon-site')}       crée un projet prêt à l'emploi
-  kaury dev ${c.gris('[fichier]')}          affiche le site et le recharge à chaque modification
-  kaury build ${c.gris('[fichier]')}        produit le site final, optimisé, dans dist/
-  kaury verifie ${c.gris('[fichiers]')}     vérifie le code sans construire ${c.gris('(--json pour les IA)')}
-  kaury lance ${c.gris('fichier.kaury')}    exécute un programme (sans page)
-  kaury traduit ${c.gris('fichier.kaury')}  montre le JavaScript produit
-  kaury publie ${c.gris('[--netlify|--vercel]')}  construit puis met en ligne
+${c.bold(msg('Commands', 'Commandes'))}
+  kaury new ${c.gray('my-site')}          ${msg('creates a ready-to-use project', 'crée un projet prêt à l\'emploi')}
+  kaury dev ${c.gray('[file]')}           ${msg('shows the site and reloads it on every change', 'affiche le site et le recharge à chaque modification')}
+  kaury build ${c.gray('[file]')}         ${msg('makes the final, optimized site in dist/', 'produit le site final, optimisé, dans dist/')}
+  kaury check ${c.gray('[files]')}        ${msg('checks the code without building', 'vérifie le code sans construire')} ${c.gray('(--json)')}
+  kaury run ${c.gray('file.kaury')}       ${msg('runs a program (no page)', 'exécute un programme (sans page)')}
+  kaury compile ${c.gray('file.kaury')}   ${msg('shows the generated JavaScript', 'montre le JavaScript produit')}
+  kaury deploy ${c.gray('[--netlify|--vercel]')}  ${msg('builds then publishes', 'construit puis met en ligne')}
 
-${c.gras('Aide')}  https://kaury.dev   ·   spécification pour les IA : docs/kaury-ia.md
+${c.gray(msg('Options: --lang fr|en (messages), --port 3000, --out dist', 'Options : --lang fr|en (messages), --port 3000, --out dist'))}
+${c.gray('Docs: https://kaury.dev   ·   AI spec: docs/kaury-ai.md')}
 `)
 }
 
 async function main() {
-  const [cmd, ...args] = process.argv.slice(2)
-  const drapeaux = new Set(args.filter((a) => a.startsWith('--')))
-  const positions = args.filter((a) => !a.startsWith('--'))
-  const ici = process.cwd()
+  const argv = process.argv.slice(2)
+  const lang = value(argv, '--lang')
+  if (lang === 'fr' || lang === 'en') setLanguage(lang)
+  const args = argv.filter((a, i) => !(a === '--lang' || argv[i - 1] === '--lang'))
+  const [cmd, ...rest] = args
+  const flags = new Set(rest.filter((a) => a.startsWith('--')))
+  const positional = rest.filter((a, i) => !a.startsWith('--') && !['--port', '--out'].includes(rest[i - 1]))
+  const here = process.cwd()
   switch (cmd) {
-    case undefined:
-    case 'aide':
-    case 'help':
-    case '--help':
-    case '-h':
-      return aide()
-    case '--version':
-    case '-v':
-    case 'version':
+    case undefined: case 'help': case 'aide': case '--help': case '-h':
+      return help()
+    case '--version': case '-v': case 'version':
       return console.log(version())
-    case 'nouveau':
-    case 'new':
-      return nouveau(positions[0] ?? 'mon-site')
+    case 'new': case 'nouveau':
+      return newProject(positional[0] ?? 'my-site')
     case 'dev':
-      return dev(ici, positions[0], Number(valeur(args, '--port') ?? 3000))
-    case 'build':
-    case 'construis':
-      return build(ici, positions[0], valeur(args, '--sortie'))
-    case 'verifie':
-    case 'check':
-      return verifie(ici, positions, drapeaux.has('--json'))
-    case 'lance':
-    case 'run':
-      return lanceCmd(ici, positions[0])
-    case 'traduit':
-    case 'compile':
-      return traduit(ici, positions[0], drapeaux.has('--css'))
-    case 'publie':
-    case 'deploy':
-      return publie(ici, positions[0], drapeaux)
+      return dev(here, positional[0], Number(value(rest, '--port') ?? 3000))
+    case 'build': case 'construis':
+      return buildCmd(here, positional[0], value(rest, '--out') ?? value(rest, '--sortie'))
+    case 'check': case 'verifie':
+      return check(here, positional, flags.has('--json'))
+    case 'run': case 'lance':
+      return runCmd(here, positional[0])
+    case 'compile': case 'traduit':
+      return compileCmd(here, positional[0], flags.has('--css'))
+    case 'deploy': case 'publie':
+      return deploy(here, positional[0], flags)
     default:
-      // « kaury fichier.kaury » = lance ou dev selon le contenu
       if (cmd.endsWith('.kaury')) {
-        const src = readFileSync(resolve(ici, cmd), 'utf8')
-        if (/^\s*page\s+"/m.test(src)) return dev(ici, cmd, 3000)
-        return lanceCmd(ici, cmd)
+        const src = readFileSync(resolve(here, cmd), 'utf8')
+        if (/^\s*page\s+"/m.test(src)) return dev(here, cmd, 3000)
+        return runCmd(here, cmd)
       }
-      console.error(c.rouge(`Commande inconnue « ${cmd} ».`))
-      aide()
+      console.error(c.red(msg(`Unknown command "${cmd}".`, `Commande inconnue « ${cmd} ».`)))
+      help()
       process.exitCode = 1
   }
 }
 
-function valeur(args: string[], nom: string): string | undefined {
-  const i = args.indexOf(nom)
+function value(args: string[], name: string): string | undefined {
+  const i = args.indexOf(name)
   if (i >= 0) return args[i + 1]
-  const eg = args.find((a) => a.startsWith(nom + '='))
-  return eg?.split('=')[1]
+  return args.find((a) => a.startsWith(name + '='))?.split('=')[1]
 }
 
-function afficheEchec(e: unknown) {
-  if (e instanceof EchecCompilation) {
-    for (const { e: err, source } of e.erreurs) console.error('\n' + c.rouge(err.formate(source)))
-    console.error(c.gris(`\n${e.erreurs.length} erreur${e.erreurs.length > 1 ? 's' : ''}.`))
-  } else console.error(c.rouge('\nErreur : ' + ((e as Error)?.message ?? String(e))))
+function showFailure(e: unknown) {
+  if (e instanceof CompileFailure) {
+    for (const { e: err, source } of e.errors) console.error('\n' + c.red(err.format(source)))
+    console.error(c.gray(`\n${e.errors.length} ${msg('error', 'erreur')}${e.errors.length > 1 ? 's' : ''}.`))
+  } else console.error(c.red(`\n${msg('Error', 'Erreur')}: ${(e as Error)?.message ?? String(e)}`))
   process.exitCode = 1
 }
 
-// ---------------------------------------------------------------- nouveau
-function nouveau(nom: string) {
-  const dossier = resolve(process.cwd(), nom)
-  if (existsSync(dossier) && readdirSync(dossier).length) {
-    console.error(c.rouge(`Le dossier « ${nom} » existe déjà et n'est pas vide.`))
+// ---------------------------------------------------------------- new
+function newProject(name: string) {
+  const dir = resolve(process.cwd(), name)
+  if (existsSync(dir) && readdirSync(dir).length) {
+    console.error(c.red(msg(`The folder "${name}" already exists and is not empty.`, `Le dossier « ${name} » existe déjà et n'est pas vide.`)))
     process.exitCode = 1
     return
   }
-  for (const [chemin, contenu] of Object.entries(modeleNouveauSite(nom))) {
-    const p = join(dossier, chemin)
+  for (const [path, content] of Object.entries(newSiteTemplate(name))) {
+    const p = join(dir, path)
     mkdirSync(dirname(p), { recursive: true })
-    writeFileSync(p, contenu)
+    writeFileSync(p, content)
   }
-  console.log(`
-${c.vert('✓')} Projet ${c.gras(nom)} créé.
-
-  cd ${nom}
-  kaury dev
-
-Ouvre ${c.gras('site.kaury')} : tout le site est dans ce fichier.
-`)
+  console.log(`\n${c.green('✓')} ${msg('Project', 'Projet')} ${c.bold(name)} ${msg('created.', 'créé.')}\n\n  cd ${name}\n  kaury dev\n\n${msg('Open', 'Ouvre')} ${c.bold('site.kaury')}: ${msg('the whole site is in this file.', 'tout le site est dans ce fichier.')}\n`)
 }
 
 // ---------------------------------------------------------------- build
-async function build(ici: string, fichier?: string, sortie?: string) {
+async function buildCmd(here: string, file?: string, out?: string) {
   try {
-    const entree = trouveEntree(ici, fichier)
-    console.log(c.gris(`Construction de ${relative(ici, entree)}…`))
-    const r = await construis(entree, { sortie })
-    for (const { e, source } of r.collecte.avertissements) console.log(c.jaune(e.formate(source)))
-    console.log(`${c.vert('✓')} ${r.pages.length} page${r.pages.length > 1 ? 's' : ''} (${r.pages.join(', ')}) en ${r.duree} ms → ${relative(ici, r.dossier) || '.'}`)
-    if (r.collecte.immersion) console.log(c.gris('  immersion : la bibliothèque 3D est chargée seulement sur les pages qui en ont besoin.'))
+    const entry = findEntry(here, file)
+    console.log(c.gray(msg(`Building ${relative(here, entry)}…`, `Construction de ${relative(here, entry)}…`)))
+    const r = await build(entry, { out })
+    for (const { e, source } of r.collected.warnings) console.log(c.yellow(e.format(source)))
+    console.log(`${c.green('✓')} ${r.pages.length} page${r.pages.length > 1 ? 's' : ''} (${r.pages.join(', ')}), ${r.images} image${r.images > 1 ? 's' : ''} ${msg('optimized', 'optimisée' + (r.images > 1 ? 's' : ''))}, ${r.duration} ms → ${relative(here, r.dir) || '.'}`)
+    if (r.collected.immersion) console.log(c.gray(msg('  immersion: the 3D library loads only on pages that need it, after the page is displayed.', '  immersion : la 3D se charge seulement sur les pages qui en ont besoin, après l\'affichage.')))
   } catch (e) {
-    afficheEchec(e)
+    showFailure(e)
   }
 }
 
-// ---------------------------------------------------------------- verifie
-function fichiersKaury(d: string): string[] {
+// ---------------------------------------------------------------- check
+function kauryFiles(d: string): string[] {
   const r: string[] = []
   for (const f of readdirSync(d)) {
     if (f.startsWith('.') || f === 'node_modules' || f === 'dist') continue
     const p = join(d, f)
-    if (statSync(p).isDirectory()) r.push(...fichiersKaury(p))
+    if (statSync(p).isDirectory()) r.push(...kauryFiles(p))
     else if (f.endsWith('.kaury')) r.push(p)
   }
   return r
 }
 
-function verifie(ici: string, fichiers: string[], json: boolean) {
-  const liste = fichiers.length ? fichiers.flatMap((f) => (statSync(resolve(ici, f)).isDirectory() ? fichiersKaury(resolve(ici, f)) : [resolve(ici, f)])) : fichiersKaury(ici)
-  const tout: any[] = []
-  let nbErr = 0
-  for (const f of liste) {
+function check(here: string, files: string[], json: boolean) {
+  const list = files.length ? files.flatMap((f) => (statSync(resolve(here, f)).isDirectory() ? kauryFiles(resolve(here, f)) : [resolve(here, f)])) : kauryFiles(here)
+  const all: any[] = []
+  let errors = 0
+  for (const f of list) {
     const src = readFileSync(f, 'utf8')
-    const r = compile(src, { fichier: relative(ici, f).replace(/\\/g, '/'), verifieSeulement: true })
-    nbErr += r.erreurs.length
-    if (json) tout.push(...[...r.erreurs, ...r.avertissements].map((e) => e.versJSON()))
+    const r = compile(src, { file: relative(here, f).replace(/\\/g, '/'), checkOnly: true })
+    errors += r.errors.length
+    if (json) all.push(...[...r.errors, ...r.warnings].map((e) => e.toJSON()))
     else {
-      const msg = formateErreurs(r, src)
-      if (msg) console.log((r.erreurs.length ? c.rouge : c.jaune)(msg) + '\n')
+      const m = formatErrors(r, src)
+      if (m) console.log((r.errors.length ? c.red : c.yellow)(m) + '\n')
     }
   }
-  if (json) console.log(JSON.stringify({ ok: nbErr === 0, fichiers: liste.length, problemes: tout }, null, 2))
-  else if (nbErr === 0) console.log(`${c.vert('✓')} ${liste.length} fichier${liste.length > 1 ? 's' : ''} vérifié${liste.length > 1 ? 's' : ''}, aucune erreur.`)
-  else console.log(c.rouge(`${nbErr} erreur${nbErr > 1 ? 's' : ''}.`))
-  if (nbErr) process.exitCode = 1
+  if (json) console.log(JSON.stringify({ ok: errors === 0, files: list.length, problems: all }, null, 2))
+  else if (errors === 0) console.log(`${c.green('✓')} ${list.length} ${msg('file' + (list.length > 1 ? 's' : '') + ' checked, no error.', 'fichier' + (list.length > 1 ? 's vérifiés' : ' vérifié') + ', aucune erreur.')}`)
+  else console.log(c.red(`${errors} ${msg('error', 'erreur')}${errors > 1 ? 's' : ''}.`))
+  if (errors) process.exitCode = 1
 }
 
-// ---------------------------------------------------------------- lance / traduit
-async function lanceCmd(ici: string, fichier?: string) {
-  if (!fichier) {
-    console.error(c.rouge('Indique le fichier à lancer : kaury lance calcul.kaury'))
+// ---------------------------------------------------------------- run / compile
+async function runCmd(here: string, file?: string) {
+  if (!file) {
+    console.error(c.red(msg('Give the file to run: kaury run program.kaury', 'Indique le fichier à lancer : kaury lance calcul.kaury')))
     process.exitCode = 1
     return
   }
   try {
-    await lance(resolve(ici, fichier))
+    await run(resolve(here, file))
   } catch (e) {
-    afficheEchec(e)
+    showFailure(e)
   }
 }
 
-function traduit(ici: string, fichier: string | undefined, css: boolean) {
-  if (!fichier) {
-    console.error(c.rouge('Indique le fichier : kaury traduit site.kaury'))
+function compileCmd(here: string, file: string | undefined, css: boolean) {
+  if (!file) {
+    console.error(c.red(msg('Give the file: kaury compile site.kaury', 'Indique le fichier : kaury traduit site.kaury')))
     process.exitCode = 1
     return
   }
-  const src = readFileSync(resolve(ici, fichier), 'utf8')
-  const r = compile(src, { fichier })
+  const src = readFileSync(resolve(here, file), 'utf8')
+  const r = compile(src, { file })
   if (!r.ok) {
-    console.error(c.rouge(formateErreurs(r, src)))
+    console.error(c.red(formatErrors(r, src)))
     process.exitCode = 1
     return
   }
@@ -201,51 +186,49 @@ function traduit(ici: string, fichier: string | undefined, css: boolean) {
 }
 
 // ---------------------------------------------------------------- dev
-async function dev(ici: string, fichier: string | undefined, port: number) {
-  let entree: string
+async function dev(here: string, file: string | undefined, port: number) {
+  let entry: string
   try {
-    entree = trouveEntree(ici, fichier)
+    entry = findEntry(here, file)
   } catch (e) {
-    return afficheEchec(e)
+    return showFailure(e)
   }
-  const dossierSite = dirname(entree)
-  const sortie = join(dossierSite, '.kaury-cache', 'dev')
-  let erreur: string | null = null
-  let version = 0
+  const siteDir = dirname(entry)
+  const out = join(siteDir, '.kaury-cache', 'dev')
+  let error: string | null = null
+  let ver = 0
   const clients = new Set<any>()
 
-  const reconstruis = async () => {
+  const rebuild = async () => {
     const t0 = Date.now()
     try {
-      const r = await construis(entree, { sortie, dev: true, minifie: false })
-      erreur = null
-      for (const { e, source } of r.collecte.avertissements) console.log(c.jaune(e.formate(source)))
-      console.log(`${c.vert('✓')} ${c.gris(new Date().toLocaleTimeString('fr-CH'))} ${r.pages.length} page${r.pages.length > 1 ? 's' : ''} prête${r.pages.length > 1 ? 's' : ''} en ${Date.now() - t0} ms`)
+      const r = await build(entry, { out, dev: true, minify: false })
+      error = null
+      for (const { e, source } of r.collected.warnings) console.log(c.yellow(e.format(source)))
+      console.log(`${c.green('✓')} ${c.gray(new Date().toLocaleTimeString())} ${r.pages.length} page${r.pages.length > 1 ? 's' : ''} ${msg('ready in', 'prête' + (r.pages.length > 1 ? 's' : '') + ' en')} ${Date.now() - t0} ms`)
     } catch (e) {
-      erreur = e instanceof EchecCompilation ? e.erreurs.map(({ e: x, source }) => x.formate(source)).join('\n\n') : (e as Error).message
-      afficheEchec(e)
+      error = e instanceof CompileFailure ? e.errors.map(({ e: x, source }) => x.format(source)).join('\n\n') : (e as Error).message
+      showFailure(e)
       process.exitCode = 0
     }
-    version++
-    for (const r of clients) r.write(`data: ${version}\n\n`)
+    ver++
+    for (const r of clients) r.write(`data: ${ver}\n\n`)
   }
-  await reconstruis()
+  await rebuild()
 
-  let minuteur: any
-  watch(dossierSite, { recursive: true }, (_ev, f) => {
+  let timer: any
+  const later = () => {
+    clearTimeout(timer)
+    timer = setTimeout(rebuild, 60)
+  }
+  watch(siteDir, { recursive: true }, (_ev, f) => {
     if (!f || f.includes('.kaury-cache') || f.startsWith('dist') || f.includes('node_modules')) return
-    clearTimeout(minuteur)
-    minuteur = setTimeout(reconstruis, 60)
+    later()
   })
-  // en développant Kaury lui-même : un changement du runtime reconstruit aussi le site
-  const runtime = join(racinePaquet(), 'src', 'runtime')
-  if (existsSync(runtime)) {
-    for (const d of [runtime, join(racinePaquet(), 'src', 'immersion')]) {
-      watch(d, { recursive: true }, () => {
-        clearTimeout(minuteur)
-        minuteur = setTimeout(reconstruis, 60)
-      })
-    }
+  // while developing Kaury itself: a runtime change rebuilds the site too
+  for (const d of ['runtime', 'immersion']) {
+    const p = join(packageRoot(), 'src', d)
+    if (existsSync(p)) watch(p, { recursive: true }, later)
   }
 
   const types: Record<string, string> = {
@@ -255,72 +238,67 @@ async function dev(ici: string, fichier: string | undefined, port: number) {
     '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4', '.webm': 'video/webm',
     '.woff2': 'font/woff2', '.ico': 'image/x-icon', '.map': 'application/json', '.txt': 'text/plain; charset=utf-8',
   }
-  const serveur = createServer((req, res) => {
+  const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://x')
-    if (url.pathname === '/_kaury/evenements') {
+    if (url.pathname === '/_kaury/events') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' })
-      res.write(`data: ${version}\n\n`)
+      res.write(`data: ${ver}\n\n`)
       clients.add(res)
       req.on('close', () => clients.delete(res))
       return
     }
-    if (url.pathname === '/_kaury/recharge.js') {
+    if (url.pathname === '/_kaury/reload.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript' })
-      res.end(`let v=null;const s=new EventSource('/_kaury/evenements');s.onmessage=(e)=>{if(v!==null&&e.data!==v)location.reload();v=e.data}`)
+      res.end(`let v=null;const s=new EventSource('/_kaury/events');s.onmessage=(e)=>{if(v!==null&&e.data!==v)location.reload();v=e.data}`)
       return
     }
-    if (erreur) {
+    if (error) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
-      res.end(pageErreur(erreur))
+      res.end(errorPage(error))
       return
     }
-    let chemin = decodeURIComponent(url.pathname)
-    let p = join(sortie, chemin)
+    const path = decodeURIComponent(url.pathname)
+    let p = join(out, path)
     if (existsSync(p) && statSync(p).isDirectory()) p = join(p, 'index.html')
-    if (!existsSync(p) && !extname(chemin)) p = join(sortie, '404.html')
+    if (!existsSync(p) && !extname(path)) p = join(out, '404.html')
     if (!existsSync(p)) {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
-      res.end(`Introuvable : ${chemin}\n(les images, modèles et sons vont dans le dossier public/)`)
+      res.end(msg(`Not found: ${path}\n(images, models and sounds go in the public/ folder)`, `Introuvable : ${path}\n(les images, modèles et sons vont dans le dossier public/)`))
       return
     }
-    res.writeHead(p.endsWith('404.html') && chemin !== '/404' ? 200 : 200, { 'Content-Type': types[extname(p)] ?? 'application/octet-stream', 'Cache-Control': 'no-store' })
+    res.writeHead(200, { 'Content-Type': types[extname(p)] ?? 'application/octet-stream', 'Cache-Control': 'no-store' })
     res.end(readFileSync(p))
   })
-  serveur.on('error', (e: any) => {
+  server.on('error', (e: any) => {
     if (e.code === 'EADDRINUSE') {
-      console.log(c.jaune(`Le port ${port} est pris, j'essaie ${port + 1}…`))
-      serveur.listen(++port)
-    } else afficheEchec(e)
+      console.log(c.yellow(msg(`Port ${port} is taken, trying ${port + 1}…`, `Le port ${port} est pris, j'essaie ${port + 1}…`)))
+      server.listen(++port)
+    } else showFailure(e)
   })
-  serveur.listen(port, () => {
-    console.log(`\n${c.rose(c.gras('Kaury'))} tourne sur ${c.gras(`http://localhost:${port}`)}\n${c.gris('Modifie ' + relative(ici, entree) + ' : la page se recharge toute seule. Ctrl+C pour arrêter.')}\n`)
+  server.listen(port, () => {
+    console.log(`\n${c.pink(c.bold('Kaury'))} ${msg('runs on', 'tourne sur')} ${c.bold(`http://localhost:${port}`)}\n${c.gray(msg(`Edit ${relative(here, entry)}: the page reloads by itself. Ctrl+C to stop.`, `Modifie ${relative(here, entry)} : la page se recharge toute seule. Ctrl+C pour arrêter.`))}\n`)
   })
 }
 
-function pageErreur(msg: string): string {
-  const e = msg.replace(/&/g, '&amp;').replace(/</g, '&lt;')
-  return `<!doctype html><meta charset="utf-8"><title>Erreur Kaury</title><style>body{margin:0;background:#160d18;color:#ffe3ea;font:15px/1.6 ui-monospace,Consolas,monospace;padding:6vh 6vw}h1{font:700 22px system-ui;color:#ff4f8b}pre{white-space:pre-wrap;background:#21122a;border:1px solid #ff4f8b55;border-radius:14px;padding:22px}</style><h1>Kaury a trouvé un problème</h1><pre>${e}</pre><p style="opacity:.7">Corrige le fichier : la page se recharge toute seule.</p><script type="module" src="/_kaury/recharge.js"></script>`
+function errorPage(m: string): string {
+  const e = m.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  return `<!doctype html><meta charset="utf-8"><title>Kaury error</title><style>body{margin:0;background:#160d18;color:#ffe3ea;font:15px/1.6 ui-monospace,Consolas,monospace;padding:6vh 6vw}h1{font:700 22px system-ui;color:#ff4f8b}pre{white-space:pre-wrap;background:#21122a;border:1px solid #ff4f8b55;border-radius:14px;padding:22px}</style><h1>${msg('Kaury found a problem', 'Kaury a trouvé un problème')}</h1><pre>${e}</pre><p style="opacity:.7">${msg('Fix the file: the page reloads by itself.', 'Corrige le fichier : la page se recharge toute seule.')}</p><script type="module" src="/_kaury/reload.js"></script>`
 }
 
-// ---------------------------------------------------------------- publie
-async function publie(ici: string, fichier: string | undefined, drapeaux: Set<string>) {
-  await build(ici, fichier)
+// ---------------------------------------------------------------- deploy
+async function deploy(here: string, file: string | undefined, flags: Set<string>) {
+  await buildCmd(here, file)
   if (process.exitCode) return
-  const dist = join(dirname(trouveEntree(ici, fichier)), 'dist')
-  if (drapeaux.has('--vercel')) {
-    spawnSync('npx', ['--yes', 'vercel', 'deploy', dist, '--prod'], { stdio: 'inherit', shell: true })
-  } else if (drapeaux.has('--netlify')) {
-    spawnSync('npx', ['--yes', 'netlify-cli', 'deploy', '--dir', dist, '--prod'], { stdio: 'inherit', shell: true })
-  } else {
-    console.log(`
-Le site est prêt dans ${c.gras(relative(ici, dist) || 'dist')}. C'est un site statique : il marche partout.
-
-  ${c.gras('kaury publie --netlify')}   met en ligne sur Netlify
-  ${c.gras('kaury publie --vercel')}    met en ligne sur Vercel
-  ou glisse le dossier dist/ sur ${c.gras('https://app.netlify.com/drop')}
-  ou copie-le chez ton hébergeur (FTP).
-`)
+  const dist = join(dirname(findEntry(here, file)), 'dist')
+  if (flags.has('--vercel')) spawnSync('npx', ['--yes', 'vercel', 'deploy', dist, '--prod'], { stdio: 'inherit', shell: true })
+  else if (flags.has('--netlify')) spawnSync('npx', ['--yes', 'netlify-cli', 'deploy', '--dir', dist, '--prod'], { stdio: 'inherit', shell: true })
+  else {
+    console.log(`\n${msg('The site is ready in', 'Le site est prêt dans')} ${c.bold(relative(here, dist) || 'dist')}. ${msg('It is a static site: it works anywhere.', 'C\'est un site statique : il marche partout.')}\n
+  ${c.bold('kaury deploy --netlify')}   ${msg('publishes on Netlify', 'met en ligne sur Netlify')}
+  ${c.bold('kaury deploy --vercel')}    ${msg('publishes on Vercel', 'met en ligne sur Vercel')}
+  ${msg('or drop the dist/ folder on', 'ou glisse le dossier dist/ sur')} ${c.bold('https://app.netlify.com/drop')}
+  ${msg('or copy it to your host (FTP) — the .htaccess file is ready for Apache.', 'ou copie-le chez ton hébergeur (FTP) — le fichier .htaccess est prêt pour Apache.')}\n`)
   }
 }
 
-main().catch(afficheEchec)
+main().catch(showFailure)

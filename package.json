@@ -1,26 +1,27 @@
 {
   "name": "kaury",
-  "version": "0.1.0",
-  "main": "dist/noyau.js",
+  "version": "0.2.0",
+  "main": "dist/core.js",
   "scripts": {
-    "construit": "node scripts/construit.mjs",
+    "build": "node scripts/build.mjs",
     "test": "tsx --test tests/*.test.ts",
     "kaury": "tsx src/cli/index.ts",
-    "verifie": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "measure": "node scripts/measure.mjs"
   },
   "keywords": [
-    "langage",
     "language",
     "web",
     "3d",
     "three",
-    "immersif",
-    "compilateur",
-    "french"
+    "immersive",
+    "compiler",
+    "website",
+    "seo"
   ],
   "author": "",
   "license": "MIT",
-  "description": "Kaury — le langage des sites immersifs. Logique, structure, style et 3D dans un seul fichier.",
+  "description": "Kaury — the language for immersive websites. Logic, structure, style and 3D in a single file.",
   "devDependencies": {
     "@types/node": "^26.6.4",
     "@types/three": "^0.186.0",
@@ -30,6 +31,7 @@
   "dependencies": {
     "esbuild": "^0.28.2",
     "lottie-web": "^5.13.0",
+    "sharp": "^0.35.5",
     "three": "^0.186.1"
   },
   "type": "module",
@@ -37,7 +39,7 @@
     "kaury": "bin/kaury.js"
   },
   "exports": {
-    ".": "./dist/noyau.js",
+    ".": "./dist/core.js",
     "./runtime": "./src/runtime/index.ts",
     "./package.json": "./package.json"
   },

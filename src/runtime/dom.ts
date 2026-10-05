@@ -1,347 +1,443 @@
-// Construction de la page : éléments, textes réactifs, conditions, boucles, champs liés.
+// Building the page: elements, reactive texts, conditions, loops, bound fields.
+// Hydration: in the browser, the first render *adopts* the HTML made by the server instead of
+// rebuilding it (faster, no flash, the largest image stays the same). Any difference → full re-render.
 
-import { effet, racine, sansSuivi, lot, brut, auNettoyage } from './reactif.js'
-import { t, enListe, appelle, enNombre } from './outils.js'
+import { effect, root, untracked, batch, raw, onCleanup } from './reactive.js'
+import { t, toList, call, toNumber } from './utils.js'
 
-export const estNavigateur = () => typeof window !== 'undefined' && !(globalThis as any).__kaurySSR
+export const inBrowser = () => typeof window !== 'undefined' && !(globalThis as any).__kaurySSR
 
-export function h(balise: string, classes?: string): any {
-  const el = document.createElement(balise)
-  if (classes) el.className = classes
+// ---------------- hydration ----------------
+let hydrating = false
+const touched = new Set<any>()
+export class HydrationMismatch extends Error {}
+export function setHydrating(v: boolean) {
+  hydrating = v
+  if (v) touched.clear()
+}
+/** After hydration: a parent that still has server nodes nobody adopted means the HTML differs. */
+export function checkLeftovers() {
+  for (const p of touched) {
+    if (peek(p)) throw new HydrationMismatch('server HTML has extra nodes')
+  }
+  touched.clear()
+}
+export const isHydrating = () => hydrating
+
+function skipBlank(n: any): any {
+  while (n && n.nodeType === 3 && !/\S/.test(n.data)) n = n.nextSibling
+  return n
+}
+/** Next node of the parent that is not adopted yet (without taking it). */
+function peek(parent: any): any {
+  return skipBlank(parent.$kNext === undefined ? parent.firstChild : parent.$kNext)
+}
+function take(parent: any): any {
+  touched.add(parent)
+  const n = peek(parent)
+  parent.$kNext = n ? n.nextSibling : null
+  return n
+}
+function between(start: any, end: any): any[] {
+  const r: any[] = []
+  for (let n = start; n && n !== end; n = n.nextSibling) r.push(n)
+  return r
+}
+
+/** Creates (or adopts, while hydrating) an element inside its parent. */
+export function h(parent: any, tag: string, cls?: string): any {
+  if (hydrating && parent && parent.nodeType === 1) {
+    const n = take(parent)
+    if (!n || n.nodeType !== 1 || n.localName !== tag) throw new HydrationMismatch(`expected <${tag}>, found ${n ? n.localName ?? '#text' : 'nothing'}`)
+    if (cls) n.className = cls
+    else n.removeAttribute('class')
+    return n
+  }
+  const el = document.createElement(tag)
+  if (cls) el.className = cls
+  if (parent) parent.appendChild(el)
   return el
 }
-export const fragment = () => document.createDocumentFragment()
-export function unique(f: any): any {
-  const enfants = [...f.childNodes].filter((n: any) => n.nodeType !== 8 || true)
-  return enfants.length === 1 ? enfants[0] : f
+
+function anchor(parent: any, label: string): any {
+  if (hydrating && parent.nodeType === 1) {
+    const n = take(parent)
+    if (!n || n.nodeType !== 8) throw new HydrationMismatch(`expected the ${label} marker`)
+    return n
+  }
+  const c = document.createComment(label)
+  parent.appendChild(c)
+  return c
 }
 
-export function texte(el: any, fn: () => unknown) {
-  effet(() => {
-    el.textContent = t(fn())
-  })
+export function setText(el: any, s: string) {
+  if (el.textContent !== s) el.textContent = s
 }
 
-export function attr(el: any, nom: string, fn: () => unknown) {
-  effet(() => {
+export function text(el: any, fn: () => unknown) {
+  effect(() => setText(el, t(fn())))
+}
+
+export function attr(el: any, name: string, fn: () => unknown) {
+  effect(() => {
     const v = fn()
-    if (v === false || v === null || v === undefined) el.removeAttribute(nom)
-    else el.setAttribute(nom, v === true ? '' : String(v))
-    if (nom === 'disabled') el.disabled = !!v
+    if (v === false || v === null || v === undefined) el.removeAttribute(name)
+    else el.setAttribute(name, v === true ? '' : String(v))
+    if (name === 'disabled') el.disabled = !!v
   })
 }
 
 export function style(el: any, prop: string, fn: () => unknown) {
-  effet(() => {
+  effect(() => {
     const v = fn()
     el.style.setProperty(prop, v === null || v === undefined ? '' : String(v))
   })
 }
 
-export function chemin(s: unknown): string {
+export const px = (v: unknown) => (typeof v === 'number' ? `${v}px` : String(v ?? ''))
+
+/** "photo.jpg" → "/photo.jpg" */
+export function path(s: unknown): string {
   const v = String(s ?? '')
   if (/^(\/|[a-z][a-z0-9+.-]*:|#|\.\.\/)/i.test(v)) return v
   return '/' + v.replace(/^\.\//, '')
 }
 
-export const px = (v: unknown) => (typeof v === 'number' ? `${v}px` : String(v ?? ''))
+// ---------------- images ----------------
+declare const __KAURY_IMAGES__: Record<string, { w: number; h: number; srcset?: string }> | undefined
+const images = (): Record<string, { w: number; h: number; srcset?: string }> =>
+  (typeof __KAURY_IMAGES__ !== 'undefined' ? __KAURY_IMAGES__ : undefined) ?? (globalThis as any).__kauryImages ?? {}
 
-/** Écoute un événement. Les changements d'état faits dans l'action sont regroupés. */
-export function sur(el: any, type: string, fn: (e: any) => any) {
-  if (!estNavigateur()) return
+/**
+ * An image with good defaults: real width/height (no layout jump), responsive srcset,
+ * eager + high priority for the first image of the page, lazy for the others.
+ * priority: 2 = first image of the page, 1 = near the top, 0 = further down.
+ */
+export function img(el: any, src: string | (() => unknown), priority = 0) {
+  el.setAttribute('loading', priority ? 'eager' : 'lazy')
+  el.setAttribute('decoding', 'async')
+  if (priority === 2) el.setAttribute('fetchpriority', 'high')
+  const apply = (s: unknown) => {
+    const p = path(s)
+    el.setAttribute('src', p)
+    const info = images()[p]
+    if (!info) return
+    el.setAttribute('width', String(info.w))
+    el.setAttribute('height', String(info.h))
+    if (info.srcset) {
+      el.setAttribute('srcset', info.srcset)
+      el.setAttribute('sizes', priority ? '(max-width: 640px) 100vw, 60vw' : 'auto, (max-width: 640px) 100vw, 50vw')
+    }
+  }
+  if (typeof src === 'function') effect(() => apply(src()))
+  else apply(src)
+}
+
+/** Listens to an event. State changes made by the action are grouped. */
+export function on(el: any, type: string, fn: (e: any) => any) {
+  if (!inBrowser() || !el) return
   if (type === 'mount') {
-    queueMicrotask(() => lot(() => appelle(() => fn(undefined))))
+    queueMicrotask(() => batch(() => call(() => fn(undefined))))
     return
   }
   if (type === 'scroll') {
-    let prevu = false
-    const ecoute = () => {
-      if (prevu) return
-      prevu = true
+    let planned = false
+    const listener = () => {
+      if (planned) return
+      planned = true
       requestAnimationFrame(() => {
-        prevu = false
-        lot(() => appelle(() => fn(undefined)))
+        planned = false
+        batch(() => call(() => fn(undefined)))
       })
     }
-    addEventListener('scroll', ecoute, { passive: true })
-    auNettoyage(() => removeEventListener('scroll', ecoute))
+    addEventListener('scroll', listener, { passive: true })
+    onCleanup(() => removeEventListener('scroll', listener))
     return
   }
-  const cibleEl = el?.$kEl ?? el
-  const gere = (e: any) => {
+  const handle = (e: any) => {
     if (type === 'submit') e.preventDefault()
-    lot(() => appelle(() => fn(e)))
+    batch(() => call(() => fn(e)))
   }
-  cibleEl.addEventListener(type, gere)
-  if (type === 'click' && cibleEl.tagName && !['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA', 'LABEL'].includes(cibleEl.tagName)) {
-    // un élément cliquable doit l'être aussi au clavier
-    cibleEl.classList.add('k-cliquable')
-    if (!cibleEl.hasAttribute('tabindex')) cibleEl.tabIndex = 0
-    if (!cibleEl.hasAttribute('role')) cibleEl.setAttribute('role', 'button')
-    cibleEl.addEventListener('keydown', (e: KeyboardEvent) => {
+  el.addEventListener(type, handle)
+  if (type === 'click' && el.tagName && !['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA', 'LABEL'].includes(el.tagName)) {
+    // a clickable element must also work with the keyboard
+    el.classList.add('k-clickable')
+    if (!el.hasAttribute('tabindex')) el.tabIndex = 0
+    if (!el.hasAttribute('role')) el.setAttribute('role', 'button')
+    el.addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
-        gere(e)
+        handle(e)
       }
     })
   }
 }
 
-// ---------------- si / pour ----------------
-export function si(parent: any, branches: [() => unknown, (p: any) => void][]) {
-  const ancre = document.createComment('si')
-  parent.append(ancre)
-  let courant = -2
-  let noeuds: any[] = []
-  let libere: (() => void) | null = null
-  effet(() => {
+// ---------------- if / for ----------------
+export function when(parent: any, branches: [() => unknown, (p: any) => void][]) {
+  const hydrate = hydrating && parent.nodeType === 1
+  let marker: any = null
+  let currentIdx = -2
+  let nodes: any[] = []
+  let release: (() => void) | null = null
+  effect(() => {
     const idx = branches.findIndex(([c]) => !!c())
-    if (idx === courant) return
-    sansSuivi(() => {
-      libere?.()
-      for (const n of noeuds) n.parentNode?.removeChild(n)
-      courant = idx
-      noeuds = []
-      libere = null
+    if (idx === currentIdx) return
+    untracked(() => {
+      if (!marker && hydrate) {
+        // first render while hydrating: adopt the server nodes, then the marker
+        const start = peek(parent)
+        if (idx >= 0) release = root(() => branches[idx][1](parent))[1]
+        nodes = between(start, peek(parent))
+        marker = anchor(parent, 'if')
+        currentIdx = idx
+        return
+      }
+      if (!marker) marker = anchor(parent, 'if')
+      release?.()
+      for (const n of nodes) n.parentNode?.removeChild(n)
+      currentIdx = idx
+      nodes = []
+      release = null
       if (idx >= 0) {
-        const f = fragment()
-        const [, l] = racine(() => branches[idx][1](f))
-        libere = l
-        noeuds = [...f.childNodes]
-        ;(ancre.parentNode ?? parent).insertBefore(f, ancre)
+        const f = document.createDocumentFragment()
+        release = root(() => branches[idx][1](f))[1]
+        nodes = [...f.childNodes]
+        ;(marker.parentNode ?? parent).insertBefore(f, marker)
       }
     })
   })
-  auNettoyage(() => libere?.())
+  onCleanup(() => release?.())
 }
 
-interface Entree {
-  noeuds: any[]
-  libere: () => void
+interface Entry {
+  nodes: any[]
+  release: () => void
 }
 
-export function pour(parent: any, source: () => unknown, rendu: (item: any, i: number, p: any) => void) {
-  const ancre = document.createComment('pour')
-  parent.append(ancre)
-  let entrees = new Map<unknown, Entree>()
-  effet(() => {
-    const liste = enListe(source())
-    // lire chaque élément pour s'abonner aux remplacements
-    const items = liste.map((x, i) => [x, i] as const)
-    sansSuivi(() => {
-      const nouvelles = new Map<unknown, Entree>()
-      const vus = new Map<unknown, number>()
-      const conteneur = ancre.parentNode ?? parent
-      for (const [item, i] of items) {
-        const b = brut(item)
+export function each(parent: any, source: () => unknown, render: (item: any, i: number, p: any) => void) {
+  const hydrate = hydrating && parent.nodeType === 1
+  let marker: any = null
+  let entries = new Map<unknown, Entry>()
+  effect(() => {
+    const items = toList(source()).map((x, i) => [x, i] as const)
+    untracked(() => {
+      const next = new Map<unknown, Entry>()
+      const seen = new Map<unknown, number>()
+      const keyOf = (item: unknown, i: number) => {
+        const b = raw(item)
         const base = typeof b === 'object' && b !== null ? b : `${typeof b}:${String(b)}`
-        const n = vus.get(base) ?? 0
-        vus.set(base, n + 1)
-        const cle = n === 0 ? base : `${typeof base === 'string' ? base : 'o'}#${n}#${i}`
-        let e = entrees.get(cle)
-        if (e) entrees.delete(cle)
-        else {
-          const f = fragment()
-          const [, l] = racine(() => rendu(item, i, f))
-          e = { noeuds: [...f.childNodes], libere: l }
+        const n = seen.get(base) ?? 0
+        seen.set(base, n + 1)
+        return n === 0 ? base : `${typeof base === 'string' ? base : 'o'}#${n}#${i}`
+      }
+      if (!marker && hydrate) {
+        for (const [item, i] of items) {
+          const start = peek(parent)
+          const [, rel] = root(() => render(item, i, parent))
+          next.set(keyOf(item, i), { nodes: between(start, peek(parent)), release: rel })
         }
-        nouvelles.set(cle, e)
-        for (const nd of e.noeuds) conteneur.insertBefore(nd, ancre)
+        marker = anchor(parent, 'for')
+        entries = next
+        return
       }
-      for (const e of entrees.values()) {
-        e.libere()
-        for (const nd of e.noeuds) nd.parentNode?.removeChild(nd)
+      if (!marker) marker = anchor(parent, 'for')
+      const container = marker.parentNode ?? parent
+      for (const [item, i] of items) {
+        const key = keyOf(item, i)
+        let e = entries.get(key)
+        if (e) entries.delete(key)
+        else {
+          const f = document.createDocumentFragment()
+          const [, rel] = root(() => render(item, i, f))
+          e = { nodes: [...f.childNodes], release: rel }
+        }
+        next.set(key, e)
+        for (const nd of e.nodes) container.insertBefore(nd, marker)
       }
-      entrees = nouvelles
+      for (const e of entries.values()) {
+        e.release()
+        for (const nd of e.nodes) nd.parentNode?.removeChild(nd)
+      }
+      entries = next
     })
   })
-  auNettoyage(() => {
-    for (const e of entrees.values()) e.libere()
+  onCleanup(() => {
+    for (const e of entries.values()) e.release()
   })
 }
 
-// ---------------- composants ----------------
-export function composant(fn: any, args: (() => unknown)[], enfants: ((p: any) => void) | null) {
-  const noms: string[] = fn.$params ?? []
+// ---------------- components ----------------
+export function component(parent: any, fn: any, args: (() => unknown)[], slotFn: ((p: any) => void) | null): any[] {
+  const names: string[] = fn.$params ?? []
   const props: any = {}
-  noms.forEach((n, i) => {
+  names.forEach((n, i) => {
     if (args[i]) Object.defineProperty(props, n, { get: args[i], enumerable: true })
   })
-  if (args.length > noms.length) {
-    console.warn(`Kaury : « ${fn.name} » reçoit ${args.length} valeurs mais n'a que ${noms.length} paramètres.`)
-  }
-  props.$enfants = enfants
-  return fn(props)
+  if (args.length > names.length) console.warn(`Kaury: "${fn.name}" receives ${args.length} values but has only ${names.length} parameters.`)
+  props.$slot = slotFn
+  return fn(props, parent) ?? []
 }
 
-export function contenu(el: any, enfants: ((p: any) => void) | null) {
-  if (enfants) enfants(el)
-  el.classList.add('k-contenu')
+/** Position in a parent, to find later the nodes a component created. */
+export function mark(parent: any): { before: any; hydrating: boolean } {
+  return hydrating && parent.nodeType === 1 ? { before: peek(parent), hydrating: true } : { before: parent.lastChild, hydrating: false }
 }
 
-export function classeRacine(f: any, cls: string) {
-  for (const n of [...(f.childNodes ?? [])]) if (n.nodeType === 1) n.classList.add(cls)
+export function rootNodes(parent: any, m: { before: any; hydrating: boolean }): any[] {
+  if (m.hydrating) return between(m.before, peek(parent)).filter((n) => n.nodeType === 1)
+  const start = m.before ? m.before.nextSibling : parent.firstChild
+  return between(start, null).filter((n) => n.nodeType === 1)
 }
 
-// ---------------- formulaires ----------------
-export function lie(el: any, lit: () => unknown, ecrit: (v: unknown) => void, genre?: string) {
-  effet(() => {
-    const v = lit()
+export function rootClass(parent: any, m: { before: any; hydrating: boolean }, cls: string) {
+  for (const n of rootNodes(parent, m)) n.classList.add(cls)
+}
+
+export function slot(el: any, fill: ((p: any) => void) | null) {
+  el.classList.add('k-slot')
+  if (fill) fill(el)
+}
+
+// ---------------- forms ----------------
+export function bind(el: any, read: () => unknown, write: (v: unknown) => void, kind?: string) {
+  effect(() => {
+    const v = read()
     const s = v === null || v === undefined ? '' : String(v)
     if (el.value !== s) el.value = s
-    if (!estNavigateur()) el.setAttribute('value', s)
+    if (!inBrowser() && el.localName === 'input') el.setAttribute('value', s)
   })
-  if (estNavigateur()) el.addEventListener('input', () => lot(() => ecrit(genre === 'nombre' ? enNombre(el.value) : el.value)))
+  if (inBrowser()) el.addEventListener('input', () => batch(() => write(kind === 'number' ? toNumber(el.value) : el.value)))
 }
 
-export function lieCase(el: any, lit: () => unknown, ecrit: (v: boolean) => void) {
-  effet(() => {
-    el.checked = !!lit()
-    if (!estNavigateur()) {
+export function bindCheck(el: any, read: () => unknown, write: (v: boolean) => void) {
+  effect(() => {
+    el.checked = !!read()
+    if (!inBrowser()) {
       if (el.checked) el.setAttribute('checked', '')
       else el.removeAttribute('checked')
     }
   })
-  if (estNavigateur()) el.addEventListener('change', () => lot(() => ecrit(el.checked)))
+  if (inBrowser()) el.addEventListener('change', () => batch(() => write(el.checked)))
 }
 
-export function options(el: any, liste: () => unknown[]) {
-  effet(() => {
-    const vals = liste()
-    const courant = el.value
+export function options(el: any, list: () => unknown[]) {
+  effect(() => {
+    const vals = list()
+    const cur = el.value
     while (el.firstChild) el.removeChild(el.firstChild)
     for (const v of vals) {
       const o = document.createElement('option')
-      const b: any = brut(v)
-      const valeur = typeof b === 'object' && b ? b.valeur ?? b.value ?? b.nom : b
-      o.value = String(valeur)
-      o.textContent = t(typeof b === 'object' && b ? b.texte ?? b.label ?? b.nom : b)
+      const b: any = raw(v)
+      const value = typeof b === 'object' && b ? b.value ?? b.name : b
+      o.value = String(value)
+      o.textContent = t(typeof b === 'object' && b ? b.label ?? b.name : b)
       el.appendChild(o)
     }
-    if (courant) el.value = courant
+    if (cur) el.value = cur
   })
 }
 
-/** Entoure un champ de son étiquette (accessibilité). */
-export function etiquette(el: any): any {
-  const texteEt = el.dataset?.etiquette ?? el.getAttribute?.('data-etiquette')
-  if (!texteEt) return el
-  const l = h('label', el.type === 'checkbox' ? 'k-etiquette k-etiquette-case' : 'k-etiquette')
-  const s = h('span')
-  s.textContent = texteEt
-  if (el.type === 'checkbox') l.append(el, s)
-  else l.append(s, el)
-  return l
-}
-
-export function formulaire(el: any) {
+export function form(el: any) {
   el.setAttribute('novalidate', '')
-  if (!estNavigateur()) return
+  if (!inBrowser()) return
   el.addEventListener('submit', (e: Event) => {
     if (!el.checkValidity()) {
       e.stopImmediatePropagation()
       e.preventDefault()
-      el.classList.add('k-verifie')
+      el.classList.add('k-validated')
       el.reportValidity()
     }
   }, { capture: true })
 }
 
-// ---------------- liens automatiques ----------------
-const liensEnAttente: { a: any; mot: string }[] = []
-let cheminsConnus: string[] = []
-export function definisChemins(c: string[]) {
-  cheminsConnus = c
+// ---------------- cards with computed values ----------------
+/** Image (when the value is an image file), title, then text. */
+export function card(el: any, values: (() => unknown)[]) {
+  const isImg = (x: unknown) => typeof x === 'string' && /\.(png|jpe?g|webp|avif|gif|svg)(\?.*)?$/i.test(x)
+  const first = untracked(() => values.map((f) => f()))
+  const image = first.some(isImg) ? h(el, 'img', 'k-card-image') : null
+  const title = h(el, 'h3', 'k-card-title')
+  const body = first.filter((x) => !isImg(x)).length > 1 ? h(el, 'p', 'k-card-text') : null
+  if (image) img(image, () => values.map((f) => f()).find(isImg) ?? '', 0)
+  effect(() => {
+    const texts = values.map((f) => f()).filter((x) => !isImg(x))
+    if (image) image.setAttribute('alt', t(texts[0]))
+    setText(title, t(texts[0]))
+    if (body) setText(body, t(texts[1]))
+  })
 }
 
-export function lienAuto(a: any, mot: string) {
-  if (/^(https?:|mailto:|tel:|\/|#)/.test(mot)) {
-    a.setAttribute('href', mot)
-    if (/^https?:/.test(mot)) {
+// ---------------- automatic links ----------------
+const pendingLinks: { a: any; word: string }[] = []
+let knownPaths: string[] = []
+export function setPaths(c: string[]) {
+  knownPaths = c
+}
+
+export function autoLink(a: any, word: string) {
+  if (/^(https?:|mailto:|tel:|\/|#)/.test(word)) {
+    a.setAttribute('href', word)
+    if (/^https?:/.test(word)) {
       a.setAttribute('target', '_blank')
       a.setAttribute('rel', 'noopener')
     }
     return
   }
-  liensEnAttente.push({ a, mot })
+  pendingLinks.push({ a, word })
 }
 
 export function slug(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
-/** Une fois la page construite : « Gouts » → #gouts si la section existe, sinon /gouts si la page existe. */
-export function resousLiens(racinePage: any) {
+/** Once the page is built: "Flavors" → #flavors when the section exists, else /flavors when the page exists. */
+export function resolveLinks(pageRoot: any) {
   const ids = new Set<string>()
-  const parcours = (n: any) => {
+  const walk = (n: any) => {
     if (n.id) ids.add(n.id)
-    for (const e of n.childNodes ?? []) parcours(e)
+    for (const e of n.childNodes ?? []) walk(e)
   }
-  parcours(racinePage)
-  for (const { a, mot } of liensEnAttente.splice(0)) {
-    const s = slug(mot)
+  walk(pageRoot)
+  for (const { a, word } of pendingLinks.splice(0)) {
+    const s = slug(word)
     let href = '#'
-    if (['accueil', 'home', 'index'].includes(s)) href = '/'
+    if (['home', 'accueil', 'index'].includes(s)) href = '/'
     else if (ids.has(s)) href = '#' + s
-    else if (cheminsConnus.includes('/' + s)) href = '/' + s
-    else if (cheminsConnus.some((c) => slug(c) === s)) href = cheminsConnus.find((c) => slug(c) === s)!
+    else if (knownPaths.includes('/' + s)) href = '/' + s
+    else if (knownPaths.some((c) => slug(c) === s)) href = knownPaths.find((c) => slug(c) === s)!
     else {
-      const proche = [...ids].find((id) => id.startsWith(s) || s.startsWith(id))
-      href = proche ? '#' + proche : '#' + s
+      const near = [...ids].find((id) => id.startsWith(s) || s.startsWith(id))
+      href = near ? '#' + near : '#' + s
     }
     a.setAttribute('href', href)
   }
 }
 
-/** Carte aux valeurs calculées : image (si c'est un fichier image), titre, puis texte. */
-export function carte(el: any, valeurs: (() => unknown)[]) {
-  const img = h('img', 'k-carte-image')
-  img.loading = 'lazy'
-  const titre = h('h3', 'k-carte-titre')
-  const texteEl = h('p', 'k-carte-texte')
-  el.append(img, titre, texteEl)
-  effet(() => {
-    const v = valeurs.map((f) => f())
-    const estImg = (x: unknown) => typeof x === 'string' && /\.(png|jpe?g|webp|avif|gif|svg)(\?.*)?$/i.test(x)
-    const image = v.find(estImg) as string | undefined
-    const textes = v.filter((x) => !estImg(x))
-    if (image) {
-      img.setAttribute('src', chemin(image))
-      img.setAttribute('alt', t(textes[0]))
-    } else img.parentNode?.removeChild(img)
-    titre.textContent = t(textes[0])
-    if (textes[1] !== undefined) texteEl.textContent = t(textes[1])
-    else texteEl.parentNode?.removeChild(texteEl)
-  })
-}
-
-/** Menu de liens : sur téléphone, il se replie derrière un bouton (accessible au clavier). */
-export function menuMobile(nav: any) {
+/** Menu of links: on phones it folds behind a button (keyboard accessible). */
+export function mobileMenu(nav: any) {
   nav.classList.add('k-menu')
+  if (!inBrowser()) return // without JavaScript the full menu stays visible
   if (!nav.id) nav.id = 'k-menu-' + Math.random().toString(36).slice(2, 7)
-  const b = h('button', 'k-burger')
+  const b = document.createElement('button')
+  b.className = 'k-burger'
   b.type = 'button'
   b.setAttribute('aria-label', 'Menu')
   b.setAttribute('aria-expanded', 'false')
   b.setAttribute('aria-controls', nav.id)
-  b.append(h('span'), h('span'), h('span'))
-  nav.$kBurger = b
+  b.append(document.createElement('span'), document.createElement('span'), document.createElement('span'))
   queueMicrotask(() => nav.parentNode?.insertBefore(b, nav))
-  if (!estNavigateur()) {
-    // rendu serveur : le bouton est placé tout de suite
-    return
-  }
-  const bascule = (ouvert?: boolean) => {
-    const o = ouvert ?? !nav.classList.contains('k-menu-ouvert')
-    nav.classList.toggle('k-menu-ouvert', o)
-    b.classList.toggle('k-burger-ouvert', o)
+  const toggle = (open?: boolean) => {
+    const o = open ?? !nav.classList.contains('k-menu-open')
+    nav.classList.toggle('k-menu-open', o)
+    b.classList.toggle('k-burger-open', o)
     b.setAttribute('aria-expanded', String(o))
   }
-  b.addEventListener('click', () => bascule())
+  b.addEventListener('click', () => toggle())
   nav.addEventListener('click', (e: Event) => {
-    if ((e.target as HTMLElement).closest('a')) bascule(false)
+    if ((e.target as HTMLElement).closest('a')) toggle(false)
   })
   addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') bascule(false)
+    if (e.key === 'Escape') toggle(false)
   })
 }

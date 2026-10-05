@@ -1,86 +1,95 @@
 # Kaury
 
-**Un langage complet comme JavaScript, deux fois plus court, et le seul qui rend l'immersion aussi simple qu'un titre.**
+**A complete language like JavaScript, half as long, and the only one that makes immersion as simple as a title.**
 
-```
-etat compteur = 0
+```kaury
+state likes = 0
 
 page "/"
-  style fond creme, police "Clash Display"
+  style background cream, font "Clash Display"
 
-  section entete
+  section header
     logo "crush.svg"
-    liens Accueil, Gouts, Boutique
+    links Home, Flavors, Shop
 
-  scene plein-ecran, particules bulles
-    lumiere coucher-de-soleil
-    objet canette "crush.glb"
-      tourne au defilement
-      suit souris, doux
-    titre "Goûte la différence", taille 80, rose
+  scene fullscreen, particles bubbles
+    light sunset
+    object can "crush.glb"
+      spin on scroll
+      follows mouse, smooth
+    title "Taste the difference", size 80, pink
 
   section
-    bouton "J'aime {compteur}" -> compteur += 1
-      style fond rose, coins 12
+    button "I like it {likes}" -> likes += 1
+      style background pink, radius 12
 ```
 
-Logique, structure, style et 3D vivent dans le même fichier. On découpe par morceau du site (page, composant), jamais par technique.
+Logic, structure, style and 3D live in the same file. You split by part of the site (page, component), never by technique.
 
-## Démarrer
+## Start
 
 ```bash
 npm install -g kaury
-kaury nouveau mon-site
-cd mon-site
+kaury new my-site
+cd my-site
 kaury dev
 ```
 
-| Commande | Rôle |
+| Command | What it does |
 |---|---|
-| `kaury nouveau mon-site` | crée un projet prêt à l'emploi |
-| `kaury dev` | affiche le site et le recharge à chaque modification |
-| `kaury build` | produit le site final, optimisé, dans `dist/` |
-| `kaury verifie [--json]` | vérifie le code sans construire (`--json` pour les IA) |
-| `kaury lance calcul.kaury` | exécute un programme sans page |
-| `kaury traduit site.kaury` | montre le JavaScript produit |
-| `kaury publie --netlify` | construit puis met en ligne |
+| `kaury new my-site` | creates a ready-to-use project |
+| `kaury dev` | shows the site and reloads it on every change |
+| `kaury build` | makes the final, optimized site in `dist/` |
+| `kaury check [--json]` | checks the code without building (`--json` for AIs) |
+| `kaury run program.kaury` | runs a program without pages |
+| `kaury compile site.kaury` | shows the generated JavaScript |
+| `kaury deploy --netlify` | builds then publishes |
 
-## Ce que Kaury fait pour toi
+French keywords work too (`soit`, `si`, `pour`, `titre`…), and error messages follow the language of your system (`--lang fr|en`).
 
-- **Réactif par défaut** : `etat` change → la page suit. `soit total = prix * quantite` se recalcule tout seul.
-- **Erreurs en clair**, avec la ligne, le mot souligné et la correction (« tu voulais dire « compteur » ? »).
-- **HTML lisible par Google** : chaque page est rendue côté serveur, même les pages immersives.
-- **Mobile par défaut** : grilles qui se replient, titres qui s'adaptent, caméra 3D qui recule sur écran étroit.
-- **3D légère** : Three.js n'est chargé que sur les pages qui contiennent un objet 3D, et seulement quand il devient visible. Modèles `.glb` compressés (Meshopt, Draco) acceptés.
-- **Ouvert sur JavaScript** : `importe confetti de "canvas-confetti"`, et un bloc `js` pour le reste.
-- **Bilingue** : chaque mot-clé a un alias anglais (`si`/`if`, `pour`/`for`, `titre`/`title`).
-- **Pensé pour les IA** : [`docs/kaury-ia.md`](docs/kaury-ia.md) se colle tel quel dans Claude, ChatGPT ou Cursor.
+## What Kaury does for you
 
-## Comment ça marche
+- **Reactive by default**: a `state` changes → the page follows. `let total = price * quantity` recomputes itself.
+- **Plain-language errors**, with the line, the underlined word and the fix ("did you mean "count"?").
+- **Lighthouse 100 / 100 / 100 / 100** on the example site, 3D included (mobile and desktop):
+  - every page is rendered on the server, then the browser *adopts* that HTML (hydration) instead of rebuilding it;
+  - images get real dimensions, responsive WebP versions and the right loading priority;
+  - fonts are downloaded at build time and served by the site (fast, and no data sent to Google);
+  - CSS is inlined, nothing blocks the first paint;
+  - the 3D library loads only on pages that need it, after the page is displayed and the visitor's first gesture;
+  - text colors on colored backgrounds are chosen for WCAG contrast.
+- **SEO and AI-friendly**: canonical links, Open Graph, JSON-LD, `sitemap.xml`, `robots.txt`, `llms.txt`, plus `.htaccess` and `_headers` for caching.
+- **Mobile by default**: grids fold, titles shrink, menus collapse behind a button, the 3D camera steps back on narrow screens.
+- **Open to JavaScript**: `import confetti from "canvas-confetti"`, and a `js` block for the rest.
+- **Made for AIs**: [`docs/kaury-ai.md`](docs/kaury-ai.md) can be pasted as is into Claude, ChatGPT or Cursor.
+
+## How it works
 
 ```
-.kaury → 1. lecteur → 2. analyseur → 3. vérificateur → 4. traducteur → HTML + CSS + JS
-                                                         5. boîte à outils d'immersion (Three.js, Lottie), chargée à la demande
+.kaury → 1. lexer → 2. parser → 3. checker → 4. code generator → HTML + CSS + JS
+                                              5. immersion toolkit (Three.js, Lottie), loaded on demand
 ```
 
-| Dossier | Contenu |
+| Folder | Content |
 |---|---|
-| `src/noyau/` | lecteur, analyseur, vérificateur, traducteur (TypeScript, tourne aussi dans le navigateur) |
-| `src/runtime/` | réactivité, DOM, routeur, mouvements, rendu serveur |
-| `src/immersion/` | 3D (Three.js), Lottie, particules |
-| `src/cli/` | la commande `kaury` |
-| `exemples/` | Crush (site immersif complet), démarrage, fleurs |
-| `docs/` | spécification pour les IA |
-| `editeurs/vscode/` | coloration et extension VS Code |
+| `src/core/` | lexer, parser, checker, code generator (TypeScript, also runs in the browser) |
+| `src/runtime/` | reactivity, DOM and hydration, router, motions, server rendering |
+| `src/immersion/` | 3D (Three.js), Lottie, particles |
+| `src/cli/` | the `kaury` command, image and font optimization |
+| `examples/` | Crush (complete immersive site), hello |
+| `docs/` | specification for AIs |
+| `editors/vscode/` | VS Code extension |
+| `playground/` | online playground |
 | `tests/` | `npm test` |
 
-## Développer Kaury
+## Developing Kaury
 
 ```bash
 npm install
-npm test                 # tests du noyau, des erreurs et de la construction
-npm run kaury -- dev exemples/crush/site.kaury
-npm run construit        # dist/ (commande) + terrain/kaury-compilateur.js
+npm test                 # core, errors, build, hydration, robustness
+npm run kaury -- dev examples/crush/site.kaury
+npm run build            # dist/ (command) + playground bundles
+node scripts/measure.mjs dist / --desktop   # Lighthouse
 ```
 
-Licence MIT.
+MIT license.

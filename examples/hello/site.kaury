@@ -1,0 +1,52 @@
+// Hello — the whole site is in this file.
+// Edit, save: the page reloads by itself.
+
+site "Hello"
+  colors accent #FF4F8B, cream #FFF6EE
+  font "Satoshi"
+  lang "en"
+
+state likes = 0
+
+page "/"
+  seo "Hello", "A site made with Kaury."
+  style background cream
+
+  section header
+    logo "Hello"
+    links Home, Ideas, Contact
+
+  section hero, fullscreen, center
+    title "Hello, Hello", size 88
+      enters from bottom
+    text "Your first Kaury site. One line = one idea."
+    object star "star.svg", size 0.6
+      float
+      follows mouse, smooth
+      on click -> jump
+    button "I like it ({likes})", large -> likes += 1
+
+  section ideas
+    subtitle "Three ideas"
+    grid 3 columns, gap 24
+      for idea in ideas
+        card idea.name, idea.text
+          enters from bottom
+          style hover lift 6, shadow soft
+
+  section contact, center
+    subtitle "Let's talk?"
+    form -> sent = true
+      field email "Your email", type email, required, label "Email"
+      button "Send"
+    if sent
+      text "Thanks, talk soon!"
+
+  footer
+    text "Made with Kaury"
+
+let ideas = [
+  { name: "Short", text: "Half the lines of JavaScript." },
+  { name: "Reactive", text: "A state changes, the page follows." },
+  { name: "Immersive", text: "A 3D object is added like a title." }
+]

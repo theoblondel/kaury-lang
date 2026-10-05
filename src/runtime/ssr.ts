@@ -1,21 +1,22 @@
-// Un DOM minuscule pour rendre les pages côté serveur (Node) : le HTML existe avant la 3D,
-// donc Google lit tout le contenu, même sur une page immersive.
+// A tiny DOM to render pages on the server (Node): the HTML exists before the 3D,
+// so Google reads all the content, even on an immersive page.
 
-const VIDES = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr'])
-const echappe = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-const echappeAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr'])
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const escAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 
-abstract class Noeud {
-  parentNode: Element | Fragment | null = null
-  childNodes: Noeud[] = []
+abstract class SNode {
+  parentNode: SElement | SFragment | null = null
+  childNodes: SNode[] = []
   abstract nodeType: number
+  [key: string]: any
   get firstChild() {
     return this.childNodes[0] ?? null
   }
   get lastChild() {
     return this.childNodes[this.childNodes.length - 1] ?? null
   }
-  get nextSibling(): Noeud | null {
+  get nextSibling(): SNode | null {
     const p = this.parentNode
     if (!p) return null
     return p.childNodes[p.childNodes.indexOf(this) + 1] ?? null
@@ -23,25 +24,25 @@ abstract class Noeud {
   get isConnected() {
     return true
   }
-  appendChild<T extends Noeud>(n: T): T {
+  appendChild<T extends SNode>(n: T): T {
     return this.insertBefore(n, null)
   }
-  append(...ns: (Noeud | string)[]) {
-    for (const n of ns) this.appendChild(typeof n === 'string' ? new Texte(n) : n)
+  append(...ns: (SNode | string)[]) {
+    for (const n of ns) this.appendChild(typeof n === 'string' ? new SText(n) : n)
   }
-  insertBefore<T extends Noeud>(n: T, ref: Noeud | null): T {
-    const aInserer = n instanceof Fragment ? [...n.childNodes] : [n]
-    for (const x of aInserer) {
+  insertBefore<T extends SNode>(n: T, ref: SNode | null): T {
+    const list = n instanceof SFragment ? [...n.childNodes] : [n]
+    for (const x of list) {
       x.parentNode?.removeChild(x)
       const i = ref ? this.childNodes.indexOf(ref) : -1
       if (i < 0) this.childNodes.push(x)
       else this.childNodes.splice(i, 0, x)
       x.parentNode = this as any
     }
-    if (n instanceof Fragment) n.childNodes = []
+    if (n instanceof SFragment) n.childNodes = []
     return n
   }
-  removeChild<T extends Noeud>(n: T): T {
+  removeChild<T extends SNode>(n: T): T {
     const i = this.childNodes.indexOf(n)
     if (i >= 0) this.childNodes.splice(i, 1)
     n.parentNode = null
@@ -55,7 +56,7 @@ abstract class Noeud {
   }
   set textContent(v: string) {
     for (const c of this.childNodes) c.parentNode = null
-    this.childNodes = v === '' ? [] : [new Texte(String(v))]
+    this.childNodes = v === '' ? [] : [new SText(String(v))]
     for (const c of this.childNodes) c.parentNode = this as any
   }
   addEventListener() {}
@@ -66,7 +67,7 @@ abstract class Noeud {
   abstract html(): string
 }
 
-class Texte extends Noeud {
+class SText extends SNode {
   nodeType = 3
   constructor(public data: string) {
     super()
@@ -84,31 +85,32 @@ class Texte extends Noeud {
     this.data = v
   }
   html() {
-    return echappe(this.data)
+    return esc(this.data)
   }
 }
 
-class Commentaire extends Noeud {
+class SComment extends SNode {
   nodeType = 8
   constructor(public data: string) {
     super()
   }
+  // markers of « if » and « for » blocks: the browser needs them to adopt the HTML
   html() {
-    return ''
+    return `<!--${this.data}-->`
   }
 }
 
-class Fragment extends Noeud {
+class SFragment extends SNode {
   nodeType = 11
   html() {
     return this.childNodes.map((c) => c.html()).join('')
   }
 }
 
-function creeStyle() {
+function makeStyle() {
   const decls = new Map<string, string>()
   const kebab = (s: string) => s.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())
-  const cible: any = {
+  const target: any = {
     setProperty: (p: string, v: string) => (v === '' || v === null ? decls.delete(p) : decls.set(p, String(v))),
     removeProperty: (p: string) => decls.delete(p),
     getPropertyValue: (p: string) => decls.get(p) ?? '',
@@ -116,7 +118,7 @@ function creeStyle() {
       return [...decls].map(([k, v]) => `${k}:${v}`).join(';')
     },
   }
-  return new Proxy(cible, {
+  return new Proxy(target, {
     get(t, k) {
       if (k in t) return t[k]
       return decls.get(kebab(String(k))) ?? ''
@@ -129,49 +131,48 @@ function creeStyle() {
   })
 }
 
-const PROPS_ATTR: Record<string, string> = {
+const PROP_ATTRS: Record<string, string> = {
   id: 'id', className: 'class', href: 'href', src: 'src', alt: 'alt', type: 'type', name: 'name', placeholder: 'placeholder',
   target: 'target', rel: 'rel', loading: 'loading', decoding: 'decoding', role: 'role', htmlFor: 'for', title: 'title',
   rows: 'rows', tabIndex: 'tabindex', draggable: 'draggable', lang: 'lang', preload: 'preload',
 }
-const PROPS_BOOL = new Set(['required', 'disabled', 'controls', 'muted', 'autoplay', 'loop', 'playsInline', 'selected'])
+const BOOL_PROPS = new Set(['required', 'disabled', 'controls', 'muted', 'autoplay', 'loop', 'playsInline', 'selected'])
 
-class Element extends Noeud {
+class SElement extends SNode {
   nodeType = 1
-  attributs = new Map<string, string>()
-  style = creeStyle()
+  attrs = new Map<string, string>()
+  style = makeStyle()
   tagName: string
   value = ''
   checked = false
-  html_brut?: string
-  [cle: string]: any
+  rawHtml?: string
   constructor(public localName: string) {
     super()
     this.tagName = localName.toUpperCase()
-    for (const [p, a] of Object.entries(PROPS_ATTR)) {
+    for (const [p, a] of Object.entries(PROP_ATTRS)) {
       Object.defineProperty(this, p, {
-        get: () => (p === 'tabIndex' ? Number(this.attributs.get(a) ?? -1) : this.attributs.get(a) ?? ''),
-        set: (v) => this.attributs.set(a, String(v)),
+        get: () => (p === 'tabIndex' ? Number(this.attrs.get(a) ?? -1) : this.attrs.get(a) ?? ''),
+        set: (v) => this.attrs.set(a, String(v)),
         configurable: true,
       })
     }
-    for (const p of PROPS_BOOL) {
+    for (const p of BOOL_PROPS) {
       Object.defineProperty(this, p, {
-        get: () => this.attributs.has(p.toLowerCase()),
-        set: (v) => (v ? this.attributs.set(p.toLowerCase(), '') : this.attributs.delete(p.toLowerCase())),
+        get: () => this.attrs.has(p.toLowerCase()),
+        set: (v) => (v ? this.attrs.set(p.toLowerCase(), '') : this.attrs.delete(p.toLowerCase())),
         configurable: true,
       })
     }
   }
   get classList() {
     const el = this
-    const liste = () => (el.attributs.get('class') ?? '').split(/\s+/).filter(Boolean)
+    const list = () => (el.attrs.get('class') ?? '').split(/\s+/).filter(Boolean)
     return {
-      add: (...c: string[]) => el.attributs.set('class', [...new Set([...liste(), ...c])].join(' ')),
-      remove: (...c: string[]) => el.attributs.set('class', liste().filter((x) => !c.includes(x)).join(' ')),
-      contains: (c: string) => liste().includes(c),
+      add: (...c: string[]) => el.attrs.set('class', [...new Set([...list(), ...c])].join(' ')),
+      remove: (...c: string[]) => el.attrs.set('class', list().filter((x) => !c.includes(x)).join(' ')),
+      contains: (c: string) => list().includes(c),
       toggle: (c: string, f?: boolean) => {
-        const a = f ?? !liste().includes(c)
+        const a = f ?? !list().includes(c)
         if (a) el.classList.add(c)
         else el.classList.remove(c)
         return a
@@ -180,32 +181,33 @@ class Element extends Noeud {
   }
   get dataset() {
     const el = this
+    const name = (k: PropertyKey) => 'data-' + String(k).replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())
     return new Proxy({}, {
-      get: (_t, k) => el.attributs.get('data-' + String(k).replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())),
+      get: (_t, k) => el.attrs.get(name(k)),
       set: (_t, k, v) => {
-        el.attributs.set('data-' + String(k).replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()), String(v))
+        el.attrs.set(name(k), String(v))
         return true
       },
     })
   }
   setAttribute(n: string, v: string) {
-    this.attributs.set(n.toLowerCase(), String(v))
+    this.attrs.set(n.toLowerCase(), String(v))
   }
   getAttribute(n: string) {
-    return this.attributs.get(n.toLowerCase()) ?? null
+    return this.attrs.get(n.toLowerCase()) ?? null
   }
   hasAttribute(n: string) {
-    return this.attributs.has(n.toLowerCase())
+    return this.attrs.has(n.toLowerCase())
   }
   removeAttribute(n: string) {
-    this.attributs.delete(n.toLowerCase())
+    this.attrs.delete(n.toLowerCase())
   }
   set innerHTML(h: string) {
     this.childNodes = []
-    this.html_brut = h
+    this.rawHtml = h
   }
   get innerHTML() {
-    return this.html_brut ?? this.childNodes.map((c) => c.html()).join('')
+    return this.rawHtml ?? this.childNodes.map((c) => c.html()).join('')
   }
   getBoundingClientRect() {
     return { top: 0, left: 0, width: 0, height: 0, bottom: 0, right: 0 }
@@ -220,43 +222,42 @@ class Element extends Noeud {
     return true
   }
   html(): string {
-    const attrs = new Map(this.attributs)
+    const attrs = new Map(this.attrs)
     const css = this.style.cssText
     if (css) attrs.set('style', css)
-    if (this.localName === 'input' && this.value && !attrs.has('value')) attrs.set('value', this.value)
-    const a = [...attrs].map(([k, v]) => (v === '' && k !== 'alt' && k !== 'value' ? ` ${k}` : ` ${k}="${echappeAttr(v)}"`)).join('')
-    if (VIDES.has(this.localName)) return `<${this.localName}${a}>`
-    const interieur = this.localName === 'textarea' ? echappe(this.value) : this.innerHTML
-    return `<${this.localName}${a}>${interieur}</${this.localName}>`
+    if (attrs.get('class') === '') attrs.delete('class')
+    const a = [...attrs].map(([k, v]) => (v === '' && k !== 'alt' && k !== 'value' ? ` ${k}` : ` ${k}="${escAttr(v)}"`)).join('')
+    if (VOID.has(this.localName)) return `<${this.localName}${a}>`
+    const inner = this.localName === 'textarea' ? esc(this.value) : this.innerHTML
+    return `<${this.localName}${a}>${inner}</${this.localName}>`
   }
 }
 
-export function creeDocument() {
-  const body = new Element('body')
-  const head = new Element('head')
+export function createDocument() {
   return {
-    body,
-    head,
-    documentElement: new Element('html'),
+    body: new SElement('body'),
+    head: new SElement('head'),
+    documentElement: new SElement('html'),
     title: '',
-    createElement: (t: string) => new Element(t.toLowerCase()),
-    createTextNode: (t: string) => new Texte(t),
-    createComment: (t: string) => new Commentaire(t),
-    createDocumentFragment: () => new Fragment(),
+    readyState: 'complete',
+    createElement: (t: string) => new SElement(t.toLowerCase()),
+    createTextNode: (t: string) => new SText(t),
+    createComment: (t: string) => new SComment(t),
+    createDocumentFragment: () => new SFragment(),
     querySelector: () => null,
     getElementById: () => null,
     addEventListener() {},
   }
 }
 
-export function serialise(n: any): string {
+export function serialize(n: any): string {
   return n.html ? n.html() : ''
 }
 
-/** Prépare l'environnement global pour un rendu serveur. */
-export function installeSSR() {
+/** Prepares the global environment for a server render. */
+export function installSSR() {
   const g = globalThis as any
   g.__kaurySSR = true
-  g.document = creeDocument()
+  g.document = createDocument()
   return g.document
 }

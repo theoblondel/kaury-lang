@@ -1,0 +1,123 @@
+// Crush — canned mocktails. A complete immersive site, in a single file.
+
+site "Crush"
+  colors accent #EA4374, night #05060F, crush-blue #23347A, cream #FDF7F2, ember #3E0A1C
+  font "Outfit"
+  lang "en"
+  url "https://crush.example"
+  style background night, color cream
+  transition fade
+
+// ---- data ----
+let flavors = [
+  { name: "Berry Crush", image: "berry.webp", note: "Strawberry, raspberry, a hint of basil", price: 3.9 },
+  { name: "Green Crush", image: "green.webp", note: "Cucumber, lime, fresh mint", price: 3.9 },
+  { name: "Sunset Crush", image: "sunset.webp", note: "Peach, apricot, orange blossom", price: 4.2 },
+  { name: "Tropical Crush", image: "tropical.webp", note: "Mango, passion fruit, roasted pineapple", price: 4.2 }
+]
+
+state cart = []
+let total = sum cart, f -> f.price
+let items = length cart
+
+persist "cart", cart
+
+function add-to-cart flavor
+  cart.add flavor
+  confetti()
+
+component FlavorCard flavor
+  card
+    image flavor.image, flavor.name, cover
+    subtitle flavor.name, size 26
+    text flavor.note, opacity 0.85
+    row gap 12
+      text price(flavor.price), bold
+      button "Add", small -> add-to-cart flavor
+    enters from bottom
+  style background ember, border 1 #FFFFFF22, radius 22, hover lift 8, shadow strong
+
+// ---- pages ----
+page "/"
+  seo "Crush — canned mocktails", "Four alcohol-free recipes, pressed in Switzerland. Taste the difference."
+
+  section header, sticky, glass
+    logo "wordmark.svg"
+    links Flavors, Story, Cart
+    button "Cart ({items})", small, outline, to "/cart"
+
+  scene home, fullscreen, particles bubbles
+    light sunset
+    camera follows mouse
+    character mascot "mascot.glb", size 1.1, position 2.2 -0.3 0, alt "Kaury, the Crush mascot"
+      enters from right
+      says "Hi! Click me."
+      on click -> jump
+    title "Taste the difference", size 96, text-gradient accent #FF9CC0
+      enters from bottom
+    text "Mocktails pressed in Switzerland. Zero alcohol, zero compromise.", size 20, opacity 0.85
+    row gap 12, center
+      button "See the flavors", large -> scroll-to "flavors"
+      button "Our story", large, outline, to "/story"
+
+  section flavors
+    subtitle "Four flavors. No regrets.", size 56
+      enters from left
+    grid 4 columns, gap 24
+      tablet 2 columns
+      for flavor in flavors
+        FlavorCard flavor
+
+  section numbers, center
+    style gradient ember night 180
+    grid 3 columns, gap 32
+      for n in [{ n: "0 %", t: "alcohol" }, { n: "100 %", t: "pressed fruit" }, { n: "33 cl", t: "of freshness" }]
+        column center
+          title n.n, size 72, text-gradient accent #FF9CC0, level 2
+          text n.t, uppercase, opacity 0.8
+          enters from bottom
+
+  footer
+    text "© Crush — a fictional drink, example site written in Kaury"
+    links Flavors, Story
+
+page "/story"
+  seo "Our story", "How Crush was born in Vevey, between two markets."
+  section header, sticky, glass
+    logo "wordmark.svg"
+    links Home, Cart
+  section fullscreen
+    style max-width 760
+    title "One can, one story.", size 72
+      enters from bottom
+    text "It all starts at a market in Vevey: a stand, four fruits, and the will to prove that an alcohol-free drink can have character."
+    text "Today, Crush is found in the bars that care about their sober guests as much as the others."
+    object "mark.svg", size 0.5
+      float
+      follows mouse, smooth
+    button "Discover the flavors", to "/#flavors"
+
+page "/cart"
+  seo "Your cart", "The drinks you picked."
+  section header, sticky, glass
+    logo "wordmark.svg"
+    links Home, Story
+  section
+    style max-width 760
+    title "Your cart", size 64
+    if cart.length == 0
+      text "Your cart is empty for now."
+      button "Pick a flavor", to "/#flavors"
+    else
+      for item, i in cart
+        row gap 16
+          image item.image, item.name, width 64, radius 12
+          text item.name, bold
+          text price(item.price)
+          button "Remove", small, ghost -> cart.remove item
+      divider
+      row gap 16
+        title "Total: {price(total)}", size 32, level 2
+        button "Order", large -> ordered = true
+      if ordered
+        text "Thank you! This is a demo: nothing was charged.", color accent

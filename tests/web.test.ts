@@ -2,138 +2,179 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, existsSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { construis } from '../src/cli/projet.js'
-import { compile } from '../src/noyau/index.js'
+import { build } from '../src/cli/project.js'
+import { compile, setLanguage } from '../src/core/index.js'
+import { run } from './helpers.js'
 
+setLanguage('en')
 const TMP = resolve('tests/.tmp')
 
-test('construction du site Crush : HTML rendu côté serveur, liens automatiques', async () => {
-  const sortie = join(TMP, 'crush-dist')
-  rmSync(sortie, { recursive: true, force: true })
-  const r = await construis(resolve('exemples/crush/site.kaury'), { sortie })
-  assert.deepEqual(r.pages.sort(), ['/', '/histoire', '/panier'])
-  const html = readFileSync(join(sortie, 'index.html'), 'utf8')
-  // le contenu existe avant la 3D (SEO)
-  assert.match(html, /<h1 class="k-titre[^"]*">Goûte la différence<\/h1>/)
+test('building the Crush site: server-rendered HTML, automatic links, SEO files', async () => {
+  const out = join(TMP, 'crush-dist')
+  rmSync(out, { recursive: true, force: true })
+  const r = await build(resolve('examples/crush/site.kaury'), { out })
+  assert.deepEqual(r.pages.sort(), ['/', '/cart', '/story'])
+  const html = readFileSync(join(out, 'index.html'), 'utf8')
+  // content exists before the 3D (SEO)
+  assert.match(html, /<h1 class="k-title[^"]*">Taste the difference<\/h1>/)
   assert.match(html, /Berry Crush/)
-  assert.match(html, /<title>Crush — mocktails en canette · Crush<\/title>/)
-  assert.match(html, /name="description" content="Quatre recettes/)
-  // liens automatiques : section de la page, autre page
-  assert.match(html, /href="#gouts">Gouts</)
-  assert.match(html, /href="\/histoire">Histoire</)
-  assert.match(html, /href="\/panier">Panier</)
-  // l'objet 3D est un emplacement léger, avec son nom accessible
-  assert.match(html, /class="k-objet k-personnage k-3d[^"]*"[^>]*aria-label="Kaury, la mascotte de Crush"/)
-  assert.ok(existsSync(join(sortie, 'histoire', 'index.html')))
-  assert.ok(existsSync(join(sortie, 'mascotte.glb')))
-  const css = readFileSync(join(sortie, '_kaury', r.collecte.css.size ? (await import('node:fs')).readdirSync(join(sortie, '_kaury')).find((f) => f.endsWith('.css'))! : ''), 'utf8')
-  assert.match(css, /--k-accent:#EA4374/)
+  assert.match(html, /<title>Crush — canned mocktails · Crush<\/title>/)
+  assert.match(html, /name="description" content="Four alcohol-free/)
+  assert.match(html, /<link rel="canonical" href="https:\/\/crush.example\/">/)
+  // automatic links: section of the page, other page
+  assert.match(html, /href="#flavors">Flavors</)
+  assert.match(html, /href="\/story">Story</)
+  assert.match(html, /href="\/cart">Cart</)
+  // the 3D object is a light placeholder with an accessible name
+  assert.match(html, /class="k-object k-character k-3d"[^>]*aria-label="Kaury, the Crush mascot"/)
+  // hydration markers, inline CSS, no third-party font
+  assert.match(html, /<!--for-->/)
+  assert.match(html, /<style>/)
+  assert.doesNotMatch(html, /fonts\.googleapis/)
+  assert.ok(existsSync(join(out, 'story', 'index.html')))
+  assert.ok(existsSync(join(out, 'mascot.glb')))
+  for (const f of ['sitemap.xml', 'robots.txt', 'llms.txt', '.htaccess', '_headers']) assert.ok(existsSync(join(out, f)), f)
+  assert.match(html, /--k-accent:#EA4374/)
+  // accent too light for white text: dark text is chosen automatically (WCAG)
+  assert.match(html, /--k-on-accent:#16151a/)
 })
 
-test('une page sans immersion ne charge aucune bibliothèque 3D', async () => {
-  const dossier = join(TMP, 'simple')
-  rmSync(dossier, { recursive: true, force: true })
-  mkdirSync(dossier, { recursive: true })
-  writeFileSync(join(dossier, 'site.kaury'), 'page "/"\n  titre "Bonjour"\n')
-  const r = await construis(join(dossier, 'site.kaury'))
-  const html = readFileSync(join(r.dossier, 'index.html'), 'utf8')
+test('a page without immersion loads no 3D library', async () => {
+  const dir = join(TMP, 'simple')
+  rmSync(dir, { recursive: true, force: true })
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'site.kaury'), 'page "/"\n  title "Hello"\n')
+  const r = await build(join(dir, 'site.kaury'))
+  const html = readFileSync(join(r.dir, 'index.html'), 'utf8')
   const js = /src="\/_kaury\/(site-[^"]+\.js)"/.exec(html)![1]
-  const code = readFileSync(join(r.dossier, '_kaury', js), 'utf8')
+  const code = readFileSync(join(r.dir, '_kaury', js), 'utf8')
   assert.doesNotMatch(code, /WebGLRenderer/)
-  assert.ok(code.length < 60_000, `le JS de base pèse ${code.length} octets`)
+  assert.ok(code.length < 60_000, `the base JS weighs ${code.length} bytes`)
 })
 
-test('le traducteur produit du CSS mobile et des classes stables', () => {
-  const r = compile('page "/"\n  grille 3 colonnes, espace 24\n    mobile 1 colonne\n    texte "a"\n', { fichier: 'x.kaury' })
+test('the generator writes mobile CSS that wins over the defaults', () => {
+  const r = compile('page "/"\n  grid 3 columns, gap 24\n    mobile 1 column\n    text "a"\n', { file: 'x.kaury' })
   assert.ok(r.ok)
-  assert.match(r.css, /@media \(max-width: 640px\)\{(\.[\w-]+){2}\{--k-colonnes:1;grid-template-columns:repeat\(1, minmax\(0, 1fr\)\)\}\}/)
+  assert.match(r.css, /@media \(max-width: 640px\)\{(\.[\w-]+){2}\{--k-columns:1;grid-template-columns:repeat\(1, minmax\(0, 1fr\)\)\}\}/)
 })
 
-test('pages à paramètres : /produit/:id', async () => {
-  const { trouvePage, rendsPage } = await import('../src/runtime/index.js')
-  const { installeSSR, serialise } = await import('../src/runtime/ssr.js')
-  const { execute } = await import('./outils-test.js')
-  const { module } = await execute('page "/produit/:id"\n  titre "Produit {id}"\n')
-  const r = trouvePage(module.$pages, '/produit/42')
-  assert.equal(r?.params.id, '42')
-  const doc = installeSSR()
-  const cible = doc.createElement('div')
-  rendsPage(module, '/produit/42', cible)
-  assert.match(serialise(cible), /Produit 42/)
+test('pages with parameters: /product/:id', async () => {
+  const { findPage, renderPage } = await import('../src/runtime/index.js')
+  const { installSSR, serialize } = await import('../src/runtime/ssr.js')
+  const { module } = await run('page "/product/:id"\n  title "Product {id}"\n')
+  assert.equal(findPage(module.$pages, '/product/42')?.params.id, '42')
+  const doc = installSSR()
+  const target = doc.createElement('div')
+  renderPage(module, '/product/42', target)
+  assert.match(serialize(target), /Product 42/)
 })
 
-test('les exemples de la documentation compilent sans erreur', async () => {
-  const blocs = (f: string) => readFileSync(f, 'utf8').split('```').filter((_, i) => i % 2 === 1).filter((b) => !/^(bash|\w+\n)/.test(b))
-  const readme = blocs('README.md')[0]
-  const ia = readFileSync('docs/kaury-ia.md', 'utf8').split('## 6. Exemple complet')[1].split('```')[1]
-  for (const [nom, code] of [['README', readme], ['kaury-ia exemple complet', ia]]) {
-    const r = compile(code.replace(/^\n/, ''), { fichier: nom })
-    assert.deepEqual(r.erreurs.map((e) => e.formate(code)), [], nom)
-  }
-})
-
-test('kaury verifie --json : sortie lisible par une IA', async () => {
-  const { execFileSync } = await import('node:child_process')
-  const f = join(TMP, 'faux.kaury')
-  writeFileSync(f, 'etat compteur = 0\naffiche compteurr\n')
-  let sortie = ''
-  try {
-    execFileSync(process.execPath, ['bin/kaury.js', 'verifie', f, '--json'], { encoding: 'utf8' })
-  } catch (e: any) {
-    sortie = e.stdout
-  }
-  const j = JSON.parse(sortie)
-  assert.equal(j.ok, false)
-  assert.equal(j.problemes[0].ligne, 2)
-  assert.match(j.problemes[0].essaie, /compteur/)
-})
-
-test('les tournures de kaury-ia.md compilent', () => {
-  const morceaux = [
-    'etat compteur = 0\nrepete 2s, -> compteur += 1\n',
-    'etat menu = faux\npage "/"\n  bouton "Menu" -> bascule menu\n  si menu\n    texte "ouvert"\n',
-    'soit liste = [{ actif: vrai }]\npage "/"\n  texte (liste.filtre(x -> x.actif)).longueur\n',
-    'soit taille = 3\npage "/"\n  texte (taille)\n',
-    'page "/"\n  scene\n    objet canette "c.glb"\n    bouton "Saute" -> saute canette\n',
-    'page "/"\n  personnage p "m.glb"\n    au clic -> joue "danse"\n    dit "Salut !"\n',
-    'page "/"\n  son "a.mp3", boucle, volume 0.4\n  bouton "Clic" -> son "clic.mp3"\n',
-    'page "/produit/:id"\n  produit = attends charge "/api/produits/{id}"\n  si produit\n    titre produit.nom\n',
-    'composant Boite titre\n  boite\n    sous-titre titre\n    contenu\npage "/"\n  Boite "Salut"\n    texte "dedans"\n',
-    'page "/"\n  section\n    style survol monte 4, ombre forte\n    mobile cache\n',
-    'page "/"\n  grille 3 colonnes\n    tablette 2 colonnes\n    mobile 1 colonne\n',
-    'importe confetti de "canvas-confetti"\npage "/"\n  bouton "Fête" -> confetti()\n',
-    'page "/"\n  au chargement -> affiche "prêt"\n  au defilement -> affiche defilement\n',
-    'site "X"\n  adresse "https://x.ch"\n  transition glisse\npage "/"\n  titre "x"\n',
-  ]
-  for (const m of morceaux) {
-    const r = compile(m, { fichier: 'm.kaury' })
-    assert.deepEqual(r.erreurs.map((e) => e.formate(m)), [], m)
-  }
-})
-
-test('rendu serveur : composant avec contenu, si/pour réactifs', async () => {
-  const { rendsPage } = await import('../src/runtime/index.js')
-  const { installeSSR, serialise } = await import('../src/runtime/ssr.js')
-  const { execute } = await import('./outils-test.js')
-  const { module } = await execute([
-    'etat fruits = ["pomme", "kiwi"]',
-    'composant Boite titre',
-    '  boite',
-    '    sous-titre titre',
-    '    contenu',
+test('server render: component with slot, reactive if/for', async () => {
+  const { renderPage } = await import('../src/runtime/index.js')
+  const { installSSR, serialize } = await import('../src/runtime/ssr.js')
+  const { module } = await run([
+    'state fruits = ["apple", "kiwi"]',
+    'component Box heading',
+    '  box',
+    '    subtitle heading',
+    '    slot',
     'page "/"',
-    '  Boite "Panier"',
-    '    pour f, i dans fruits',
-    '      texte "{i + 1}. {f}"',
-    '    si fruits.longueur > 1',
-    '      texte "plusieurs"',
+    '  Box "Basket"',
+    '    for f, i in fruits',
+    '      text "{i + 1}. {f}"',
+    '    if fruits.length > 1',
+    '      text "several"',
     '',
   ].join('\n'))
-  const doc = installeSSR()
-  const cible = doc.createElement('div')
-  rendsPage(module, '/', cible)
-  const html = serialise(cible)
-  assert.match(html, /<h2 class="k-sous-titre">Panier<\/h2>/)
-  assert.match(html, /1\. pomme.*2\. kiwi.*plusieurs/s)
-  assert.match(html, /class="k-boite k-contenu"|k-contenu/)
+  const doc = installSSR()
+  const target = doc.createElement('div')
+  renderPage(module, '/', target)
+  const html = serialize(target)
+  assert.match(html, /<h2 class="k-subtitle">Basket<\/h2>/)
+  assert.match(html, /1\. apple.*2\. kiwi.*several/s)
+})
+
+test('hydration adopts the server HTML (same nodes) and falls back when it differs', async () => {
+  const { renderPage } = await import('../src/runtime/index.js')
+  const { installSSR } = await import('../src/runtime/ssr.js')
+  const { module } = await run([
+    'state n = 0',
+    'state items = ["a", "b"]',
+    'page "/"',
+    '  section',
+    '    title "Count {n}"',
+    '    for x in items',
+    '      text x',
+    '    if n > 5',
+    '      text "big"',
+    '    button "+" -> n += 1',
+    '',
+  ].join('\n'))
+  const doc = installSSR()
+  const target = doc.createElement('div')
+  renderPage(module, '/', target)
+  const h1 = target.firstChild.firstChild.firstChild
+  const info = renderPage(module, '/', target, true)
+  assert.equal(info.hydrated, true)
+  assert.equal(target.firstChild.firstChild.firstChild, h1, 'the title node was adopted, not recreated')
+  // a different state than the server HTML: rebuilt, never broken
+  module.$pages // keep the module
+  const target2 = doc.createElement('div')
+  renderPage(module, '/', target2)
+  target2.firstChild.firstChild.appendChild(doc.createElement('aside')) // tampered HTML
+  const before = target2.firstChild
+  const info2 = renderPage(module, '/', target2, true)
+  assert.equal(info2.found, true)
+  assert.notEqual(target2.firstChild, before)
+})
+
+test('documentation examples compile without errors', () => {
+  const blocks = (f: string) => readFileSync(f, 'utf8').split('```').filter((_, i) => i % 2 === 1)
+  const readme = blocks('README.md').find((b) => b.startsWith('kaury\n') || b.includes('page "/"'))!
+  const ai = readFileSync('docs/kaury-ai.md', 'utf8').split('## 6. Complete example')[1].split('```')[1]
+  for (const [name, code] of [['README', readme], ['kaury-ai complete example', ai]]) {
+    const clean = code.replace(/^kaury\n/, '').replace(/^\n/, '')
+    const r = compile(clean, { file: name })
+    assert.deepEqual(r.errors.map((e) => e.format(clean)), [], name)
+  }
+})
+
+test('idioms from kaury-ai.md compile', () => {
+  const snippets = [
+    'state count = 0\nevery 2s, -> count += 1\n',
+    'state menu = false\npage "/"\n  button "Menu" -> toggle menu\n  if menu\n    text "open"\n',
+    'let list = [{ active: true }]\npage "/"\n  text (list.filter(x -> x.active)).length\n',
+    'let size = 3\npage "/"\n  text (size)\n',
+    'page "/"\n  scene\n    object can "c.glb"\n    button "Jump" -> jump can\n',
+    'page "/"\n  character p "m.glb"\n    on click -> play "dance"\n    says "Hi!"\n',
+    'page "/"\n  sound "a.mp3", loop, volume 0.4\n  button "Click" -> sound "click.mp3"\n',
+    'page "/product/:id"\n  product = await load "/api/products/{id}"\n  if product\n    title product.name\n',
+    'component Box heading\n  box\n    subtitle heading\n    slot\npage "/"\n  Box "Hi"\n    text "inside"\n',
+    'page "/"\n  section\n    style hover lift 4, shadow strong\n    mobile hidden\n',
+    'page "/"\n  grid 3 columns\n    tablet 2 columns\n    mobile 1 column\n',
+    'import confetti from "canvas-confetti"\npage "/"\n  button "Party" -> confetti()\n',
+    'page "/"\n  on load -> print "ready"\n  on scroll -> print scroll\n',
+    'site "X"\n  url "https://x.ch"\n  transition slide\npage "/"\n  title "x"\n',
+    'page "/"\n  scene immediate, particles stars\n    light night\n    object "a.glb"\n',
+  ]
+  for (const s of snippets) {
+    const r = compile(s, { file: 's.kaury' })
+    assert.deepEqual(r.errors.map((e) => e.format(s)), [], s)
+  }
+})
+
+test('kaury check --json: output an AI can read', async () => {
+  const { execFileSync } = await import('node:child_process')
+  const f = join(TMP, 'wrong.kaury')
+  writeFileSync(f, 'state count = 0\nprint countt\n')
+  let out = ''
+  try {
+    execFileSync(process.execPath, ['node_modules/tsx/dist/cli.mjs', 'src/cli/index.ts', 'check', f, '--json', '--lang', 'en'], { encoding: 'utf8' })
+  } catch (e: any) {
+    out = e.stdout
+  }
+  const j = JSON.parse(out)
+  assert.equal(j.ok, false)
+  assert.equal(j.problems[0].line, 2)
+  assert.match(j.problems[0].fix, /count/)
 })
