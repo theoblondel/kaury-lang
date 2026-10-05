@@ -314,3 +314,34 @@ export function carte(el: any, valeurs: (() => unknown)[]) {
     else texteEl.parentNode?.removeChild(texteEl)
   })
 }
+
+/** Menu de liens : sur téléphone, il se replie derrière un bouton (accessible au clavier). */
+export function menuMobile(nav: any) {
+  nav.classList.add('k-menu')
+  if (!nav.id) nav.id = 'k-menu-' + Math.random().toString(36).slice(2, 7)
+  const b = h('button', 'k-burger')
+  b.type = 'button'
+  b.setAttribute('aria-label', 'Menu')
+  b.setAttribute('aria-expanded', 'false')
+  b.setAttribute('aria-controls', nav.id)
+  b.append(h('span'), h('span'), h('span'))
+  nav.$kBurger = b
+  queueMicrotask(() => nav.parentNode?.insertBefore(b, nav))
+  if (!estNavigateur()) {
+    // rendu serveur : le bouton est placé tout de suite
+    return
+  }
+  const bascule = (ouvert?: boolean) => {
+    const o = ouvert ?? !nav.classList.contains('k-menu-ouvert')
+    nav.classList.toggle('k-menu-ouvert', o)
+    b.classList.toggle('k-burger-ouvert', o)
+    b.setAttribute('aria-expanded', String(o))
+  }
+  b.addEventListener('click', () => bascule())
+  nav.addEventListener('click', (e: Event) => {
+    if ((e.target as HTMLElement).closest('a')) bascule(false)
+  })
+  addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') bascule(false)
+  })
+}

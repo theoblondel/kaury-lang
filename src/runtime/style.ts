@@ -58,6 +58,23 @@ h3.k-titre{font-size:clamp(22px,2.2vw,30px)}
 .k-logo{display:inline-flex;align-items:center;gap:10px;text-decoration:none;font-weight:700;font-size:1.25em;letter-spacing:-.02em}
 .k-logo-image{height:40px;width:auto}
 @media (max-width:640px){.k-liens{gap:14px;font-size:.95em}}
+.k-burger.k-burger{display:none;flex:none;width:44px;height:44px;padding:0;border:0;border-radius:12px;background:transparent;color:inherit;cursor:pointer;position:relative;margin-left:auto}
+.k-burger span{position:absolute;left:12px;right:12px;height:2px;border-radius:2px;background:currentColor;transition:transform .35s var(--k-ressort),opacity .2s}
+.k-burger span:nth-child(1){top:15px}.k-burger span:nth-child(2){top:21px}.k-burger span:nth-child(3){top:27px}
+.k-burger-ouvert span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+.k-burger-ouvert span:nth-child(2){opacity:0}
+.k-burger-ouvert span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+@media (max-width:640px){
+  html.k-js .k-burger.k-burger{display:block}
+  html.k-js .k-menu{display:none;position:absolute;left:12px;right:12px;top:100%;z-index:60;flex-direction:column;align-items:stretch;gap:4px;padding:10px;border-radius:18px;background:var(--k-fond);box-shadow:0 20px 50px -20px rgba(0,0,0,.45);border:1px solid var(--k-ligne)}
+  html.k-js .k-menu.k-menu-ouvert{display:flex;animation:k-monte .3s var(--k-ressort)}
+  html.k-js .k-menu .k-lien-nav{padding:12px 14px;border-radius:12px;font-size:1.05em}
+  html.k-js .k-menu .k-lien-nav::after{display:none}
+  .k-section.k-section-entete{flex-wrap:nowrap;gap:10px}
+  .k-section.k-section-entete .k-logo-image{height:28px;max-width:40vw;object-fit:contain;object-position:left}
+  .k-section.k-section-entete>.k-logo{min-width:0;flex:0 1 auto}
+  .k-section.k-section-entete>.k-bouton{flex:none}
+}
 
 /* ---- boutons ---- */
 .k-bouton{display:inline-flex;align-items:center;justify-content:center;gap:.5em;width:fit-content;padding:.85em 1.5em;border:0;border-radius:999px;background:var(--k-accent);color:var(--k-sur-accent);font-weight:600;text-decoration:none;cursor:pointer;transition:transform .3s var(--k-ressort),box-shadow .3s,background .3s,opacity .3s;box-shadow:0 8px 20px -10px color-mix(in srgb,var(--k-accent) 70%,transparent)}

@@ -847,6 +847,8 @@ class Traducteur {
           }
           this.ecris(`${n}.append(${a})`)
         }
+        // dans un en-tête : menu repliable sur téléphone
+        if (p.length >= 3 && (ctx.teteParent === 'entete' || ctx.teteParent === 'section' || ctx.teteParent === 'nav')) this.ecris(`$k.menuMobile(${n})`)
         break
       }
       case 'logo': {
