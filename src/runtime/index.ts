@@ -8,7 +8,7 @@ export {
 } from './utils.js'
 export {
   h, setText, text, attr, style, px, path, img, on, when, each, component, mark, rootNodes, rootClass, slot, bind, bindCheck,
-  options, form, card, autoLink, resolveLinks, mobileMenu, installMenus, markdown, inBrowser, slug,
+  options, form, card, autoLink, resolveLinks, mobileMenu, installMenus, markdown, html, classes, inBrowser, slug,
 } from './dom.js'
 export { serverCollection, clientCollection, rawItems } from './content.js'
 export {

@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import * as esbuild from 'esbuild'
 import { compile, sourceMap, fontUrl, msg, type Result } from '../core/index.js'
 import { KauryError } from '../core/errors.js'
-import { BASE_STYLE } from '../runtime/style.js'
+import { BASE_STYLE, classesOnly } from '../runtime/style.js'
 import { installSSR } from '../runtime/ssr.js'
 import { optimizeImages, type ImageInfo } from './images.js'
 import { selfHostFonts } from './fonts.js'
@@ -170,6 +170,10 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
   copyPublic(siteDir, out)
   const entryPath = JSON.stringify(entry.replace(/\\/g, '/'))
 
+  // stylesheets and browser scripts imported by the site (import "style.css"): for every page
+  const assets = siteAssets(entry)
+  const scriptImports = assets.scripts.map((s) => `import ${JSON.stringify(s.replace(/\\/g, '/'))}\n`).join('')
+
   // 2. the browser JavaScript: the full app for dynamic pages, a tiny script for static ones
   let clientRes: esbuild.BuildResult<{ metafile: true }>
   try {
@@ -189,8 +193,8 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
       nodePaths,
       define: { 'process.env.NODE_ENV': o.dev ? '"development"' : '"production"', __KAURY_IMAGES__: '{}' },
       plugins: [kauryPlugin(root, collected, siteDir, false, {
-        site: `import * as app from ${entryPath}\nimport { start } from "kaury/runtime"\n${o.dev ? 'globalThis.__kauryDev = true\n' : ''}start(app)\n`,
-        static: `import { installMenus } from "kaury/runtime/menus"\ninstallMenus()\n`,
+        site: `import * as app from ${entryPath}\nimport { start } from "kaury/runtime"\n${o.dev ? 'globalThis.__kauryDev = true\n' : ''}start(app)\n${scriptImports}`,
+        static: `import { installMenus } from "kaury/runtime/menus"\ninstallMenus()\n${scriptImports}`,
       }, out)],
     })
   } catch (e) {
@@ -209,7 +213,7 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
   // 4. CSS: base + the styles of the files (inlined in each page: no blocking request)
   // fonts: downloaded and served by the site itself (no third party, no blocking)
   const fonts = await selfHostFonts([...collected.fonts], out, cacheDir)
-  const css = minifyCss([fonts.css, BASE_STYLE, ...collected.css.values()].join('\n'))
+  const css = await minifyCss([fonts.css, assets.base === 'none' ? classesOnly(BASE_STYLE) : BASE_STYLE, ...assets.styles, ...collected.css.values()].join('\n'), !o.dev)
 
   // 5. server render of every page
   const ssrFile = join(cacheDir, `ssr-${Date.now()}.mjs`)
@@ -268,7 +272,7 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
     const js = dynamic ? siteJs : staticJs
     const html = template({
       ...common, lang: info.lang ?? lang, body: mod.serialize(target).replace(/^<div>|<\/div>$/g, ''), data,
-      title: info.title, description: info.description, image: info.image, alternates: info.alternates, path, js: '/_kaury/' + basename(js), preload: preloadOf(js), pageKind: dynamic ? 'dynamic' : 'static',
+      title: info.title, description: info.description, image: info.image, alternates: info.alternates, head: (site.head ?? '') + (info.head ?? ''), path, js: '/_kaury/' + basename(js), preload: preloadOf(js), pageKind: dynamic ? 'dynamic' : 'static',
     })
     const file = path === '/' ? 'index.html' : path === '/404' ? '404.html' : join(path.slice(1), 'index.html')
     mkdirSync(dirname(join(out, file)), { recursive: true })
@@ -329,24 +333,44 @@ export function copyPublic(siteDir: string, out: string) {
   walk(siteDir, 0)
 }
 
-function minifyCss(css: string): string {
-  return css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s*\n\s*/g, '').replace(/\s*([{};,])\s*/g, '$1').replace(/;}/g, '}')
+async function minifyCss(css: string, minify = true): Promise<string> {
+  if (!minify) return css
+  try {
+    return (await esbuild.transform(css, { loader: 'css', minify: true, logLevel: 'silent' })).code.trim()
+  } catch {
+    return css.replace(/\/\*[\s\S]*?\*\//g, '')
+  }
+}
+
+/** import "style.css" / import "script.js" in the site file: read before building. */
+function siteAssets(entry: string): { styles: string[]; scripts: string[]; base?: string } {
+  const r = compile(readFileSync(entry, 'utf8'), { file: basename(entry), checkOnly: false })
+  const dir = dirname(entry)
+  const styles: string[] = []
+  const scripts: string[] = []
+  for (const a of r.assets ?? []) {
+    const p = resolve(dir, a)
+    if (!existsSync(p)) throw new Error(msg(`the file "${a}" imported by the site does not exist`, `le fichier « ${a} » importé par le site n'existe pas`))
+    if (a.endsWith('.css')) styles.push(readFileSync(p, 'utf8'))
+    else scripts.push(p)
+  }
+  return { styles, scripts, base: r.site?.base }
 }
 
 const esc = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
 
 export function template(d: {
   body: string; title: string; description?: string; image?: string; lang: string; siteName?: string; favicon?: string
-  css: string; js: string; preload?: string[]; fonts: string[]; fontPreload?: string[]; dev: boolean; path: string; siteUrl?: string; noindex?: boolean; data?: string; pageKind?: string; transition?: string; alternates?: [string, string][]
+  css: string; js: string; preload?: string[]; fonts: string[]; fontPreload?: string[]; dev: boolean; path: string; siteUrl?: string; noindex?: boolean; data?: string; pageKind?: string; transition?: string; alternates?: [string, string][]; head?: string
 }): string {
   const fontLinks = d.fonts.map((p) => fontUrl(p)).filter(Boolean) as string[]
   const origins = [...new Set(fontLinks.map((l) => new URL(l).origin))]
-  const icon = d.favicon
+  const icon = /rel="icon"/.test(d.head ?? '') ? '' : d.favicon
     ? `<link rel="icon" href="${esc(d.favicon)}">`
     : `<link rel="icon" href="data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#16151a"/><text x="32" y="44" font-size="34" font-family="Arial" font-weight="700" fill="#fff" text-anchor="middle">' + esc((d.siteName ?? 'K').slice(0, 1).toUpperCase()) + '</text></svg>')}">`
   const canonical = d.siteUrl && !d.noindex ? `${d.siteUrl}${d.path === '/' ? '/' : d.path + '/'}` : ''
   const image = d.image && d.siteUrl && d.image.startsWith('/') ? d.siteUrl + d.image : d.image
-  const jsonld = d.siteName && d.path === '/' ? `<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebSite', name: d.siteName, description: d.description, url: d.siteUrl || undefined })}</script>` : ''
+  const jsonld = d.siteName && d.path === '/' && !/application\/ld\+json/.test(d.head ?? '') ? `<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebSite', name: d.siteName, description: d.description, url: d.siteUrl || undefined })}</script>` : ''
   return `<!doctype html>
 <html lang="${esc(d.lang)}"${d.pageKind ? ` data-k-page="${d.pageKind}"` : ""}${d.transition ? ` data-k-transition="${esc(d.transition)}"` : ""}>
 <head>
@@ -371,6 +395,7 @@ ${icon}
 ${origins.map((o) => `<link rel="preconnect" href="${o}" crossorigin>`).join('\n')}
 ${fontLinks.map((l) => `<link rel="stylesheet" href="${esc(l)}" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="${esc(l)}"></noscript>`).join('\n')}
 ${(d.fontPreload ?? []).map((f) => `<link rel="preload" href="${f}" as="font" type="font/woff2" crossorigin>`).join('\n')}
+${d.head ?? ''}
 <style>${d.css}</style>
 <script>document.documentElement.classList.add('k-js')</script>
 <script type="module" src="${d.js}"></script>

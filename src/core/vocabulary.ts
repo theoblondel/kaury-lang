@@ -150,6 +150,16 @@ export const ELEMENT_OPTIONS: Record<string, Record<string, OptionSpec>> = {
 ELEMENT_OPTIONS.character = { ...ELEMENT_OPTIONS.object, animation: o('t', ['anime'], 'animation played at start', 'animation jouée au départ', 'animation "idle"') }
 ELEMENT_OPTIONS.subtitle = ELEMENT_OPTIONS.title
 
+/** Options every web element accepts: to reuse an existing stylesheet or reach exact HTML. */
+export const UNIVERSAL_OPTIONS: Record<string, OptionSpec> = {
+  class: o('e', ['classe'], 'CSS classes of your own (replaces the default look)', 'classes CSS à toi (remplace l\'apparence par défaut)', 'box class "hero"'),
+  tag: o('e', ['balise'], 'exact HTML tag', 'balise HTML exacte', 'box tag "figure"'),
+  attr: o('ee?', ['attribut'], 'HTML attribute (name, value)', 'attribut HTML (nom, valeur)', 'box attr "aria-hidden" "true"'),
+  id: o('e', [], 'id of the element (anchor)', 'identifiant de l\'élément (ancre)', 'box id "prices"'),
+  html: o('e?', [], 'content written in HTML (trusted text only)', 'contenu écrit en HTML (texte de confiance uniquement)', 'text "Hello<br>world", html'),
+}
+const UNIVERSAL_HEADS = new Set(['section', 'header', 'footer', 'nav', 'grid', 'column', 'row', 'box', 'card', 'title', 'subtitle', 'text', 'image', 'video', 'link', 'links', 'logo', 'button', 'form', 'field', 'textarea', 'select', 'checkbox', 'list', 'item', 'icon', 'divider', 'spacer', 'markdown'])
+
 export const MOTIONS: Record<string, OptionSpec> = {
   spin: o('*', [], 'spins: spin, spin 90/s, spin on scroll, spin x', 'tourne sur lui-même : tourne, tourne 90/s, tourne au defilement', 'spin on scroll'),
   float: o('*', [], 'floats gently: float, float 0.3', 'flotte doucement', 'float'),
@@ -217,7 +227,7 @@ export const ELEMENTS: Record<string, ElementSpec> = {
 }
 
 /** These heads configure their parent instead of creating an element. */
-export const SETTINGS = new Set(['style', 'mobile', 'tablet', 'desktop', 'seo', 'colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'alternate', 'light', 'camera', 'transition'])
+export const SETTINGS = new Set(['style', 'mobile', 'tablet', 'desktop', 'seo', 'colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'alternate', 'head', 'wrapper', 'base', 'light', 'camera', 'transition'])
 export const EVENTS = new Set(['on-click', 'on-hover', 'on-scroll', 'on-load'])
 
 const STYLE_ALIASES = new Map<string, string>()
@@ -232,19 +242,20 @@ export function styleOption(word: string): string | undefined {
 }
 
 export function elementOption(head: string, word: string): string | undefined {
-  const table = ELEMENT_OPTIONS[head]
-  if (!table) return undefined
   const w = stripAccents(word)
-  for (const [name, s] of Object.entries(table)) {
-    if (name === w || (s.aliases ?? []).includes(w)) return name
+  for (const table of [ELEMENT_OPTIONS[head], UNIVERSAL_HEADS.has(head) ? UNIVERSAL_OPTIONS : undefined]) {
+    if (!table) continue
+    for (const [name, s] of Object.entries(table)) {
+      if (name === w || (s.aliases ?? []).includes(w)) return name
+    }
   }
   return undefined
 }
 
 export function optionSpec(head: string, name: string): OptionSpec | undefined {
-  return ELEMENT_OPTIONS[head]?.[name] ?? STYLES[name]
+  return ELEMENT_OPTIONS[head]?.[name] ?? (UNIVERSAL_HEADS.has(head) ? UNIVERSAL_OPTIONS[name] : undefined) ?? STYLES[name]
 }
 
 export function allOptions(head: string): string[] {
-  return [...Object.keys(ELEMENT_OPTIONS[head] ?? {}), ...Object.keys(STYLES)]
+  return [...Object.keys(ELEMENT_OPTIONS[head] ?? {}), ...(UNIVERSAL_HEADS.has(head) ? Object.keys(UNIVERSAL_OPTIONS) : []), ...Object.keys(STYLES)]
 }

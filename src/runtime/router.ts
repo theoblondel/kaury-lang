@@ -17,13 +17,14 @@ export interface KauryPage {
   seo: ((route: Route) => { title?: string; description?: string; image?: string } | null) | null
   lang?: (route: Route) => string | null
   alternates?: (route: Route) => [string, string][] | null
+  head?: (route: Route) => string | null
   transition: string | null
   each?: () => any
   pathOf?: (item: any) => string
 }
 export interface KauryModule {
   $pages: KauryPage[]
-  $site: { name?: string; lang?: string; seo?: any; transition?: string; favicon?: string; url?: string }
+  $site: { name?: string; lang?: string; seo?: any; transition?: string; favicon?: string; url?: string; head?: string }
 }
 
 let releaseCurrent: (() => void) | null = null
@@ -81,6 +82,7 @@ export interface RenderInfo {
   item?: any
   pattern?: string
   alternates?: [string, string][]
+  head?: string
 }
 
 /** Renders a page into a container (browser or server). With hydrate, adopts the HTML already there. */
@@ -135,10 +137,10 @@ export function renderPage(m: KauryModule, path: string, target: any, hydrate = 
   const collections = takeUsedCollections()
   resolveLinks(target)
   const seo = r.page.seo?.(route0) ?? {}
-  const title = seo.title ? (name && seo.title !== name ? `${seo.title} · ${name}` : seo.title) : name ?? 'Kaury'
+  const title = seo.title ? (name && !seo.title.includes(name) ? `${seo.title} · ${name}` : seo.title) : name ?? 'Kaury'
   return {
     title, description: seo.description ?? m.$site.seo?.description, image: seo.image ?? m.$site.seo?.image,
-    lang: r.page.lang?.(route0) ?? undefined, alternates: r.page.alternates?.(route0) ?? undefined, found: true, hydrated, dynamic, collections, item: r.item, pattern: r.page.path,
+    lang: r.page.lang?.(route0) ?? undefined, alternates: r.page.alternates?.(route0) ?? undefined, head: r.page.head?.(route0) ?? undefined, found: true, hydrated, dynamic, collections, item: r.item, pattern: r.page.path,
   }
 }
 

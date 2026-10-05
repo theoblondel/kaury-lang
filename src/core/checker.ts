@@ -63,7 +63,7 @@ const NAMED_CONTAINERS = ['section', 'box', 'grid', 'row', 'column', 'scene', 'c
 const FIELD_HEADS = ['field', 'textarea', 'select', 'checkbox']
 /** Elements whose first item is their content (a text, an image…). */
 const CONTENT_HEADS = new Set(['title', 'subtitle', 'text', 'item', 'icon', 'button', 'link', 'image', 'video', 'card', 'logo', 'markdown'])
-const SITE_SETTINGS = ['colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'seo', 'style', 'transition', 'mobile', 'tablet', 'desktop', 'sound']
+const SITE_SETTINGS = ['colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'seo', 'style', 'transition', 'head', 'base', 'mobile', 'tablet', 'desktop', 'sound']
 
 class Checker {
   errors: KauryError[] = []
@@ -328,7 +328,7 @@ class Checker {
         if (i.name) this.expr(i.name, s)
         for (const c of i.body) {
           if (c.k !== 'command' || !SITE_SETTINGS.includes(c.head)) {
-            this.err(c.pos, msg('« site » only holds settings: colors, font, lang, favicon, url, seo, style, transition.', 'dans « site », on ne met que des réglages : couleurs, police, langue, favicon, adresse, seo, style, transition.'),
+            this.err(c.pos, msg('« site » only holds settings: colors, font, lang, favicon, url, seo, style, transition, head, base.', 'dans « site », on ne met que des réglages : couleurs, police, langue, favicon, adresse, seo, style, transition, head, base.'),
               msg('move this element into a page "/".', 'déplace cet élément dans une page "/".'))
             continue
           }

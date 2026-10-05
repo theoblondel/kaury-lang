@@ -186,6 +186,37 @@ html[data-k-transition=curtain]::view-transition-new(root){animation-name:k-curt
 .k-dev-error{position:fixed;inset:auto 16px 16px 16px;z-index:99999;max-height:60vh;overflow:auto;padding:18px 20px;border-radius:14px;background:#1b1020;color:#ffe3ea;font:14px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;box-shadow:0 20px 50px -20px rgba(0,0,0,.6);border:1px solid #ff4f8b}
 `
 
+/** The base stylesheet without what targets plain tags (body, h1, img…): only Kaury's own classes. */
+export function classesOnly(css: string): string {
+  const keep = (sel: string) => /\.k-(only|burger|menu|scene|object|canvas|lottie|fallback|ready|placed|bubble|mute|dev-error|enter|3d)|^:root$|^html\[|::view-transition|^@/.test(sel.trim())
+  let out = ''
+  let i = 0
+  while (i < css.length) {
+    const open = css.indexOf('{', i)
+    if (open === -1) break
+    const head = css.slice(i, open).trim()
+    // find the matching brace
+    let depth = 1
+    let j = open + 1
+    while (j < css.length && depth) {
+      if (css[j] === '{') depth++
+      else if (css[j] === '}') depth--
+      j++
+    }
+    const body = css.slice(open + 1, j - 1)
+    if (head.startsWith('@media') || head.startsWith('@supports')) {
+      const inner = classesOnly(body)
+      if (inner.trim()) out += `${head}{${inner}}\n`
+    } else if (head.startsWith('@')) out += `${head}{${body}}\n`
+    else {
+      const sels = head.split(',').filter(keep)
+      if (sels.length) out += `${sels.join(',')}{${body}}\n`
+    }
+    i = j
+  }
+  return out
+}
+
 function colors(): string {
   const c: Record<string, string> = {
     red: '#e5484d', orange: '#f76b15', yellow: '#ffc53d', green: '#30a46c', blue: '#0090ff', purple: '#8e4ec6',

@@ -30,7 +30,8 @@ export interface Output {
   css: string
   map: { generated: number; source: number }[] // JS line → .kaury line
   fonts: string[]
-  site: { name?: string; lang?: string }
+  site: { name?: string; lang?: string; base?: string }
+  assets: string[] // import "style.css" / "script.js": stylesheets and browser scripts of the whole site
 }
 
 interface Ctx {
@@ -53,7 +54,7 @@ export function assetPath(s: string): string {
 // options that are not styles (handled by the element itself)
 const NON_STYLE = new Set(['level', 'alt', 'cover', 'loop', 'muted', 'autoplay', 'controls', 'to', 'outline', 'ghost', 'large', 'small',
   'disabled', 'new-tab', 'type', 'required', 'label', 'rows', 'image', 'position', 'rotation', 'fallback', 'shadows', 'fog', 'ground',
-  'particles', 'distance', 'volume', 'animation', 'immediate'])
+  'particles', 'distance', 'volume', 'animation', 'immediate', 'class', 'tag', 'attr', 'id', 'html'])
 const DYNAMIC_PROP: Record<string, string> = {
   background: 'background', color: 'color', size: 'font-size', opacity: 'opacity', width: 'width', height: 'height',
   tint: 'color', radius: 'border-radius', margin: 'margin', padding: 'padding', gap: 'gap',
@@ -75,7 +76,8 @@ class Generator {
   private classes = 0
   private css: string[] = []
   private fonts = new Set<string>()
-  private site: { name?: string; lang?: string } = {}
+  private assets: string[] = []
+  private site: { name?: string; lang?: string; base?: string } = {}
   private prefix: string
   private declared = new Set<Binding>()
   private imagesInPage = 0
@@ -141,6 +143,7 @@ class Generator {
       map: this.sources.map((s, g) => ({ generated: g + 1, source: s })),
       fonts: [...this.fonts],
       site: this.site,
+      assets: this.assets,
     }
   }
 
@@ -149,6 +152,11 @@ class Generator {
     if (i.default) parts.push(jsName(i.default))
     if (i.names) parts.push(`{ ${i.names.map((n) => (n.alias ? `${jsKey(n.name)} as ${jsName(n.alias)}` : jsName(n.name))).join(', ')} }`)
     if (i.all) parts.push(`* as ${jsName(i.all)}`)
+    if (!parts.length && /\.(css|js|mjs|ts)$/.test(i.source)) {
+      // a stylesheet or a browser script for every page: handled by the build, never run on the server
+      this.assets.push(i.source)
+      return
+    }
     if (i.source.endsWith('.kaury') && i.default && /^\p{Lu}/u.test(i.default) && !i.names) {
       // import Card from "./card.kaury" → the exported component of the same name
       this.emit(`import { ${jsName(i.default)} } from ${JSON.stringify(i.source)}`, i.pos)
@@ -187,6 +195,15 @@ class Generator {
           break
         case 'favicon':
           props.push(`favicon: ${this.exPath(p0[0])}`)
+          break
+        case 'base': {
+          // base none: no default look for plain tags (the site brings its own stylesheet)
+          const v = p0[0]
+          this.site.base = v?.k === 'none' ? 'none' : String(v?.k === 'name' ? v.name : literal(v, {}) ?? 'default')
+          break
+        }
+        case 'head':
+          props.push(`head: [${p0.map((x) => this.ex(x)).join(', ')}].join("")`)
           break
         case 'seo':
           props.push(`seo: ${this.seo(c)}`)
@@ -243,7 +260,20 @@ class Generator {
     for (const p of params) this.emit(`const ${jsName(p)} = $route.params[${JSON.stringify(p)}]`)
     if (item) this.emit(item)
     const root = this.fresh('page')
-    this.emit(`const ${root} = $k.h($root, "main", "k-page")`)
+    let rootTag = 'main'
+    let rootClass = 'k-page'
+    const wrap = i.body.find((x) => x.k === 'command' && x.head === 'wrapper') as Command | undefined
+    if (wrap) {
+      const [t, c] = wrap.meaning!.positional.map((x) => literal(x, {}))
+      if (typeof t === 'string' && /^[a-z][a-z0-9-]*$/.test(t)) rootTag = t
+      // wrapper none: the page goes straight into the site container
+      const w0 = wrap.meaning!.positional[0]
+      if (w0?.k === 'none' || (w0?.k === 'name' && canonValue(w0.name) === 'none')) rootTag = ''
+      if (typeof c === 'string') rootClass = c
+    }
+    if (rootTag) this.emit(`const ${root} = $k.h($root, ${JSON.stringify(rootTag)}, ${JSON.stringify(rootClass)})`)
+    else this.emit(`const ${root} = $root`)
+    let head = 'null'
     let seo = 'null'
     let transition = 'null'
     let lang = 'null'
@@ -259,6 +289,12 @@ class Generator {
       }
       if (x.k === 'command' && x.head === 'lang') {
         lang = this.ex(x.meaning!.positional[0])
+        return false
+      }
+      if (x.k === 'command' && x.head === 'wrapper') return false
+      if (x.k === 'command' && x.head === 'head') {
+        // head "<script type=…>": raw HTML added to the <head> of this page
+        head = `[${x.meaning!.positional.map((a) => this.ex(a)).join(', ')}].join("")`
         return false
       }
       if (x.k === 'command' && x.head === 'alternate') {
@@ -277,7 +313,7 @@ class Generator {
     const each = i.each
       ? `, each: () => ${this.ex(i.each.source)}, pathOf: (${jsName(i.each.variable)}) => ${this.ex(i.address!)}`
       : ''
-    return `{ path: ${JSON.stringify(i.path)}${each}, render: ${fn}, seo: ($route) => { ${prelude} return ${seo} }, lang: ($route) => { ${prelude} return ${lang} }, alternates: ($route) => { ${prelude} return ${alternates} }, transition: ${transition} }`
+    return `{ path: ${JSON.stringify(i.path)}${each}, render: ${fn}, seo: ($route) => { ${prelude} return ${seo} }, lang: ($route) => { ${prelude} return ${lang} }, alternates: ($route) => { ${prelude} return ${alternates} }, head: ($route) => { ${prelude} return ${head} }, transition: ${transition} }`
   }
 
   /** Declares at the top of a scope the states/variables created by « x = … » without let/state. */
@@ -756,6 +792,11 @@ class Generator {
     }
 
     // ---- web ----
+    // a slot without options adds no element: the content given to the component goes right here
+    if (head === 'slot' && !m.options.length && !c.children.length) {
+      this.emit(`if ($p.$slot) $p.$slot(${parent})`, c.pos)
+      return
+    }
     let tag = ({
       section: 'section', header: 'header', footer: 'footer', nav: 'nav', grid: 'div', column: 'div', row: 'div', box: 'div',
       card: 'article', title: 'h1', subtitle: 'h2', text: 'p', image: 'img', video: 'video', link: 'a', links: 'nav', logo: 'a',
@@ -767,9 +808,23 @@ class Generator {
       if (lvl?.k === 'number') tag = `h${Math.min(6, Math.max(1, lvl.v))}`
     }
     if (head === 'button' && opt('to')) tag = 'a'
-    const classes = [`k-${head}`]
+    {
+      const t = opt('tag')?.values[0]
+      const tv = t?.k === 'name' ? t.name : t?.k === 'text' ? literal(t, {}) : undefined
+      if (typeof tv === 'string' && /^[a-z][a-z0-9-]*$/.test(tv)) tag = tv
+    }
+    let classes = [`k-${head}`]
     if (m.objectName) classes.push(`k-${head}-${m.objectName}`)
     for (const v of ['outline', 'ghost', 'large', 'small']) if (opt(v)) classes.push(`k-${v}`)
+    // own classes replace the default look (the menu keeps the classes its script needs)
+    const own = opt('class')?.values[0]
+    let dynamicClass: Expr | undefined
+    if (own) {
+      const l = own.k === 'text' ? literal(own, {}) : undefined
+      classes = head === 'links' ? ['k-links'] : []
+      if (typeof l === 'string') classes.push(...l.split(/\s+/).filter(Boolean))
+      else dynamicClass = own
+    }
 
     // fields with a label: the label wraps the field
     let into = parent
@@ -792,7 +847,22 @@ class Generator {
       this.text(labelText, label)
     }
     if (m.objectName) this.emit(`${n}.id = ${JSON.stringify(m.objectName)}`)
+    if (dynamicClass) this.emit(`$k.classes(${n}, () => ${this.ex(dynamicClass)})`)
+    if (opt('id')) this.attr(n, 'id', opt('id')!.values[0])
+    for (const a of m.options.filter((o) => o.name === 'attr')) {
+      const nameLit = a.values[0]?.k === 'text' ? literal(a.values[0], {}) : a.values[0]?.k === 'name' ? (a.values[0] as any).name : undefined
+      if (typeof nameLit !== 'string') continue
+      if (a.values[1]) this.attr(n, nameLit, a.values[1])
+      else this.emit(`${n}.setAttribute(${JSON.stringify(nameLit)}, "")`)
+    }
+    const html = opt('html')
+    if (html) {
+      // content written in HTML: kept as is while hydrating
+      const src = html.values[0] ?? p[0]
+      if (src) this.emit(`$k.html(${n}, () => ${this.ex(src)})`)
+    }
 
+    this.skipText = !!html
     switch (head) {
       case 'title':
       case 'subtitle':
@@ -909,6 +979,7 @@ class Generator {
         break
     }
 
+    this.skipText = false
     this.styleClass(n, head, m.options, [])
     this.childrenOf(c, { ...ctx, parent: n, target: n, parentHead: head })
     if (c.action) {
@@ -974,8 +1045,9 @@ class Generator {
     for (const d of dynamic) this.emit(`$k.style(${n}, ${JSON.stringify(d[0])}, () => ${d[1]})`)
   }
 
+  private skipText = false
   private text(n: string, e: Expr | undefined) {
-    if (!e) return
+    if (!e || this.skipText) return
     const l = e.k === 'text' || e.k === 'number' ? literal(e, {}) : undefined
     if (l !== undefined) this.emit(`$k.setText(${n}, ${JSON.stringify(String(l))})`)
     else this.emit(`$k.text(${n}, () => ${this.ex(e)})`)

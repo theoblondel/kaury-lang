@@ -18,7 +18,7 @@ test('building the Crush site: server-rendered HTML, automatic links, SEO files'
   // content exists before the 3D (SEO)
   assert.match(html, /<h1 class="k-title[^"]*">Taste the difference<\/h1>/)
   assert.match(html, /Berry Crush/)
-  assert.match(html, /<title>Crush — canned mocktails · Crush<\/title>/)
+  assert.match(html, /<title>Crush — canned mocktails<\/title>/)
   assert.match(html, /name="description" content="Four alcohol-free/)
   assert.match(html, /<link rel="canonical" href="https:\/\/crush.example\/">/)
   // automatic links: section of the page, other page

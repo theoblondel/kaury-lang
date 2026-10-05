@@ -12,7 +12,7 @@ export const UI_HEADS = new Set([
   'section', 'header', 'footer', 'nav', 'grid', 'column', 'row', 'box', 'card', 'title', 'subtitle',
   'text', 'image', 'video', 'link', 'links', 'logo', 'button', 'form', 'field', 'textarea', 'select', 'checkbox',
   'list', 'item', 'icon', 'divider', 'spacer', 'slot', 'markdown', 'style', 'mobile', 'tablet', 'desktop', 'seo',
-  'colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'alternate',
+  'colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'alternate', 'head', 'wrapper', 'base',
   // immersion
   'scene', 'object', 'character', 'light', 'camera', 'on', 'follows', 'enters', 'spin', 'float', 'jump',
   'pulse', 'sway', 'says', 'play', 'sound', 'transition', 'parallax',

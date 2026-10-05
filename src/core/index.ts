@@ -25,7 +25,8 @@ export interface Result {
   info?: ModuleInfo
   ast?: Stmt[]
   fonts: string[]
-  site: { name?: string; lang?: string }
+  site: { name?: string; lang?: string; base?: string }
+  assets: string[]
   map: { generated: number; source: number }[]
 }
 
@@ -36,7 +37,7 @@ export interface CompileOptions {
 }
 
 export function compile(source: string, options: CompileOptions = {}): Result {
-  const empty: Result = { ok: false, js: '', css: '', errors: [], warnings: [], fonts: [], site: {}, map: [] }
+  const empty: Result = { ok: false, js: '', css: '', errors: [], warnings: [], fonts: [], site: {}, assets: [], map: [] }
   let ast: Stmt[]
   try {
     ast = parse(source)
@@ -50,7 +51,7 @@ export function compile(source: string, options: CompileOptions = {}): Result {
   const { errors, warnings, info } = check(ast, { file: options.file })
   if (errors.length || options.checkOnly) return { ...empty, ok: !errors.length, errors, warnings, info, ast }
   const out: Output = generate(ast, info, { file: options.file, runtime: options.runtime })
-  return { ok: true, js: out.js, css: out.css, errors: [], warnings, info, ast, fonts: out.fonts, site: out.site, map: out.map }
+  return { ok: true, js: out.js, css: out.css, errors: [], warnings, info, ast, fonts: out.fonts, site: out.site, assets: out.assets, map: out.map }
 }
 
 /** Readable message for all the problems of a compilation. */

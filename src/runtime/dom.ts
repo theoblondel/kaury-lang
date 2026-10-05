@@ -114,9 +114,13 @@ const images = (): Record<string, { w: number; h: number; srcset?: string }> =>
  * priority: 2 = first image of the page, 1 = near the top, 0 = further down.
  */
 export function img(el: any, src: string | (() => unknown), priority = 0) {
-  el.setAttribute('loading', priority ? 'eager' : 'lazy')
-  el.setAttribute('decoding', 'async')
-  if (priority === 2) el.setAttribute('fetchpriority', 'high')
+  // attributes written by hand (attr "loading" …, attr "sizes" …) win over the automatic ones
+  const own = (n: string) => el.hasAttribute(n) && !hydrating
+  const ownLoading = own('loading')
+  if (!ownLoading) el.setAttribute('loading', priority ? 'eager' : 'lazy')
+  if (!own('decoding')) el.setAttribute('decoding', 'async')
+  if (priority === 2 && !ownLoading && !own('fetchpriority')) el.setAttribute('fetchpriority', 'high')
+  const ownSizes = own('sizes')
   const apply = (s: unknown) => {
     const p = path(s)
     el.setAttribute('src', p)
@@ -126,7 +130,7 @@ export function img(el: any, src: string | (() => unknown), priority = 0) {
     el.setAttribute('height', String(info.h))
     if (info.srcset) {
       el.setAttribute('srcset', info.srcset)
-      el.setAttribute('sizes', priority ? '(max-width: 640px) 100vw, 60vw' : 'auto, (max-width: 640px) 100vw, 50vw')
+      if (!ownSizes) el.setAttribute('sizes', priority ? '(max-width: 640px) 100vw, 60vw' : 'auto, (max-width: 640px) 100vw, 50vw')
     }
   }
   if (typeof src === 'function') effect(() => apply(src()))
@@ -426,6 +430,31 @@ export function mobileMenu(nav: any) {
 }
 
 export { installMenus } from './menus.js'
+
+// ---------------- raw HTML and classes ----------------
+/** Content written in HTML. While hydrating, the server HTML is kept. */
+export function html(el: any, fn: () => unknown) {
+  let first = hydrating && !!el.firstChild
+  effect(() => {
+    const v = String(fn() ?? '')
+    if (first) {
+      first = false
+      return
+    }
+    el.innerHTML = v
+  })
+}
+
+/** Classes computed from values: « class "card {kind}" ». */
+export function classes(el: any, fn: () => unknown) {
+  let prev: string[] = []
+  effect(() => {
+    const next = String(fn() ?? '').split(/\s+/).filter(Boolean)
+    for (const c of prev) if (!next.includes(c)) el.classList.remove(c)
+    for (const c of next) el.classList.add(c)
+    prev = next
+  })
+}
 
 // ---------------- markdown ----------------
 let markedLoader: Promise<(s: string) => string> | null = null
