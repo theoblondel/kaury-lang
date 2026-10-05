@@ -588,7 +588,7 @@ class Verificateur {
         }
       }
       // couleur seule : « rose », « #FF4F8B »
-      if (a.length === 1 && (a0.k === 'couleur' || (mot && !p.cherche(mot) && (this.infos.couleurs[mot] || couleurConnue(mot))))) {
+      if (genre !== 'reglage' && genre !== 'mouvement' && a.length === 1 && (a0.k === 'couleur' || (mot && !p.cherche(mot) && (this.infos.couleurs[mot] || couleurConnue(mot))))) {
         options.push({ nom: dansSurvol ? 'survol:teinte' : 'teinte', valeurs: [a0], pos: it.pos })
         continue
       }

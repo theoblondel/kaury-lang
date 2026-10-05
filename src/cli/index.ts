@@ -151,7 +151,7 @@ function fichiersKaury(d: string): string[] {
 }
 
 function verifie(ici: string, fichiers: string[], json: boolean) {
-  const liste = fichiers.length ? fichiers.map((f) => resolve(ici, f)) : fichiersKaury(ici)
+  const liste = fichiers.length ? fichiers.flatMap((f) => (statSync(resolve(ici, f)).isDirectory() ? fichiersKaury(resolve(ici, f)) : [resolve(ici, f)])) : fichiersKaury(ici)
   const tout: any[] = []
   let nbErr = 0
   for (const f of liste) {

@@ -1,0 +1,113 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Kaury",
+  "scopeName": "source.kaury",
+  "patterns": [
+    {
+      "name": "comment.line.double-slash.kaury",
+      "match": "//.*$"
+    },
+    {
+      "include": "#texte"
+    },
+    {
+      "name": "constant.other.color.kaury",
+      "match": "#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\\b"
+    },
+    {
+      "name": "constant.numeric.kaury",
+      "match": "-?\\b\\d+(?:\\.\\d+)?(?:px|rem|em|%|vh|vw|ms|s|deg|fr|/s)?"
+    },
+    {
+      "name": "constant.language.kaury",
+      "match": "(?<![\\w-])(vrai|faux|rien|true|false|null)(?![\\w-])"
+    },
+    {
+      "match": "^\\s*(composant|component)\\s+([A-Z][\\w-]*)",
+      "captures": {
+        "1": {
+          "name": "storage.type.kaury"
+        },
+        "2": {
+          "name": "entity.name.type.kaury"
+        }
+      }
+    },
+    {
+      "match": "^\\s*(fonction|function)\\s+([\\p{L}_][\\w-]*)",
+      "captures": {
+        "1": {
+          "name": "storage.type.kaury"
+        },
+        "2": {
+          "name": "entity.name.function.kaury"
+        }
+      }
+    },
+    {
+      "match": "^\\s*(page)\\s+",
+      "captures": {
+        "1": {
+          "name": "storage.type.kaury"
+        }
+      }
+    },
+    {
+      "name": "keyword.control.kaury",
+      "match": "(?<![\\w-])(fonction|retourne|continue|function|attends|importe|exporte|bascule|essaie|erreur|arrete|import|export|return|sinon|alors|comme|ouvre|ferme|aller|const|state|while|await|catch|break|soit|etat|état|puis|pour|dans|tant|then|else|from|que|let|for|try|si|de|js|if|in)(?![\\w-])"
+    },
+    {
+      "name": "storage.type.kaury",
+      "match": "(?<![\\w-])(composant|component|site|page)(?![\\w-])"
+    },
+    {
+      "name": "entity.name.tag.kaury",
+      "match": "^\\s*(sous-titre|formulaire|separateur|ordinateur|transition|espaceur|tablette|couleurs|section|colonne|element|contenu|polices|favicon|entete|grille|bouton|mobile|police|langue|ligne|boite|carte|titre|texte|image|video|liens|champ|choix|liste|icone|style|pied|lien|logo|zone|case|nav|seo)(?![\\w-])"
+    },
+    {
+      "name": "support.function.immersion.kaury",
+      "match": "(?<![\\w-])(personnage|defilement|défilement|chargement|parallaxe|lumiere|lumière|balance|camera|caméra|survol|souris|depuis|tourne|flotte|scene|scène|objet|entre|saute|pulse|clic|suit|joue|dit|son|au)(?![\\w-])"
+    },
+    {
+      "name": "entity.name.type.component.kaury",
+      "match": "^\\s*[A-Z][\\w-]*"
+    },
+    {
+      "name": "keyword.operator.kaury",
+      "match": "->|==|!=|<=|>=|\\+=|-=|\\*=|/=|\\.\\.|[+*/%<>=]|(?<![\\w-])(et|ou|non|and|or|not)(?![\\w-])"
+    }
+  ],
+  "repository": {
+    "texte": {
+      "name": "string.quoted.double.kaury",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.kaury",
+          "match": "\\."
+        },
+        {
+          "name": "meta.embedded.kaury",
+          "begin": "\\{",
+          "end": "\\}",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.section.embedded.kaury"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.embedded.kaury"
+            }
+          },
+          "patterns": [
+            {
+              "include": "source.kaury"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

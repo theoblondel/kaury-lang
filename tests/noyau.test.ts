@@ -147,6 +147,10 @@ js
   assert.deepEqual(sortie, ['42'])
 })
 
+test('les réglages ne confondent pas leurs mots avec des couleurs (lumiere nuit)', () => {
+  assert.deepEqual(erreurs('page "/"\n  scene\n    lumiere nuit\n    objet "a.glb"\n'), [])
+})
+
 // ---------------- erreurs : chaque faute courante a un message clair ----------------
 const cas: [string, string, RegExp][] = [
   ['tabulation', 'si vrai\n\taffiche 1\n', /tabulation/],

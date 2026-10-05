@@ -653,7 +653,8 @@ class Traducteur {
   private optionsObjet(options: OptionResolue[]): string {
     const props: string[] = []
     for (const o of options) {
-      const vals = o.valeurs.map((v) => (v.k === 'nom' && !v.liaison ? JSON.stringify(canon(v.nom) ?? sansAccents(v.nom)) : o.nom === 'secours' ? this.exChemin(v) : this.exVal(v)))
+      const couleur = ['fond', 'brouillard', 'sol'].includes(o.nom)
+      const vals = o.valeurs.map((v) => (couleur ? this.exVal(v) : v.k === 'nom' && !v.liaison ? JSON.stringify(canon(v.nom) ?? sansAccents(v.nom)) : o.nom === 'secours' ? this.exChemin(v) : this.exVal(v)))
       props.push(`${cleJs(o.nom)}: ${vals.length === 0 ? 'true' : vals.length === 1 ? vals[0] : `[${vals.join(', ')}]`}`)
     }
     return `{ ${props.join(', ')} }`
