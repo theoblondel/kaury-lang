@@ -8,7 +8,7 @@ export {
 } from './outils.js'
 export {
   h, fragment, unique, texte, attr, style, px, sur, si, pour, composant, contenu, classeRacine, lie, lieCase, options,
-  etiquette, formulaire, lienAuto, resousLiens, estNavigateur, slug, chemin,
+  etiquette, formulaire, lienAuto, resousLiens, estNavigateur, slug, chemin, carte,
 } from './dom.js'
 export {
   souris, defilement, ecran, route, objets, objetNomme, objet, scene, scenePrete, reglage, son, joueSon, mouvement, action,

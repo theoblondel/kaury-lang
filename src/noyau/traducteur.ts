@@ -797,6 +797,11 @@ class Traducteur {
         break
       }
       case 'carte': {
+        if (p.length && p.some((x) => !(x.k === 'texte' && litteral(x, {}) !== undefined))) {
+          // valeurs calculées : le runtime reconnaît l'image (fichier .jpg, .png…) au moment de l'affichage
+          this.ecris(`$k.carte(${n}, [${p.map((x) => `() => ${this.ex(x)}`).join(', ')}])`)
+          break
+        }
         // carte "Fraise" "fraise.png" → image + titre
         const img = p.find((x) => estImage(x))
         const titres = p.filter((x) => x !== img)

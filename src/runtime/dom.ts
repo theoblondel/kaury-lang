@@ -292,3 +292,25 @@ export function resousLiens(racinePage: any) {
     a.setAttribute('href', href)
   }
 }
+
+/** Carte aux valeurs calculées : image (si c'est un fichier image), titre, puis texte. */
+export function carte(el: any, valeurs: (() => unknown)[]) {
+  const img = h('img', 'k-carte-image')
+  img.loading = 'lazy'
+  const titre = h('h3', 'k-carte-titre')
+  const texteEl = h('p', 'k-carte-texte')
+  el.append(img, titre, texteEl)
+  effet(() => {
+    const v = valeurs.map((f) => f())
+    const estImg = (x: unknown) => typeof x === 'string' && /\.(png|jpe?g|webp|avif|gif|svg)(\?.*)?$/i.test(x)
+    const image = v.find(estImg) as string | undefined
+    const textes = v.filter((x) => !estImg(x))
+    if (image) {
+      img.setAttribute('src', chemin(image))
+      img.setAttribute('alt', t(textes[0]))
+    } else img.parentNode?.removeChild(img)
+    titre.textContent = t(textes[0])
+    if (textes[1] !== undefined) texteEl.textContent = t(textes[1])
+    else texteEl.parentNode?.removeChild(texteEl)
+  })
+}

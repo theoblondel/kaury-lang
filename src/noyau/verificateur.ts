@@ -80,7 +80,11 @@ class Verificateur {
     // couleurs du site d'abord (elles servent d'options partout)
     for (const i of prog) if (i.k === 'site') this.lisCouleursSite(i.corps)
     this.hisse(prog, p)
-    this.instructions(prog, p)
+    // les pages et composants s'affichent après le chargement du fichier :
+    // on les vérifie en dernier, ils voient donc tout ce qui est déclaré dans le fichier
+    const tardif = (i: Instr) => i.k === 'page' || i.k === 'composant' || i.k === 'site' || i.k === 'commande'
+    this.instructions(prog.filter((i) => !tardif(i)), p)
+    for (const i of prog.filter(tardif)) this.instruction(i, p)
     // pages en double
     const vues = new Map<string, Pos>()
     for (const pg of this.infos.pages) {
