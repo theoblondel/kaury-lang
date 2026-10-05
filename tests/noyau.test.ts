@@ -184,3 +184,13 @@ for (const [nom, src, attendu] of cas) {
     assert.match(e[0], /Essaie :|^Erreur/m)
   })
 }
+
+test('réactivité profonde : un effet suit les ajouts dans une liste', async () => {
+  const { etat, effet } = await import('../src/runtime/reactif.js')
+  const l = etat<any[]>([])
+  const vus: string[] = []
+  effet(() => { vus.push(JSON.stringify(l.v)) })
+  l.v.push({ nom: 'a' })
+  l.v[0].nom = 'b'
+  assert.deepEqual(vus, ['[]', '[{"nom":"a"}]', '[{"nom":"b"}]'])
+})

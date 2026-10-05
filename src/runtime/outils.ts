@@ -153,7 +153,8 @@ export function memorise(cle: string, cellule: Cellule) {
     /* stockage indisponible */
   }
   effet(() => {
-    const v = JSON.stringify(brut(cellule.v), (_k, x) => brut(x))
+    // lire à travers la réactivité : chaque élément et la longueur sont suivis
+    const v = JSON.stringify(cellule.v)
     try {
       localStorage.setItem('kaury:' + cle, v)
     } catch {

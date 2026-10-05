@@ -237,6 +237,16 @@ async function dev(ici: string, fichier: string | undefined, port: number) {
     clearTimeout(minuteur)
     minuteur = setTimeout(reconstruis, 60)
   })
+  // en développant Kaury lui-même : un changement du runtime reconstruit aussi le site
+  const runtime = join(racinePaquet(), 'src', 'runtime')
+  if (existsSync(runtime)) {
+    for (const d of [runtime, join(racinePaquet(), 'src', 'immersion')]) {
+      watch(d, { recursive: true }, () => {
+        clearTimeout(minuteur)
+        minuteur = setTimeout(reconstruis, 60)
+      })
+    }
+  }
 
   const types: Record<string, string> = {
     '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
