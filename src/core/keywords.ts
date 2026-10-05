@@ -39,6 +39,7 @@ const TABLE: Record<string, string[]> = {
   toggle: ['bascule'],
   go: ['aller', 'goto'],
   js: ['javascript'],
+  css: [],
   // ---- web ----
   site: [],
   page: [],
@@ -84,6 +85,7 @@ const TABLE: Record<string, string[]> = {
   lang: ['langue', 'language'],
   favicon: [],
   url: ['adresse'],
+  alternate: ['traduction', 'alternates', 'hreflang'],
   // ---- immersion ----
   scene: [],
   object: ['objet', 'model'],

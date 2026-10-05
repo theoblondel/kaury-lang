@@ -12,7 +12,7 @@ export const UI_HEADS = new Set([
   'section', 'header', 'footer', 'nav', 'grid', 'column', 'row', 'box', 'card', 'title', 'subtitle',
   'text', 'image', 'video', 'link', 'links', 'logo', 'button', 'form', 'field', 'textarea', 'select', 'checkbox',
   'list', 'item', 'icon', 'divider', 'spacer', 'slot', 'markdown', 'style', 'mobile', 'tablet', 'desktop', 'seo',
-  'colors', 'font', 'fonts', 'lang', 'favicon', 'url',
+  'colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'alternate',
   // immersion
   'scene', 'object', 'character', 'light', 'camera', 'on', 'follows', 'enters', 'spin', 'float', 'jump',
   'pulse', 'sway', 'says', 'play', 'sound', 'transition', 'parallax',
@@ -243,6 +243,14 @@ class Parser {
           this.next()
           this.endOfLine()
           return { k: 'js', code: raw.v, pos: this.pos(t) }
+        }
+        case 'css': {
+          this.next()
+          const raw = this.peek()
+          if (raw.t !== 'raw') throw this.error(t, msg('« css » must be alone on its line, with the CSS indented below.', '« css » doit être seul sur sa ligne, avec le CSS indenté dessous.'))
+          this.next()
+          this.endOfLine()
+          return { k: 'css', code: raw.v, pos: this.pos(t) }
         }
         case 'component':
           return this.component()

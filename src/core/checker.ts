@@ -284,6 +284,7 @@ class Checker {
       case 'break':
       case 'continue':
       case 'js':
+      case 'css':
         break
       case 'return':
         if (i.value) this.expr(i.value, s)

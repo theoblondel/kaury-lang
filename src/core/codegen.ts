@@ -247,6 +247,7 @@ class Generator {
     let seo = 'null'
     let transition = 'null'
     let lang = 'null'
+    let alternates = 'null'
     const body = i.body.filter((x) => {
       if (x.k === 'command' && x.head === 'seo') {
         seo = this.seo(x)
@@ -260,6 +261,12 @@ class Generator {
         lang = this.ex(x.meaning!.positional[0])
         return false
       }
+      if (x.k === 'command' && x.head === 'alternate') {
+        // alternate "fr" "/page/", "en" "/en/page/": versions of the page in other languages
+        const pairs = x.items.map((it) => `[${it.atoms.map((a) => this.ex(a)).join(', ')}]`)
+        alternates = `[${pairs.join(', ')}]`
+        return false
+      }
       return true
     })
     this.content(body, { view: true, parent: root, target: root, parentHead: 'page' }, 'page')
@@ -270,7 +277,7 @@ class Generator {
     const each = i.each
       ? `, each: () => ${this.ex(i.each.source)}, pathOf: (${jsName(i.each.variable)}) => ${this.ex(i.address!)}`
       : ''
-    return `{ path: ${JSON.stringify(i.path)}${each}, render: ${fn}, seo: ($route) => { ${prelude} return ${seo} }, lang: ($route) => { ${prelude} return ${lang} }, transition: ${transition} }`
+    return `{ path: ${JSON.stringify(i.path)}${each}, render: ${fn}, seo: ($route) => { ${prelude} return ${seo} }, lang: ($route) => { ${prelude} return ${lang} }, alternates: ($route) => { ${prelude} return ${alternates} }, transition: ${transition} }`
   }
 
   /** Declares at the top of a scope the states/variables created by « x = … » without let/state. */
@@ -447,6 +454,10 @@ class Generator {
         return
       case 'js':
         this.emit(i.code, i.pos)
+        return
+      case 'css':
+        // raw CSS: added to the stylesheet of the site, as written
+        this.css.push(i.code)
         return
       case 'component':
         return this.component(i)

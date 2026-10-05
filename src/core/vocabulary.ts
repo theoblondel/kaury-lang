@@ -217,7 +217,7 @@ export const ELEMENTS: Record<string, ElementSpec> = {
 }
 
 /** These heads configure their parent instead of creating an element. */
-export const SETTINGS = new Set(['style', 'mobile', 'tablet', 'desktop', 'seo', 'colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'light', 'camera', 'transition'])
+export const SETTINGS = new Set(['style', 'mobile', 'tablet', 'desktop', 'seo', 'colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'alternate', 'light', 'camera', 'transition'])
 export const EVENTS = new Set(['on-click', 'on-hover', 'on-scroll', 'on-load'])
 
 const STYLE_ALIASES = new Map<string, string>()

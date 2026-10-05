@@ -73,9 +73,11 @@ export function tokenize(source: string): Token[] {
             msg('align it exactly under the line it belongs to (2 spaces per level).', 'aligne-la exactement sous la ligne dont elle fait partie (2 espaces par niveau).'))
         }
       }
-      // Raw JavaScript block: « js » alone on its line, then indented code copied as is.
-      if (/^(js|javascript)\s*(\/\/.*)?$/.test(rest)) {
-        push({ t: 'word', v: 'js', line: lineNo, column: indent + 1, end: indent + 3, spaceBefore: true })
+      // Raw block: « js » or « css » alone on its line, then indented code copied as is.
+      const rawKind = /^(js|javascript|css)\s*(\/\/.*)?$/.exec(rest)?.[1]
+      if (rawKind) {
+        const word = rawKind === 'css' ? 'css' : 'js'
+        push({ t: 'word', v: word, line: lineNo, column: indent + 1, end: indent + 1 + word.length, spaceBefore: true })
         const raw: string[] = []
         let k = li + 1
         let margin = -1

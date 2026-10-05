@@ -16,6 +16,7 @@ export interface KauryPage {
   render: (route: Route, root: any) => any
   seo: ((route: Route) => { title?: string; description?: string; image?: string } | null) | null
   lang?: (route: Route) => string | null
+  alternates?: (route: Route) => [string, string][] | null
   transition: string | null
   each?: () => any
   pathOf?: (item: any) => string
@@ -79,6 +80,7 @@ export interface RenderInfo {
   collections: string[] // content collections the page read
   item?: any
   pattern?: string
+  alternates?: [string, string][]
 }
 
 /** Renders a page into a container (browser or server). With hydrate, adopts the HTML already there. */
@@ -136,7 +138,7 @@ export function renderPage(m: KauryModule, path: string, target: any, hydrate = 
   const title = seo.title ? (name && seo.title !== name ? `${seo.title} · ${name}` : seo.title) : name ?? 'Kaury'
   return {
     title, description: seo.description ?? m.$site.seo?.description, image: seo.image ?? m.$site.seo?.image,
-    lang: r.page.lang?.(route0) ?? undefined, found: true, hydrated, dynamic, collections, item: r.item, pattern: r.page.path,
+    lang: r.page.lang?.(route0) ?? undefined, alternates: r.page.alternates?.(route0) ?? undefined, found: true, hydrated, dynamic, collections, item: r.item, pattern: r.page.path,
   }
 }
 

@@ -268,7 +268,7 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
     const js = dynamic ? siteJs : staticJs
     const html = template({
       ...common, lang: info.lang ?? lang, body: mod.serialize(target).replace(/^<div>|<\/div>$/g, ''), data,
-      title: info.title, description: info.description, image: info.image, path, js: '/_kaury/' + basename(js), preload: preloadOf(js), pageKind: dynamic ? 'dynamic' : 'static',
+      title: info.title, description: info.description, image: info.image, alternates: info.alternates, path, js: '/_kaury/' + basename(js), preload: preloadOf(js), pageKind: dynamic ? 'dynamic' : 'static',
     })
     const file = path === '/' ? 'index.html' : path === '/404' ? '404.html' : join(path.slice(1), 'index.html')
     mkdirSync(dirname(join(out, file)), { recursive: true })
@@ -337,7 +337,7 @@ const esc = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'
 
 export function template(d: {
   body: string; title: string; description?: string; image?: string; lang: string; siteName?: string; favicon?: string
-  css: string; js: string; preload?: string[]; fonts: string[]; fontPreload?: string[]; dev: boolean; path: string; siteUrl?: string; noindex?: boolean; data?: string; pageKind?: string; transition?: string
+  css: string; js: string; preload?: string[]; fonts: string[]; fontPreload?: string[]; dev: boolean; path: string; siteUrl?: string; noindex?: boolean; data?: string; pageKind?: string; transition?: string; alternates?: [string, string][]
 }): string {
   const fontLinks = d.fonts.map((p) => fontUrl(p)).filter(Boolean) as string[]
   const origins = [...new Set(fontLinks.map((l) => new URL(l).origin))]
@@ -356,6 +356,10 @@ export function template(d: {
 ${d.description ? `<meta name="description" content="${esc(d.description)}">` : ''}
 ${d.noindex ? '<meta name="robots" content="noindex">' : ''}
 ${canonical ? `<link rel="canonical" href="${esc(canonical)}">` : ''}
+${(d.alternates ?? []).map(([l, p], i) => {
+    const href = (d.siteUrl ?? '') + p
+    return `<link rel="alternate" hreflang="${esc(l)}" href="${esc(href)}">` + (i === 0 ? `<link rel="alternate" hreflang="x-default" href="${esc(href)}">` : '')
+  }).join('\n')}
 <meta property="og:type" content="website">
 <meta property="og:title" content="${esc(d.title)}">
 ${d.description ? `<meta property="og:description" content="${esc(d.description)}">` : ''}
