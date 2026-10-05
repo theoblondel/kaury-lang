@@ -427,8 +427,10 @@ class Verificateur {
       this.err({ ...pos, longueur: nom.length }, `« ${nom} » est un élément d'interface ; il doit être en début de ligne.`, `passe à la ligne : ${nom} "…"`)
       return
     }
+    const element = s ? undefined : proche(nom, Object.keys(ELEMENTS))
     this.err({ ...pos, longueur: nom.length }, `« ${nom} » n'existe pas.`,
-      s ? `tu voulais dire « ${s} » ?` : `déclare-le avant : soit ${nom} = …   (ou etat ${nom} = … s'il change)`)
+      s ? `tu voulais dire « ${s} » ?` : element ? `tu voulais dire l'élément « ${element} » ?`
+        : `déclare-le avant : soit ${nom} = …   (ou etat ${nom} = … s'il change)`)
   }
 
   expr(e: Expr, p: Portee) {

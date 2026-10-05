@@ -173,6 +173,8 @@ const cas: [string, string, RegExp][] = [
   ['au sans action', 'page "/"\n  bouton "x"\n    au clic\n', /->/],
   ['fichier objet inconnu', 'page "/"\n  objet "a.docx"\n', /format de fichier/],
   ['composant en minuscule', 'composant carte x\n  texte x\n', /majuscule/],
+  ['élément mal écrit avec bloc', 'page "/"\n  secion\n    texte "x"\n', /« section »/],
+  ['élément mal écrit', 'page "/"\n  tittre "Salut"\n', /l'élément « titre »/],
 ]
 for (const [nom, src, attendu] of cas) {
   test(`erreur claire : ${nom}`, () => {

@@ -913,7 +913,12 @@ var Analyseur = class {
         'exemples : bouton "Ok" -> compteur += 1   ou   somme liste, a -> a.prix'
       );
     }
-    if (this.voit().t === "indente") {
+    if (this.voit().t === "indente" || this.voit().t === "ligne" && this.voit(1).t === "indente") {
+      const mot = e.k === "nom" ? e.nom : e.k === "appel" && e.fn.k === "nom" ? e.fn.nom : void 0;
+      const sug = mot ? proche(mot, [...TETES_INTERFACE, "composant", "fonction", "page", "site", "pour", "si"]) : void 0;
+      if (mot && sug) {
+        throw new ErreurKaury({ ...e.pos, longueur: mot.length }, `\xAB ${mot} \xBB n'est pas un mot de Kaury.`, `tu voulais dire \xAB ${sug} \xBB ?`);
+      }
       throw this.erreur(
         this.voit(),
         "ce bloc indent\xE9 n'appartient \xE0 rien.",
@@ -2366,10 +2371,11 @@ var Verificateur = class {
       this.err({ ...pos, longueur: nom.length }, `\xAB ${nom} \xBB est un \xE9l\xE9ment d'interface ; il doit \xEAtre en d\xE9but de ligne.`, `passe \xE0 la ligne : ${nom} "\u2026"`);
       return;
     }
+    const element = s ? void 0 : proche(nom, Object.keys(ELEMENTS));
     this.err(
       { ...pos, longueur: nom.length },
       `\xAB ${nom} \xBB n'existe pas.`,
-      s ? `tu voulais dire \xAB ${s} \xBB ?` : `d\xE9clare-le avant : soit ${nom} = \u2026   (ou etat ${nom} = \u2026 s'il change)`
+      s ? `tu voulais dire \xAB ${s} \xBB ?` : element ? `tu voulais dire l'\xE9l\xE9ment \xAB ${element} \xBB ?` : `d\xE9clare-le avant : soit ${nom} = \u2026   (ou etat ${nom} = \u2026 s'il change)`
     );
   }
   expr(e, p) {

@@ -1,7 +1,7 @@
 // Étape 2 — l'analyseur : transforme les jetons en arbre.
 // Comprend ce qui est dans quoi : un titre dans une section dans une page.
 
-import { ErreurKaury } from './erreurs.js'
+import { ErreurKaury, proche } from './erreurs.js'
 import { lis, type Jeton } from './lecteur.js'
 import { canon } from './mots.js'
 import type { Commande, Expr, Instr, Item, Param, Pos } from './arbre.js'
@@ -264,7 +264,13 @@ class Analyseur {
       throw this.erreur(op, '« -> » doit suivre un élément d\'interface ou un paramètre.',
         'exemples : bouton "Ok" -> compteur += 1   ou   somme liste, a -> a.prix')
     }
-    if (this.voit().t === 'indente') {
+    if (this.voit().t === 'indente' || (this.voit().t === 'ligne' && this.voit(1).t === 'indente')) {
+      // souvent un élément mal écrit : « secion » au lieu de « section »
+      const mot = e.k === 'nom' ? e.nom : e.k === 'appel' && e.fn.k === 'nom' ? e.fn.nom : undefined
+      const sug = mot ? proche(mot, [...TETES_INTERFACE, 'composant', 'fonction', 'page', 'site', 'pour', 'si']) : undefined
+      if (mot && sug) {
+        throw new ErreurKaury({ ...e.pos, longueur: mot.length }, `« ${mot} » n'est pas un mot de Kaury.`, `tu voulais dire « ${sug} » ?`)
+      }
       throw this.erreur(this.voit(), 'ce bloc indenté n\'appartient à rien.',
         'seuls page, section, si, pour, fonction… ouvrent un bloc. Retire l\'indentation.')
     }
