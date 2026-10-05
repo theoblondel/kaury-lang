@@ -1,0 +1,4 @@
+* text=auto eol=lf
+*.kaury linguist-language=Python linguist-detectable=true
+*.webp binary
+*.glb binary

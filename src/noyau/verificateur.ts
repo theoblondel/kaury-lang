@@ -158,11 +158,28 @@ class Verificateur {
 
   private hisseImplicites(corps: Instr[], p: Portee) {
     const hote = p.hote()
+    // les noms déclarés explicitement (soit / etat) ne sont jamais des déclarations implicites
+    const explicites = new Set<string>()
+    const cherche = (liste: Instr[]) => {
+      for (const i of liste) {
+        if (i.k === 'soit') explicites.add(i.nom)
+        else if (i.k === 'si') {
+          cherche(i.alors)
+          i.sinonSi.forEach((x) => cherche(x.corps))
+          if (i.sinon) cherche(i.sinon)
+        } else if (i.k === 'pour' || i.k === 'tantque') cherche(i.corps)
+        else if (i.k === 'essaie') {
+          cherche(i.corps)
+          if (i.erreur) cherche(i.erreur)
+        } else if (i.k === 'commande' && hote.estVue()) cherche(i.enfants)
+      }
+    }
+    cherche(corps)
     const parcours = (liste: Instr[], dansAction: boolean) => {
       for (const i of liste) {
         if (i.k === 'affecte' && i.cible.k === 'nom' && i.op === '=') {
           const nom = i.cible.nom
-          if (!p.cherche(nom) && !globalKaury(nom) && !GLOBAUX_JS.has(nom)) {
+          if (!p.cherche(nom) && !explicites.has(nom) && !globalKaury(nom) && !GLOBAUX_JS.has(nom)) {
             const vue = hote.estVue()
             const l = this.declare(hote, nom, vue ? 'etat' : 'variable', i.pos)
             l.modifie = true

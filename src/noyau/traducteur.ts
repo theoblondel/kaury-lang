@@ -559,6 +559,8 @@ class Traducteur {
     if (trSurvol.length) survol.push(`transform:${trSurvol.join(' ')}`)
     const ajoute = (s: string, decls: string[]) => {
       if (!decls.length) return
+      // dans une règle mobile/tablette, on double la classe pour passer devant les réglages par défaut
+      if (media && /^\.[\w-]+$/.test(s)) s = s + s
       const regle = `${s}{${decls.join(';')}}`
       this.css.push(media ? `${media}{${regle}}` : regle)
     }
