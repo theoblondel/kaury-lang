@@ -1,0 +1,125 @@
+// Crush — mocktails en canette. Un site immersif complet, dans un seul fichier.
+
+site "Crush"
+  couleurs accent #EA4374, nuit #05060F, bleu-crush #23347A, creme #FDF7F2, braise #3E0A1C
+  police "Outfit"
+  langue "fr"
+  style fond nuit, couleur creme
+  transition fondu
+
+// ---- données ----
+soit gouts = [
+  { nom: "Berry Crush", image: "berry.webp", note: "Fraise, framboise, une pointe de basilic", prix: 3.9, teinte: "#E03561" },
+  { nom: "Green Crush", image: "green.webp", note: "Concombre, citron vert, menthe fraîche", prix: 3.9, teinte: "#5BBF7A" },
+  { nom: "Sunset Crush", image: "sunset.webp", note: "Pêche, abricot, fleur d'oranger", prix: 4.2, teinte: "#F28C38" },
+  { nom: "Tropical Crush", image: "tropical.webp", note: "Mangue, passion, ananas rôti", prix: 4.2, teinte: "#F2C230" }
+]
+
+etat panier = []
+soit total = somme panier, g -> g.prix
+soit nombre-articles = longueur panier
+
+memorise "panier", panier
+
+fonction ajoute-au-panier gout
+  panier.ajoute gout
+  confettis()
+
+composant CarteGout gout
+  carte
+    image gout.image, gout.nom, couvre
+    sous-titre gout.nom, taille 26
+    texte gout.note, opacite 0.7
+    ligne espace 12
+      texte prix(gout.prix), gras
+      bouton "Ajouter", petit -> ajoute-au-panier gout
+    entre depuis bas
+  style fond braise, bordure 1 #FFFFFF22, coins 22, survol monte 8, ombre forte
+
+// ---- pages ----
+page "/"
+  seo "Crush — mocktails en canette", "Quatre recettes sans alcool, pressées en Suisse. Goûte la différence."
+
+  section entete, colle, verre
+    logo "wordmark.svg"
+    liens Gouts, Histoire, Panier
+    bouton "Panier ({nombre-articles})", petit, contour, vers "/panier"
+
+  scene accueil, plein-ecran, particules bulles
+    lumiere coucher-de-soleil
+    camera suit souris
+    personnage mascotte "mascotte.glb", taille 1.1, position 2.2 -0.3 0, texte "Kaury, la mascotte de Crush"
+      entre depuis droite
+      dit "Salut ! Clique sur moi."
+      au clic -> saute
+    titre "Goûte la différence", taille 96, texte-degrade accent #FF9CC0
+      entre depuis bas
+    texte "Mocktails pressés en Suisse. Zéro alcool, zéro compromis.", taille 20, opacite 0.75
+      entre depuis bas
+    ligne espace 12, centre
+      bouton "Voir les goûts", grand -> defile "gouts"
+      bouton "Notre histoire", grand, contour, vers "/histoire"
+
+  section gouts
+    sous-titre "Quatre goûts. Aucun regret.", taille 56
+      entre depuis gauche
+    grille 4 colonnes, espace 24
+      tablette 2 colonnes
+      pour gout dans gouts
+        CarteGout gout
+
+  section chiffres, centre
+    style degrade braise nuit 180
+    grille 3 colonnes, espace 32
+      pour c dans [{ n: "0 %", t: "d'alcool" }, { n: "100 %", t: "fruits pressés" }, { n: "33 cl", t: "de fraîcheur" }]
+        colonne centre
+          titre c.n, taille 72, texte-degrade accent #FF9CC0
+          texte c.t, majuscules, opacite 0.6
+          entre depuis bas
+
+  pied
+    texte "© Crush — boisson fictive, site d'exemple écrit en Kaury"
+    liens Gouts, Histoire
+
+page "/histoire"
+  seo "Notre histoire", "Comment Crush est né à Vevey, entre deux marchés."
+  section entete, colle, verre
+    logo "wordmark.svg"
+    liens Accueil, Panier
+  section plein-ecran
+    style max-largeur 760
+    titre "Une canette, une histoire.", taille 72
+      entre depuis bas
+    texte "Tout commence sur un marché de Vevey : un stand, quatre fruits, et l'envie de prouver qu'une boisson sans alcool peut avoir du caractère."
+      entre depuis bas
+    texte "Aujourd'hui, Crush se trouve dans les bars qui aiment leurs clients sobres autant que les autres."
+      entre depuis bas
+    objet "mark.svg", taille 0.5
+      flotte
+      suit souris, doux
+    bouton "Découvrir les goûts", vers "/#gouts"
+
+page "/panier"
+  seo "Ton panier"
+  section entete, colle, verre
+    logo "wordmark.svg"
+    liens Accueil, Histoire
+  section
+    style max-largeur 760
+    titre "Ton panier", taille 64
+    si panier.longueur == 0
+      texte "Ton panier est vide pour l'instant."
+      bouton "Choisir un goût", vers "/#gouts"
+    sinon
+      pour article, i dans panier
+        ligne espace 16
+          image article.image, article.nom, largeur 64, coins 12
+          texte article.nom, gras
+          texte prix(article.prix)
+          bouton "Retirer", petit, discret -> panier.retire article
+      separateur
+      ligne espace 16
+        titre "Total : {prix(total)}", taille 32
+        bouton "Commander", grand -> commande-envoyee = vrai
+      si commande-envoyee
+        texte "Merci ! C'est une démo : rien n'a été débité.", couleur accent

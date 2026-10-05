@@ -1,0 +1,4 @@
+.kaury-cache/
+dist/
+node_modules/
+scratch-test.ts
