@@ -208,6 +208,7 @@ export const ELEMENTS: Record<string, ElementSpec> = {
   icon: e('span', 'text', 'icon (emoji or character)', 'icône (emoji ou caractère)', 'icon "★"'),
   divider: e('hr', 'special', 'separator line', 'ligne de séparation', 'divider'),
   spacer: e('div', 'special', 'empty space', 'espace vide', 'spacer 48'),
+  markdown: e('div', 'text', 'Markdown text rendered as rich text (titles, lists, links)', 'texte Markdown affiché en texte riche (titres, listes, liens)', 'markdown post.body'),
   slot: e('div', 'special', 'inside a component: where the content given between its lines goes', 'dans un composant : là où va le contenu donné entre ses lignes', 'slot'),
   scene: e('div', 'immersion', '2D or 3D immersive area', 'zone immersive 2D ou 3D', 'scene'),
   object: e('div', 'immersion', 'object .glb, .gltf, .png, .svg, .json (Lottie)', 'objet .glb, .gltf, .png, .svg, .json (Lottie)', 'object can "crush.glb"'),

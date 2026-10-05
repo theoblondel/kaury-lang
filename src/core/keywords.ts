@@ -72,6 +72,7 @@ const TABLE: Record<string, string[]> = {
   divider: ['separateur'],
   spacer: ['espaceur'],
   slot: ['contenu', 'children'],
+  markdown: ['md'],
   style: [],
   mobile: [],
   tablet: ['tablette'],

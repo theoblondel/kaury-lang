@@ -523,6 +523,7 @@ var TABLE = {
   divider: ["separateur"],
   spacer: ["espaceur"],
   slot: ["contenu", "children"],
+  markdown: ["md"],
   style: [],
   mobile: [],
   tablet: ["tablette"],
@@ -694,6 +695,7 @@ var UI_HEADS = /* @__PURE__ */ new Set([
   "divider",
   "spacer",
   "slot",
+  "markdown",
   "style",
   "mobile",
   "tablet",
@@ -1201,11 +1203,21 @@ var Parser = class {
   }
   page() {
     const t = this.next();
-    const c = this.next();
+    const c = this.peek();
     if (!c.v.startsWith("/")) throw this.error(c, msg(`a page address starts with \xAB / \xBB: ${q(c.v)}.`, `l'adresse d'une page commence par \xAB / \xBB : ${q(c.v)}.`), `page "/${c.v}"`);
+    const address = this.primary(FREE);
+    let each;
+    if (this.isWord("for")) {
+      this.next();
+      const v = this.expectName(msg("the page variable", "la variable de la page"), 'page "/blog/{post.slug}" for post in posts');
+      this.expectWord("in", 'page "/blog/{post.slug}" for post in posts');
+      each = { variable: v.v, source: this.expression(FREE) };
+    } else if (address.parts.some((p) => typeof p !== "string")) {
+      throw this.error(c, msg("an address with {\u2026} needs \xAB for \u2026 in \u2026 \xBB to know which pages to build.", "une adresse avec {\u2026} a besoin de \xAB for \u2026 in \u2026 \xBB pour savoir quelles pages construire."), 'page "/blog/{post.slug}" for post in posts');
+    }
     this.endOfLine();
     const body = this.block(msg(`the page ${q(c.v)}`, `la page ${q(c.v)}`));
-    return { k: "page", path: c.v, body, pos: this.pos(t) };
+    return { k: "page", path: c.v, address, each, body, pos: this.pos(t) };
   }
   site() {
     const t = this.next();
@@ -1817,6 +1829,7 @@ var ELEMENTS = {
   icon: e("span", "text", "icon (emoji or character)", "ic\xF4ne (emoji ou caract\xE8re)", 'icon "\u2605"'),
   divider: e("hr", "special", "separator line", "ligne de s\xE9paration", "divider"),
   spacer: e("div", "special", "empty space", "espace vide", "spacer 48"),
+  markdown: e("div", "text", "Markdown text rendered as rich text (titles, lists, links)", "texte Markdown affich\xE9 en texte riche (titres, listes, liens)", "markdown post.body"),
   slot: e("div", "special", "inside a component: where the content given between its lines goes", "dans un composant : l\xE0 o\xF9 va le contenu donn\xE9 entre ses lignes", "slot"),
   scene: e("div", "immersion", "2D or 3D immersive area", "zone immersive 2D ou 3D", "scene"),
   object: e("div", "immersion", "object .glb, .gltf, .png, .svg, .json (Lottie)", "objet .glb, .gltf, .png, .svg, .json (Lottie)", 'object can "crush.glb"'),
@@ -2079,7 +2092,7 @@ function check(program, options = {}) {
 }
 var NAMED_CONTAINERS = ["section", "box", "grid", "row", "column", "scene", "card", "form", "list", "header", "footer", "nav"];
 var FIELD_HEADS = ["field", "textarea", "select", "checkbox"];
-var CONTENT_HEADS = /* @__PURE__ */ new Set(["title", "subtitle", "text", "item", "icon", "button", "link", "image", "video", "card", "logo"]);
+var CONTENT_HEADS = /* @__PURE__ */ new Set(["title", "subtitle", "text", "item", "icon", "button", "link", "image", "video", "card", "logo", "markdown"]);
 var SITE_SETTINGS = ["colors", "font", "fonts", "lang", "favicon", "url", "seo", "style", "transition", "mobile", "tablet", "desktop", "sound"];
 var Checker = class {
   errors = [];
@@ -2335,6 +2348,11 @@ var Checker = class {
         this.info.pages.push({ path: i.path, pos: i.pos });
         const pg = new Scope("page", s);
         for (const m of i.path.matchAll(/:([\p{L}_][\p{L}\p{N}_-]*)/gu)) this.declare(pg, m[1], "const", i.pos);
+        if (i.each) {
+          this.expr(i.each.source, s);
+          this.declare(pg, i.each.variable, "loop", i.pos).used = true;
+          if (i.address) this.expr(i.address, pg);
+        }
         this.hoist(i.body, pg);
         this.statements(i.body, pg);
         break;
@@ -3302,13 +3320,16 @@ var Generator = class {
     const fn = this.fresh("page");
     const params = [...i.path.matchAll(/:([\p{L}_][\p{L}\p{N}_-]*)/gu)].map((m) => m[1]);
     this.imagesInPage = 0;
+    const item = i.each ? `const ${jsName(i.each.variable)} = $route.item` : "";
     this.emit(`function ${fn}($route, $root) {`, i.pos);
     this.indent++;
     for (const p of params) this.emit(`const ${jsName(p)} = $route.params[${JSON.stringify(p)}]`);
+    if (item) this.emit(item);
     const root = this.fresh("page");
     this.emit(`const ${root} = $k.h($root, "main", "k-page")`);
     let seo = "null";
     let transition = "null";
+    let lang = "null";
     const body = i.body.filter((x) => {
       if (x.k === "command" && x.head === "seo") {
         seo = this.seo(x);
@@ -3318,13 +3339,19 @@ var Generator = class {
         transition = JSON.stringify(String(literal(x.meaning.positional[0], {}) ?? "fade"));
         return false;
       }
+      if (x.k === "command" && x.head === "lang") {
+        lang = this.ex(x.meaning.positional[0]);
+        return false;
+      }
       return true;
     });
     this.content(body, { view: true, parent: root, target: root, parentHead: "page" }, "page");
     this.emit(`return ${root}`);
     this.indent--;
     this.emit("}");
-    return `{ path: ${JSON.stringify(i.path)}, render: ${fn}, seo: ${seo}, transition: ${transition} }`;
+    const prelude = [...params.map((p) => `const ${jsName(p)} = $route.params[${JSON.stringify(p)}];`), item ? item + ";" : ""].join(" ");
+    const each = i.each ? `, each: () => ${this.ex(i.each.source)}, pathOf: (${jsName(i.each.variable)}) => ${this.ex(i.address)}` : "";
+    return `{ path: ${JSON.stringify(i.path)}${each}, render: ${fn}, seo: ($route) => { ${prelude} return ${seo} }, lang: ($route) => { ${prelude} return ${lang} }, transition: ${transition} }`;
   }
   /** Declares at the top of a scope the states/variables created by « x = … » without let/state. */
   implicitDeclarations(body, view) {
@@ -3797,7 +3824,8 @@ var Generator = class {
       icon: "span",
       divider: "hr",
       spacer: "div",
-      slot: "div"
+      slot: "div",
+      markdown: "div"
     }[head] ?? "div";
     if (head === "title") {
       const lvl = opt("level")?.values[0];
@@ -3926,6 +3954,9 @@ var Generator = class {
         break;
       case "slot":
         this.emit(`$k.slot(${n}, $p.$slot)`);
+        break;
+      case "markdown":
+        if (p[0]) this.emit(`$k.markdown(${n}, () => ${this.ex(p[0])})`);
         break;
       case "field":
       case "textarea":

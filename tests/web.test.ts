@@ -26,7 +26,7 @@ test('building the Crush site: server-rendered HTML, automatic links, SEO files'
   assert.match(html, /href="\/story">Story</)
   assert.match(html, /href="\/cart">Cart</)
   // the 3D object is a light placeholder with an accessible name
-  assert.match(html, /class="k-object k-character k-3d"[^>]*aria-label="Kaury, the Crush mascot"/)
+  assert.match(html, /class="k-object k-character k-3d[^"]*"[^>]*aria-label="Kaury, the Crush mascot"/)
   // hydration markers, inline CSS, no third-party font
   assert.match(html, /<!--for-->/)
   assert.match(html, /<style>/)
@@ -39,17 +39,18 @@ test('building the Crush site: server-rendered HTML, automatic links, SEO files'
   assert.match(html, /--k-on-accent:#16151a/)
 })
 
-test('a page without immersion loads no 3D library', async () => {
+test('a static page loads almost no JavaScript, and no 3D', async () => {
   const dir = join(TMP, 'simple')
   rmSync(dir, { recursive: true, force: true })
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'site.kaury'), 'page "/"\n  title "Hello"\n')
   const r = await build(join(dir, 'site.kaury'))
   const html = readFileSync(join(r.dir, 'index.html'), 'utf8')
-  const js = /src="\/_kaury\/(site-[^"]+\.js)"/.exec(html)![1]
+  assert.match(html, /data-k-page="static"/)
+  const js = /src="\/_kaury\/(static-[^"]+\.js)"/.exec(html)![1]
   const code = readFileSync(join(r.dir, '_kaury', js), 'utf8')
   assert.doesNotMatch(code, /WebGLRenderer/)
-  assert.ok(code.length < 60_000, `the base JS weighs ${code.length} bytes`)
+  assert.ok(code.length < 3_000, `the static page JS weighs ${code.length} bytes`)
 })
 
 test('the generator writes mobile CSS that wins over the defaults', () => {
@@ -177,4 +178,22 @@ test('kaury check --json: output an AI can read', async () => {
   assert.equal(j.ok, false)
   assert.equal(j.problems[0].line, 2)
   assert.match(j.problems[0].fix, /count/)
+})
+
+test('content collections: one page per item, markdown, images, static pages', async () => {
+  const r = await build(resolve('tests/fixtures/blog/site.kaury'), { out: join(TMP, 'blog-dist') })
+  assert.deepEqual(r.pages.sort(), ['/', '/blog/first-post', '/blog/second-post'])
+  assert.equal(r.staticPages, 3)
+  const home = readFileSync(join(r.dir, 'index.html'), 'utf8')
+  assert.match(home, /<h1 class="k-title">Studio<\/h1>/)
+  assert.match(home, /href="\/blog\/second-post"/)
+  const post = readFileSync(join(r.dir, 'blog', 'first-post', 'index.html'), 'utf8')
+  assert.match(post, /<title>First post · Blog<\/title>/)
+  assert.match(post, /<h2[^>]*>Hello<\/h2>/)
+  assert.match(post, /<strong>bold<\/strong>/)
+  assert.match(post, /src="\/_kaury\/content\/[0-9a-f]{8}-cover\.webp"/)
+  assert.match(post, /srcset=/)
+  // static: no data and no app code in the page
+  assert.doesNotMatch(post, /k-data-|k-item/)
+  assert.match(post, /static-[^"]+\.js/)
 })

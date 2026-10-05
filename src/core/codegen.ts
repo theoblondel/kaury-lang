@@ -237,13 +237,16 @@ class Generator {
     const fn = this.fresh('page')
     const params = [...i.path.matchAll(/:([\p{L}_][\p{L}\p{N}_-]*)/gu)].map((m) => m[1])
     this.imagesInPage = 0
+    const item = i.each ? `const ${jsName(i.each.variable)} = $route.item` : ''
     this.emit(`function ${fn}($route, $root) {`, i.pos)
     this.indent++
     for (const p of params) this.emit(`const ${jsName(p)} = $route.params[${JSON.stringify(p)}]`)
+    if (item) this.emit(item)
     const root = this.fresh('page')
     this.emit(`const ${root} = $k.h($root, "main", "k-page")`)
     let seo = 'null'
     let transition = 'null'
+    let lang = 'null'
     const body = i.body.filter((x) => {
       if (x.k === 'command' && x.head === 'seo') {
         seo = this.seo(x)
@@ -253,13 +256,21 @@ class Generator {
         transition = JSON.stringify(String(literal(x.meaning!.positional[0], {}) ?? 'fade'))
         return false
       }
+      if (x.k === 'command' && x.head === 'lang') {
+        lang = this.ex(x.meaning!.positional[0])
+        return false
+      }
       return true
     })
     this.content(body, { view: true, parent: root, target: root, parentHead: 'page' }, 'page')
     this.emit(`return ${root}`)
     this.indent--
     this.emit('}')
-    return `{ path: ${JSON.stringify(i.path)}, render: ${fn}, seo: ${seo}, transition: ${transition} }`
+    const prelude = [...params.map((p) => `const ${jsName(p)} = $route.params[${JSON.stringify(p)}];`), item ? item + ';' : ''].join(' ')
+    const each = i.each
+      ? `, each: () => ${this.ex(i.each.source)}, pathOf: (${jsName(i.each.variable)}) => ${this.ex(i.address!)}`
+      : ''
+    return `{ path: ${JSON.stringify(i.path)}${each}, render: ${fn}, seo: ($route) => { ${prelude} return ${seo} }, lang: ($route) => { ${prelude} return ${lang} }, transition: ${transition} }`
   }
 
   /** Declares at the top of a scope the states/variables created by « x = … » without let/state. */
@@ -738,7 +749,7 @@ class Generator {
       section: 'section', header: 'header', footer: 'footer', nav: 'nav', grid: 'div', column: 'div', row: 'div', box: 'div',
       card: 'article', title: 'h1', subtitle: 'h2', text: 'p', image: 'img', video: 'video', link: 'a', links: 'nav', logo: 'a',
       button: 'button', form: 'form', field: 'input', textarea: 'textarea', select: 'select', checkbox: 'input', list: 'ul',
-      item: 'li', icon: 'span', divider: 'hr', spacer: 'div', slot: 'div',
+      item: 'li', icon: 'span', divider: 'hr', spacer: 'div', slot: 'div', markdown: 'div',
     } as Record<string, string>)[head] ?? 'div'
     if (head === 'title') {
       const lvl = opt('level')?.values[0]
@@ -872,6 +883,9 @@ class Generator {
         break
       case 'slot':
         this.emit(`$k.slot(${n}, $p.$slot)`)
+        break
+      case 'markdown':
+        if (p[0]) this.emit(`$k.markdown(${n}, () => ${this.ex(p[0])})`)
         break
       case 'field':
       case 'textarea':

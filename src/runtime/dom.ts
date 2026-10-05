@@ -2,7 +2,7 @@
 // Hydration: in the browser, the first render *adopts* the HTML made by the server instead of
 // rebuilding it (faster, no flash, the largest image stays the same). Any difference → full re-render.
 
-import { effect, root, untracked, batch, raw, onCleanup } from './reactive.js'
+import { effect, root, untracked, batch, raw, onCleanup, markDynamic } from "./reactive.js"
 import { t, toList, call, toNumber } from './utils.js'
 
 export const inBrowser = () => typeof window !== 'undefined' && !(globalThis as any).__kaurySSR
@@ -135,6 +135,7 @@ export function img(el: any, src: string | (() => unknown), priority = 0) {
 
 /** Listens to an event. State changes made by the action are grouped. */
 export function on(el: any, type: string, fn: (e: any) => any) {
+  markDynamic()
   if (!inBrowser() || !el) return
   if (type === 'mount') {
     queueMicrotask(() => batch(() => call(() => fn(undefined))))
@@ -301,6 +302,7 @@ export function slot(el: any, fill: ((p: any) => void) | null) {
 
 // ---------------- forms ----------------
 export function bind(el: any, read: () => unknown, write: (v: unknown) => void, kind?: string) {
+  markDynamic()
   effect(() => {
     const v = read()
     const s = v === null || v === undefined ? '' : String(v)
@@ -311,6 +313,7 @@ export function bind(el: any, read: () => unknown, write: (v: unknown) => void, 
 }
 
 export function bindCheck(el: any, read: () => unknown, write: (v: boolean) => void) {
+  markDynamic()
   effect(() => {
     el.checked = !!read()
     if (!inBrowser()) {
@@ -339,6 +342,7 @@ export function options(el: any, list: () => unknown[]) {
 }
 
 export function form(el: any) {
+  markDynamic()
   el.setAttribute('novalidate', '')
   if (!inBrowser()) return
   el.addEventListener('submit', (e: Event) => {
@@ -414,30 +418,38 @@ export function resolveLinks(pageRoot: any) {
   }
 }
 
-/** Menu of links: on phones it folds behind a button (keyboard accessible). */
+/** Menu of links: on phones it folds behind a button (installed at start, static pages included). */
+let menus = 0
 export function mobileMenu(nav: any) {
   nav.classList.add('k-menu')
-  if (!inBrowser()) return // without JavaScript the full menu stays visible
-  if (!nav.id) nav.id = 'k-menu-' + Math.random().toString(36).slice(2, 7)
-  const b = document.createElement('button')
-  b.className = 'k-burger'
-  b.type = 'button'
-  b.setAttribute('aria-label', 'Menu')
-  b.setAttribute('aria-expanded', 'false')
-  b.setAttribute('aria-controls', nav.id)
-  b.append(document.createElement('span'), document.createElement('span'), document.createElement('span'))
-  queueMicrotask(() => nav.parentNode?.insertBefore(b, nav))
-  const toggle = (open?: boolean) => {
-    const o = open ?? !nav.classList.contains('k-menu-open')
-    nav.classList.toggle('k-menu-open', o)
-    b.classList.toggle('k-burger-open', o)
-    b.setAttribute('aria-expanded', String(o))
+  if (!nav.id) nav.id = 'k-menu-' + ++menus
+}
+
+export { installMenus } from './menus.js'
+
+// ---------------- markdown ----------------
+let markedLoader: Promise<(s: string) => string> | null = null
+/**
+ * Markdown rendered as rich text. On the server it is rendered at build time; while hydrating,
+ * the server HTML is kept; a later change in the browser loads the Markdown library on demand.
+ */
+export function markdown(el: any, fn: () => unknown) {
+  let first = hydrating && !!el.firstChild
+  effect(() => {
+    const v = String(fn() ?? '')
+    if (first) {
+      first = false
+      return
+    }
+    renderMarkdown(el, v)
+  })
+}
+function renderMarkdown(el: any, v: string) {
+  const g = globalThis as any
+  if (g.__kauryMarkdown) {
+    el.innerHTML = g.__kauryMarkdown(v)
+    return
   }
-  b.addEventListener('click', () => toggle())
-  nav.addEventListener('click', (e: Event) => {
-    if ((e.target as HTMLElement).closest('a')) toggle(false)
-  })
-  addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') toggle(false)
-  })
+  markedLoader ??= import('marked').then((m) => (s: string) => m.marked.parse(s, { async: false }) as string)
+  markedLoader.then((parse) => (el.innerHTML = parse(v)))
 }

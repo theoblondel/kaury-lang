@@ -8,13 +8,14 @@ export {
 } from './utils.js'
 export {
   h, setText, text, attr, style, px, path, img, on, when, each, component, mark, rootNodes, rootClass, slot, bind, bindCheck,
-  options, form, card, autoLink, resolveLinks, mobileMenu, inBrowser, slug,
+  options, form, card, autoLink, resolveLinks, mobileMenu, installMenus, markdown, inBrowser, slug,
 } from './dom.js'
+export { serverCollection, clientCollection, rawItems } from './content.js'
 export {
   mouse, scroll, screen, route, objects, namedObject, object, scene, sceneReady, setting, sound, playSound, motion, action,
   says, bodyOf, startGlobals,
 } from './motion.js'
-export { start, go, seo, renderPage, findPage } from './router.js'
+export { start, go, seo, renderPage, findPage, allPaths } from './router.js'
 export { BASE_STYLE } from './style.js'
 
 import { setReporter } from './reactive.js'

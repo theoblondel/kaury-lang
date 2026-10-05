@@ -7,6 +7,18 @@ export interface Effect {
   running: boolean
 }
 
+// ---------------- static or dynamic page (decided while rendering on the server) ----------------
+// A page that reads no state and has no interaction needs no JavaScript in the browser.
+let dynamic = false
+export function markDynamic() {
+  dynamic = true
+}
+export function takeDynamic(): boolean {
+  const d = dynamic
+  dynamic = false
+  return d
+}
+
 let current: Effect | null = null
 let batchDepth = 0
 const pending = new Set<Effect>()
@@ -219,6 +231,7 @@ export class Cell<T = any> {
     this._v = reactive(v)
   }
   get v(): T {
+    dynamic = true
     track(this, 'v')
     return this._v
   }

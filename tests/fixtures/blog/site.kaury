@@ -1,0 +1,20 @@
+import posts from "./content/*/index.mdx"
+import about from "./content/about.yaml"
+
+site "Blog"
+  url "https://blog.example"
+
+page "/"
+  seo "Blog", "All posts"
+  section
+    title about.name
+    for post in posts
+      link post.title, "/blog/{post.slug}"
+
+page "/blog/{post.slug}" for post in posts
+  seo post.title, "A post"
+  section
+    title post.title
+    if post.cover
+      image post.cover, post.title
+    markdown post.body

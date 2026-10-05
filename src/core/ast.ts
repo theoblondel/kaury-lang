@@ -57,7 +57,7 @@ export type Stmt =
   | { k: 'go'; path: Expr; pos: Pos }
   | { k: 'js'; code: string; pos: Pos }
   | { k: 'component'; name: string; params: Param[]; body: Stmt[]; exported?: boolean; pos: Pos }
-  | { k: 'page'; path: string; body: Stmt[]; pos: Pos }
+  | { k: 'page'; path: string; address?: Expr; each?: { variable: string; source: Expr }; body: Stmt[]; pos: Pos }
   | { k: 'site'; name?: Expr; body: Stmt[]; pos: Pos }
   | Command
 

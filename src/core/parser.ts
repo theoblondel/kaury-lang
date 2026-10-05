@@ -11,7 +11,7 @@ export const UI_HEADS = new Set([
   // web
   'section', 'header', 'footer', 'nav', 'grid', 'column', 'row', 'box', 'card', 'title', 'subtitle',
   'text', 'image', 'video', 'link', 'links', 'logo', 'button', 'form', 'field', 'textarea', 'select', 'checkbox',
-  'list', 'item', 'icon', 'divider', 'spacer', 'slot', 'style', 'mobile', 'tablet', 'desktop', 'seo',
+  'list', 'item', 'icon', 'divider', 'spacer', 'slot', 'markdown', 'style', 'mobile', 'tablet', 'desktop', 'seo',
   'colors', 'font', 'fonts', 'lang', 'favicon', 'url',
   // immersion
   'scene', 'object', 'character', 'light', 'camera', 'on', 'follows', 'enters', 'spin', 'float', 'jump',
@@ -500,11 +500,22 @@ class Parser {
 
   private page(): Stmt {
     const t = this.next()
-    const c = this.next()
+    const c = this.peek()
     if (!c.v.startsWith('/')) throw this.error(c, msg(`a page address starts with « / »: ${q(c.v)}.`, `l'adresse d'une page commence par « / » : ${q(c.v)}.`), `page "/${c.v}"`)
+    const address = this.primary(FREE) as Extract<Expr, { k: 'text' }>
+    // « page "/blog/{post.slug}" for post in posts »: one page per item, built in advance
+    let each: { variable: string; source: Expr } | undefined
+    if (this.isWord('for')) {
+      this.next()
+      const v = this.expectName(msg('the page variable', 'la variable de la page'), 'page "/blog/{post.slug}" for post in posts')
+      this.expectWord('in', 'page "/blog/{post.slug}" for post in posts')
+      each = { variable: v.v, source: this.expression(FREE) }
+    } else if (address.parts.some((p) => typeof p !== 'string')) {
+      throw this.error(c, msg('an address with {…} needs « for … in … » to know which pages to build.', 'une adresse avec {…} a besoin de « for … in … » pour savoir quelles pages construire.'), 'page "/blog/{post.slug}" for post in posts')
+    }
     this.endOfLine()
     const body = this.block(msg(`the page ${q(c.v)}`, `la page ${q(c.v)}`))
-    return { k: 'page', path: c.v, body, pos: this.pos(t) }
+    return { k: 'page', path: c.v, address, each, body, pos: this.pos(t) }
   }
 
   private site(): Stmt {

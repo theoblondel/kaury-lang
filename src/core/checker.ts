@@ -62,7 +62,7 @@ export function check(program: Stmt[], options: { file?: string } = {}): {
 const NAMED_CONTAINERS = ['section', 'box', 'grid', 'row', 'column', 'scene', 'card', 'form', 'list', 'header', 'footer', 'nav']
 const FIELD_HEADS = ['field', 'textarea', 'select', 'checkbox']
 /** Elements whose first item is their content (a text, an image…). */
-const CONTENT_HEADS = new Set(['title', 'subtitle', 'text', 'item', 'icon', 'button', 'link', 'image', 'video', 'card', 'logo'])
+const CONTENT_HEADS = new Set(['title', 'subtitle', 'text', 'item', 'icon', 'button', 'link', 'image', 'video', 'card', 'logo', 'markdown'])
 const SITE_SETTINGS = ['colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'seo', 'style', 'transition', 'mobile', 'tablet', 'desktop', 'sound']
 
 class Checker {
@@ -313,6 +313,12 @@ class Checker {
         const pg = new Scope('page', s)
         // address parameters: page "/product/:id" → id
         for (const m of i.path.matchAll(/:([\p{L}_][\p{L}\p{N}_-]*)/gu)) this.declare(pg, m[1], 'const', i.pos)
+        // page "/blog/{post.slug}" for post in posts
+        if (i.each) {
+          this.expr(i.each.source, s)
+          this.declare(pg, i.each.variable, 'loop', i.pos).used = true
+          if (i.address) this.expr(i.address, pg)
+        }
         this.hoist(i.body, pg)
         this.statements(i.body, pg)
         break

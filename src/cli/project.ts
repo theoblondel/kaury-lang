@@ -10,6 +10,8 @@ import { BASE_STYLE } from '../runtime/style.js'
 import { installSSR } from '../runtime/ssr.js'
 import { optimizeImages, type ImageInfo } from './images.js'
 import { selfHostFonts } from './fonts.js'
+import { loadContent, clearContentCache, CONTENT_SOURCE, type LoadedContent } from './content.js'
+import { marked } from 'marked'
 
 export function packageRoot(): string {
   let d = dirname(fileURLToPath(import.meta.url))
@@ -50,6 +52,7 @@ export interface Collected {
   site: { name?: string; lang?: string }
   warnings: { e: KauryError; source: string }[]
   immersion: boolean
+  content: Map<string, any>
 }
 
 export class CompileFailure extends Error {
@@ -58,17 +61,36 @@ export class CompileFailure extends Error {
   }
 }
 
-function kauryPlugin(root: string, collected: Collected, siteDir: string, ssr: boolean, entry = ''): esbuild.Plugin {
+function kauryPlugin(root: string, collected: Collected, siteDir: string, ssr: boolean, entries: Record<string, string>, out: string): esbuild.Plugin {
   return {
     name: 'kaury',
     setup(b) {
-      b.onResolve({ filter: /^kaury\/(runtime|ssr|immersion)$/ }, (a) => {
-        const what = a.path.split('/')[1]
-        const p = what === 'ssr' ? 'src/runtime/ssr.ts' : what === 'immersion' ? 'src/immersion/index.ts' : 'src/runtime/index.ts'
+      b.onResolve({ filter: /^kaury\/(runtime|ssr|immersion|runtime\/menus)$/ }, (a) => {
+        const what = a.path.slice('kaury/'.length)
+        const p = what === 'ssr' ? 'src/runtime/ssr.ts' : what === 'immersion' ? 'src/immersion/index.ts' : what === 'runtime/menus' ? 'src/runtime/menus.ts' : 'src/runtime/index.ts'
         return { path: join(root, p) }
       })
-      b.onResolve({ filter: /^kaury:entry$/ }, () => ({ path: 'entry', namespace: 'kaury-virtual' }))
-      b.onLoad({ filter: /.*/, namespace: 'kaury-virtual' }, () => ({ contents: entry, loader: 'js', resolveDir: siteDir }))
+      b.onResolve({ filter: /^kaury:entry:/ }, (a) => ({ path: a.path.slice('kaury:entry:'.length), namespace: 'kaury-virtual' }))
+      b.onLoad({ filter: /.*/, namespace: 'kaury-virtual' }, (a) => ({ contents: entries[a.path], loader: 'js', resolveDir: siteDir }))
+      // content collections imported by a .kaury file
+      b.onResolve({ filter: CONTENT_SOURCE }, (a) => {
+        if (!a.importer.endsWith('.kaury')) return undefined
+        return { path: resolve(a.resolveDir, a.path), namespace: 'kaury-content' }
+      })
+      b.onLoad({ filter: /.*/, namespace: 'kaury-content' }, (a) => {
+        let c: LoadedContent
+        try {
+          c = loadContent(a.path, out)
+        } catch (e) {
+          return { errors: [{ text: msg(`cannot read the content "${a.path}": ${(e as Error).message}`, `impossible de lire le contenu « ${a.path} » : ${(e as Error).message}`) }] }
+        }
+        collected.content.set(c.id, c.data)
+        if (ssr) return { contents: `import { serverCollection } from "kaury/runtime"\nexport default serverCollection(${JSON.stringify(c.id)}, ${JSON.stringify(c.data)})`, loader: 'js', resolveDir: siteDir, watchFiles: c.files }
+        // in the browser the data is never bundled: inlined in the pages that need it, or fetched
+        mkdirSync(join(out, '_kaury', 'data'), { recursive: true })
+        writeFileSync(join(out, '_kaury', 'data', `${c.id}.json`), JSON.stringify(c.data))
+        return { contents: `import { clientCollection } from "kaury/runtime"\nexport default clientCollection(${JSON.stringify(c.id)}, "/_kaury/data/${c.id}.json", ${c.list})`, loader: 'js', resolveDir: siteDir }
+      })
       b.onLoad({ filter: /\.kaury$/ }, async (a) => {
         const source = readFileSync(a.path, 'utf8')
         const file = relative(siteDir, a.path).replace(/\\/g, '/') || basename(a.path)
@@ -121,6 +143,7 @@ export interface BuildResult {
   collected: Collected
   duration: number
   images: number
+  staticPages: number
 }
 
 export interface BuildOptions {
@@ -136,23 +159,22 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
   const siteDir = dirname(entry)
   const out = resolve(siteDir, o.out ?? 'dist')
   const cacheDir = join(siteDir, '.kaury-cache')
-  const collected: Collected = { css: new Map(), fonts: new Set(), site: {}, warnings: [], immersion: false }
+  const collected: Collected = { css: new Map(), fonts: new Set(), site: {}, warnings: [], immersion: false, content: new Map() }
   const nodePaths = [join(root, 'node_modules'), join(siteDir, 'node_modules')]
+  clearContentCache()
 
   if (existsSync(out)) rmSync(out, { recursive: true, force: true })
   mkdirSync(join(out, '_kaury'), { recursive: true })
 
-  // 1. public files (images, 3D models, sounds…) and optimized images
+  // 1. public files (images, 3D models, sounds…)
   copyPublic(siteDir, out)
-  const images: Record<string, ImageInfo> = o.dev ? {} : await optimizeImages(out, cacheDir)
-  const define = { 'process.env.NODE_ENV': o.dev ? '"development"' : '"production"', __KAURY_IMAGES__: JSON.stringify(images) }
-
   const entryPath = JSON.stringify(entry.replace(/\\/g, '/'))
-  // 2. the browser JavaScript
+
+  // 2. the browser JavaScript: the full app for dynamic pages, a tiny script for static ones
   let clientRes: esbuild.BuildResult<{ metafile: true }>
   try {
     clientRes = await esbuild.build({
-      entryPoints: { site: 'kaury:entry' },
+      entryPoints: { site: 'kaury:entry:site', static: 'kaury:entry:static' },
       bundle: true,
       format: 'esm',
       splitting: true,
@@ -165,60 +187,70 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
       metafile: true,
       logLevel: 'silent',
       nodePaths,
-      define,
-      plugins: [kauryPlugin(root, collected, siteDir, false, `import * as app from ${entryPath}\nimport { start } from "kaury/runtime"\n${o.dev ? 'globalThis.__kauryDev = true\n' : ''}start(app)\n`)],
+      define: { 'process.env.NODE_ENV': o.dev ? '"development"' : '"production"', __KAURY_IMAGES__: '{}' },
+      plugins: [kauryPlugin(root, collected, siteDir, false, {
+        site: `import * as app from ${entryPath}\nimport { start } from "kaury/runtime"\n${o.dev ? 'globalThis.__kauryDev = true\n' : ''}start(app)\n`,
+        static: `import { installMenus } from "kaury/runtime/menus"\ninstallMenus()\n`,
+      }, out)],
     })
   } catch (e) {
     throw esbuildErrors(e)
   }
   const outputs = clientRes.metafile.outputs
-  const jsFile = Object.keys(outputs).find((f) => /[\\/]site-[^\\/]+\.js$/.test(f))!
-  const jsName = basename(jsFile)
-  // chunks the entry needs at once: preloaded in parallel
-  const preload = (outputs[jsFile].imports ?? []).filter((i) => i.kind === 'import-statement').map((i) => '/_kaury/' + basename(i.path))
+  const entryFile = (name: string) => Object.keys(outputs).find((f) => basename(f).startsWith(name + '-') && f.endsWith('.js'))!
+  const siteJs = entryFile('site')
+  const staticJs = entryFile('static')
+  // chunks an entry needs at once: preloaded in parallel
+  const preloadOf = (f: string) => (outputs[f].imports ?? []).filter((i) => i.kind === 'import-statement').map((i) => '/_kaury/' + basename(i.path))
 
-  // 3. CSS: base + the styles of the files (inlined in each page: no blocking request)
+  // 3. optimized images (public files and content images)
+  const images: Record<string, ImageInfo> = o.dev ? {} : await optimizeImages(out, cacheDir)
+
+  // 4. CSS: base + the styles of the files (inlined in each page: no blocking request)
   // fonts: downloaded and served by the site itself (no third party, no blocking)
   const fonts = await selfHostFonts([...collected.fonts], out, cacheDir)
   const css = minifyCss([fonts.css, BASE_STYLE, ...collected.css.values()].join('\n'))
 
-  // 4. server render of every page
+  // 5. server render of every page
   const ssrFile = join(cacheDir, `ssr-${Date.now()}.mjs`)
   mkdirSync(dirname(ssrFile), { recursive: true })
   try {
     await esbuild.build({
-      entryPoints: { ssr: 'kaury:entry' },
+      entryPoints: { ssr: 'kaury:entry:ssr' },
       bundle: true,
       format: 'esm',
       platform: 'node',
       outfile: ssrFile,
       logLevel: 'silent',
       nodePaths,
-      define,
-      external: ['three', 'three/*', 'lottie-web'],
-      plugins: [kauryPlugin(root, { ...collected, css: new Map(), warnings: [], fonts: new Set() }, siteDir, true,
-        `export * from ${entryPath}\nexport { renderPage } from "kaury/runtime"\nexport { serialize } from "kaury/ssr"\n`)],
+      define: { 'process.env.NODE_ENV': '"production"', __KAURY_IMAGES__: JSON.stringify(images) },
+      external: ['three', 'three/*', 'lottie-web', 'marked'],
+      plugins: [kauryPlugin(root, { ...collected, css: new Map(), warnings: [], fonts: new Set(), content: collected.content }, siteDir, true, {
+        ssr: `export * from ${entryPath}\nexport { renderPage, allPaths } from "kaury/runtime"\nexport { serialize } from "kaury/ssr"\n`,
+      }, out)],
     })
   } catch (e) {
     throw esbuildErrors(e)
   }
   const doc = installSSR()
+  ;(globalThis as any).__kauryMarkdown = (md: string) => marked.parse(String(md ?? ''), { async: false }) as string
   let mod: any
   try {
     mod = await import(pathToFileURL(ssrFile).href)
   } finally {
     rmSync(ssrFile, { force: true })
   }
-  const paths: string[] = mod.$pages.map((p: any) => p.path)
+  const paths: string[] = mod.allPaths(mod)
   if (!paths.length) throw new Error(msg('this site has no page. Add at least: page "/"', 'ce site n\'a aucune page. Ajoute au moins : page "/"'))
   const site = mod.$site ?? {}
   const siteUrl = typeof site.url === 'string' ? site.url.replace(/\/$/, '') : ''
   const lang = site.lang ?? collected.site.lang ?? 'en'
   const pages: string[] = []
   const pageInfos: { path: string; title: string; description?: string }[] = []
-  const common = { lang, siteName: site.name ?? collected.site.name, favicon: site.favicon, css, js: `/_kaury/${jsName}`, preload, fonts: fonts.external, fontPreload: fonts.preload, dev: !!o.dev, siteUrl }
+  let staticPages = 0
+  const common = { lang, siteName: site.name ?? collected.site.name, favicon: site.favicon, css, fonts: fonts.external, fontPreload: fonts.preload, dev: !!o.dev, siteUrl, transition: site.transition }
   for (const path of paths) {
-    if (path.includes(':')) continue // pages with parameters: rendered in the browser
+    if (path.includes(':')) continue // pages with parameters and no list: rendered in the browser
     const target = doc.createElement('div')
     let info: any
     try {
@@ -226,7 +258,18 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
     } catch (e) {
       throw new Error(msg(`error while building the page "${path}": ${(e as Error).message}`, `erreur en construisant la page « ${path} » : ${(e as Error).message}`))
     }
-    const html = template({ ...common, body: mod.serialize(target).replace(/^<div>|<\/div>$/g, ''), title: info.title, description: info.description, image: info.image, path })
+    const dynamic = !!info.dynamic || !!o.dev
+    if (!dynamic) staticPages++
+    // the data a dynamic page reads is inlined, so it hydrates without waiting for the network
+    const data = dynamic
+      ? info.collections.map((id: string) => `<script type="application/json" id="k-data-${id}">${jsonForHtml(collected.content.get(id))}</script>`).join('') +
+        (info.item ? `<script type="application/json" id="k-item" data-k-path="${esc(info.pattern)}">${jsonForHtml(info.item)}</script>` : '')
+      : ''
+    const js = dynamic ? siteJs : staticJs
+    const html = template({
+      ...common, lang: info.lang ?? lang, body: mod.serialize(target).replace(/^<div>|<\/div>$/g, ''), data,
+      title: info.title, description: info.description, image: info.image, path, js: '/_kaury/' + basename(js), preload: preloadOf(js), pageKind: dynamic ? 'dynamic' : 'static',
+    })
     const file = path === '/' ? 'index.html' : path === '/404' ? '404.html' : join(path.slice(1), 'index.html')
     mkdirSync(dirname(join(out, file)), { recursive: true })
     writeFileSync(join(out, file), html)
@@ -235,10 +278,10 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
   }
   if (!paths.includes('/404')) {
     // a 404 page that starts the site: addresses with parameters (/product/:id) work too
-    writeFileSync(join(out, '404.html'), template({ ...common, body: '', title: site.name ?? 'Kaury', path: '/404', noindex: true }))
+    writeFileSync(join(out, '404.html'), template({ ...common, body: '', title: site.name ?? 'Kaury', path: '/404', noindex: true, js: '/_kaury/' + basename(siteJs), preload: preloadOf(siteJs), pageKind: 'dynamic' }))
   }
 
-  // 5. files for search engines, AIs and hosts
+  // 6. files for search engines, AIs and hosts
   const ownRobots = existsSync(join(out, 'robots.txt'))
   if (siteUrl) {
     const urls = pages.filter((p) => p !== '/404').map((p) => `  <url><loc>${siteUrl}${p === '/' ? '/' : p + '/'}</loc></url>`).join('\n')
@@ -249,7 +292,16 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
   if (!existsSync(join(out, '.htaccess'))) writeFileSync(join(out, '.htaccess'), HTACCESS)
   if (!existsSync(join(out, '_headers'))) writeFileSync(join(out, '_headers'), HEADERS)
 
-  return { pages, files: Object.keys(outputs).length, dir: out, collected, duration: Date.now() - t0, images: Object.keys(images).length }
+  return { pages, files: Object.keys(outputs).length, dir: out, collected, duration: Date.now() - t0, images: Object.keys(images).length, staticPages }
+}
+
+/** JSON safe to put inside a <script> tag. */
+function jsonForHtml(v: unknown): string {
+  const bs = String.fromCharCode(92) // a backslash
+  return JSON.stringify(v ?? null)
+    .replace(/</g, bs + 'u003c')
+    .replace(new RegExp(String.fromCharCode(0x2028), 'g'), bs + 'u2028')
+    .replace(new RegExp(String.fromCharCode(0x2029), 'g'), bs + 'u2029')
 }
 
 const MEDIA = /\.(png|jpe?g|webp|avif|gif|svg|ico|glb|gltf|bin|json|lottie|mp3|ogg|wav|m4a|mp4|webm|woff2?|ttf|otf|pdf|txt|xml|webmanifest|hdr|ktx2)$/i
@@ -285,7 +337,7 @@ const esc = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'
 
 export function template(d: {
   body: string; title: string; description?: string; image?: string; lang: string; siteName?: string; favicon?: string
-  css: string; js: string; preload?: string[]; fonts: string[]; fontPreload?: string[]; dev: boolean; path: string; siteUrl?: string; noindex?: boolean
+  css: string; js: string; preload?: string[]; fonts: string[]; fontPreload?: string[]; dev: boolean; path: string; siteUrl?: string; noindex?: boolean; data?: string; pageKind?: string; transition?: string
 }): string {
   const fontLinks = d.fonts.map((p) => fontUrl(p)).filter(Boolean) as string[]
   const origins = [...new Set(fontLinks.map((l) => new URL(l).origin))]
@@ -296,7 +348,7 @@ export function template(d: {
   const image = d.image && d.siteUrl && d.image.startsWith('/') ? d.siteUrl + d.image : d.image
   const jsonld = d.siteName && d.path === '/' ? `<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebSite', name: d.siteName, description: d.description, url: d.siteUrl || undefined })}</script>` : ''
   return `<!doctype html>
-<html lang="${esc(d.lang)}">
+<html lang="${esc(d.lang)}"${d.pageKind ? ` data-k-page="${d.pageKind}"` : ""}${d.transition ? ` data-k-transition="${esc(d.transition)}"` : ""}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -322,7 +374,7 @@ ${(d.preload ?? []).map((p) => `<link rel="modulepreload" href="${p}">`).join('\
 ${jsonld}
 </head>
 <body>
-<div id="app">${d.body}</div>
+<div id="app">${d.body}</div>${d.data ?? ""}
 ${d.dev ? '<script type="module" src="/_kaury/reload.js"></script>' : ''}
 </body>
 </html>
@@ -376,10 +428,10 @@ export async function run(file: string) {
   const root = packageRoot()
   const dir = dirname(file)
   const out = join(dir, '.kaury-cache', `run-${Date.now()}.mjs`)
-  const collected: Collected = { css: new Map(), fonts: new Set(), site: {}, warnings: [], immersion: false }
+  const collected: Collected = { css: new Map(), fonts: new Set(), site: {}, warnings: [], immersion: false, content: new Map() }
   try {
     await esbuild.build({
-      entryPoints: { run: 'kaury:entry' },
+      entryPoints: { run: 'kaury:entry:run' },
       bundle: true,
       format: 'esm',
       platform: 'node',
@@ -389,7 +441,7 @@ export async function run(file: string) {
       external: ['three', 'three/*', 'lottie-web'],
       sourcemap: 'inline',
       define: { __KAURY_IMAGES__: '{}' },
-      plugins: [kauryPlugin(root, collected, dir, false, `import ${JSON.stringify(file.replace(/\\/g, '/'))}\n`)],
+      plugins: [kauryPlugin(root, collected, dir, true, { run: `import ${JSON.stringify(file.replace(/\\/g, '/'))}\n` }, join(dir, '.kaury-cache', 'run-out'))],
     })
   } catch (e) {
     throw esbuildErrors(e)

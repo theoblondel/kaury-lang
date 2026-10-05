@@ -19,7 +19,9 @@ function walk(dir: string, out: string[] = []): string[] {
     const p = join(dir, f)
     const s = statSync(p)
     if (s.isDirectory()) {
-      if (f !== '_kaury' && !f.startsWith('.')) walk(p, out)
+      // Kaury's own folder is skipped, except the images copied from content collections
+      if (f === '_kaury') walk(join(p, 'content'), out)
+      else if (!f.startsWith('.')) walk(p, out)
     } else out.push(p)
   }
   return out

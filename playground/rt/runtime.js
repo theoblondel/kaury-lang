@@ -1,4 +1,4 @@
-import{$ as C,A as ae,Aa as v,B as re,Ba as We,C as ie,Ca as Ze,D as se,Da as et,E as le,Ea as tt,F as ce,Fa as u,G as pe,H as de,Ha as w,I as me,Ia as nt,J as ke,Ja as ot,K as fe,Ka as at,L as ue,La as rt,M as ge,N as xe,Na as it,O as he,Oa as st,P as be,Pa as lt,Q as ve,Qa as ct,R as we,Ra as pt,S as ye,Sa as dt,T as ze,Ta as mt,U as L,Ua as kt,V as je,W as $e,X as Le,Y as Ce,Z as Ee,_ as f,a as $,aa as b,b as k,ba as E,c as X,ca as Re,d as H,da as Te,e as N,ea as Ke,f as x,fa as Me,g as _,ga as Pe,h as A,ha as Se,i as B,ia as Ye,j as I,ja as Xe,k as q,ka as He,l as U,la as Ne,m as h,ma as _e,n as D,na as Ae,o as O,oa as Be,p as V,pa as Ie,q as F,qa as qe,r as G,ra as Ue,s as J,sa as De,t as Q,ta as Oe,u as W,ua as Ve,v as Z,va as Fe,w as ee,wa as Ge,x as te,xa as R,y as ne,ya as Je,z as oe,za as Qe}from"./chunk-EYZKK5KP.js";import{c as p}from"./chunk-HJRC34VD.js";p();p();var z=null,y=null,d=null;function g(e,i){let t=i.replace(/\/index\.html$/,"/").replace(/(.)\/$/,"$1")||"/";for(let o of e){let s=o.path.replace(/(.)\/$/,"$1"),a=[],l=new RegExp("^"+s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/:([\p{L}_][\p{L}\p{N}_-]*)/gu,(m,r)=>(a.push(r),"([^/]+)"))+"$","u").exec(t);if(l){let m={};return a.forEach((r,Y)=>m[r]=decodeURIComponent(l[Y+1])),{page:o,params:m}}}let n=e.find(o=>o.path==="/404");return n?{page:n,params:{}}:null}function j(e,i,t,n=!1){R(e.$pages.map(r=>r.path)),h(e.$site.lang);let o=g(e.$pages,i);x(()=>{u.path=i,u.params=o?.params??{}}),d?.(),d=null;let s=e.$site.name;if(!o){for(;t.firstChild;)t.removeChild(t.firstChild);let r=document.createElement("main");return r.className="k-page k-not-found",r.innerHTML='<section class="k-section"><h1 class="k-title">Page not found</h1><p class="k-text"><a href="/">Back to the home page</a></p></section>',t.appendChild(r),{title:`Page not found \xB7 ${s??""}`,found:!1,hydrated:!1}}let a={path:i,params:o.params},c=!1;if(n&&t.firstChild){t.$kNext=void 0,b(!0);try{let[,r]=k(()=>{o.page.render(a,t),E()});d=r,c=!0}catch(r){d?.(),d=null,r instanceof C||console.error(r)}finally{b(!1)}}if(!c){for(;t.firstChild;)t.removeChild(t.firstChild);let[,r]=k(()=>o.page.render(a,t));d=r}v(t);let l=o.page.seo??{};return{title:l.title?s&&l.title!==s?`${l.title} \xB7 ${s}`:l.title:s??"Kaury",description:l.description??e.$site.seo?.description,image:l.image??e.$site.seo?.image,found:!0,hydrated:c}}function ft(e,i="#app"){z=e,y=document.querySelector(i)??document.body,w();let t=j(e,location.pathname,y,!0);document.documentElement.dataset.kRender=t.hydrated?"hydrated":"rendered",document.title=t.title,K(!1),document.addEventListener("click",n=>{let o=n.target?.closest?.("a");if(!o||n.defaultPrevented||n.button!==0||n.metaKey||n.ctrlKey||n.shiftKey||n.altKey)return;let s=o.getAttribute("href");if(!s||o.target==="_blank"||o.hasAttribute("download"))return;let a=new URL(s,location.href);a.origin===location.origin&&(a.pathname===location.pathname&&a.hash||g(e.$pages,a.pathname)&&(n.preventDefault(),M(a.pathname+a.search+a.hash)))}),addEventListener("popstate",()=>P(location.pathname,!1))}function K(e){location.hash&&document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({behavior:e?"smooth":"auto"})}function M(e){if(f()){if(!z){location.href=e;return}history.pushState(null,"",e),P(new URL(e,location.href).pathname,!0)}}function P(e,i){let t=z,o=g(t.$pages,e)?.page.transition??t.$site.transition??"fade",s=()=>{let c=j(t,e,y);document.title=c.title;let l=document.querySelector('meta[name="description"]');l&&c.description&&l.setAttribute("content",c.description),location.hash?K(!1):i&&scrollTo({top:0})},a=document;o!=="none"&&a.startViewTransition&&!matchMedia("(prefers-reduced-motion: reduce)").matches?(document.documentElement.dataset.kTransition=o,a.startViewTransition(s)):s()}function ut(e){f()&&e.title&&(document.title=e.title)}p();var gt=`
+import{$ as j,A as re,Aa as Ze,B as se,Ba as et,C as le,Ca as $,D as ce,Da as tt,E as pe,Ea as nt,F as de,Fa as ot,G as me,Ga as at,H as ke,Ha as it,I as fe,Ia as b,J as ue,K as ge,Ka as R,L as xe,La as rt,M as he,Ma as st,N as be,Na as lt,O as ve,Oa as ct,P as we,Q as ye,Qa as pt,R as ze,Ra as dt,S as je,Sa as mt,T as Ce,Ta as kt,U as $e,Ua as ft,V as M,Va as ut,W as Re,Wa as gt,X as Se,Xa as xt,Y as Ee,Z as Le,_ as Pe,a as w,aa as u,b as P,ba as O,c as x,ca as C,d as B,da as K,e as H,ea as Me,f as q,fa as Oe,g as f,ga as Ke,h as y,ha as Te,i as h,ia as Ie,j as A,ja as Ne,k as D,ka as Ye,l as J,la as Xe,m as U,ma as _e,n as z,na as Be,o as F,oa as He,p as G,pa as qe,q as W,qa as Ae,r as Q,ra as De,s as V,sa as Je,t as Z,ta as Ue,u as ee,ua as Fe,v as te,va as Ge,w as ne,wa as We,x as oe,xa as Qe,y as ae,ya as Ve,z as ie,za as T}from"./chunk-56UMDBPN.js";import{e as p}from"./chunk-MNURLQ2V.js";p();p();var S=new Set,I=Symbol("kaury.items");function ht(e,a){return typeof a!="object"||a===null?a:new Proxy(a,{get(t,o,n){return o===I?t:(typeof o!="symbol"&&S.add(e),Reflect.get(t,o,n))}})}function v(e){return(e&&e[I])??y(e)??[]}function L(){let e=[...S];return S.clear(),e}function bt(e,a,t){let o=typeof document<"u"?document.getElementById("k-data-"+e):null;if(o?.textContent)try{return h(JSON.parse(o.textContent))}catch{}let n=h(t?[]:{});return fetch(a).then(i=>i.json()).then(i=>f(()=>{t?n.push(...i):Object.assign(n,i)})).catch(i=>console.error(`Kaury: cannot load the content "${a}".`,i)),n}p();var m=null,g=e=>e.replace(/\/index\.html$/,"/").replace(/(.)\/$/,"$1")||"/";function N(e){let a=[];for(let t of e.$pages)if(t.each&&t.pathOf)for(let o of v(t.each()))a.push(g(t.pathOf(o)));else a.push(t.path);return a}function Y(e,a){let t=g(a);for(let n of e){if(n.each&&n.pathOf){let l=typeof document<"u"&&u()?document.getElementById("k-item"):null;if(l?.textContent&&n.path===l.dataset.kPath){let r=JSON.parse(l.textContent);if(g(n.pathOf(r))===t)return{page:n,params:{},item:r}}for(let r of v(n.each()))if(g(n.pathOf(r))===t)return{page:n,params:{},item:r};continue}let i=[],d=new RegExp("^"+g(n.path).replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/:([\p{L}_][\p{L}\p{N}_-]*)/gu,(l,r)=>(i.push(r),"([^/]+)"))+"$","u").exec(t);if(d){let l={};return i.forEach((r,c)=>l[r]=decodeURIComponent(d[c+1])),{page:n,params:l}}}let o=e.find(n=>n.path==="/404");return o?{page:o,params:{}}:null}function X(e,a,t,o=!1){T(N(e)),z(e.$site.lang);let n=Y(e.$pages,a);f(()=>{b.path=a,b.params=n?.params??{}}),m?.(),m=null;let i=e.$site.name;if(!n){for(;t.firstChild;)t.removeChild(t.firstChild);let s=document.createElement("main");return s.className="k-page k-not-found",s.innerHTML='<section class="k-section"><h1 class="k-title">Page not found</h1><p class="k-text"><a href="/">Back to the home page</a></p></section>',t.appendChild(s),{title:`Page not found \xB7 ${i??""}`,found:!1,hydrated:!1,dynamic:!1,collections:[]}}let k={path:a,params:n.params,item:n.item};w(),L();let d=!1;if(o&&t.firstChild){t.$kNext=void 0,C(!0);try{let[,s]=x(()=>{n.page.render(k,t),K()});m=s,d=!0}catch(s){m?.(),m=null,s instanceof O||console.error(s)}finally{C(!1)}}if(!d){for(;t.firstChild;)t.removeChild(t.firstChild);let[,s]=x(()=>n.page.render(k,t));m=s}let l=w(),r=L();$(t);let c=n.page.seo?.(k)??{};return{title:c.title?i&&c.title!==i?`${c.title} \xB7 ${i}`:c.title:i??"Kaury",description:c.description??e.$site.seo?.description,image:c.image??e.$site.seo?.image,lang:n.page.lang?.(k)??void 0,found:!0,hydrated:d,dynamic:l,collections:r,item:n.item,pattern:n.page.path}}function vt(e,a="#app"){let t=document.querySelector(a)??document.body,o=document.documentElement;if(e.$site.transition&&(o.dataset.kTransition=e.$site.transition),R(),o.dataset.kPage==="static")o.dataset.kRender="static";else{let n=X(e,location.pathname,t,t.firstChild!==null);o.dataset.kRender=n.hydrated?"hydrated":"rendered",(!t.firstChild||!n.found)&&(document.title=n.title)}j()}function wt(e){u()&&(location.href=e)}function yt(e){u()&&e.title&&(document.title=e.title)}p();var zt=`
 :root{
   --k-bg:#fcfbf8;--k-text:#16151a;--k-ink:#16151a;--k-muted:#5f5e66;--k-line:rgba(20,20,30,.12);
   --k-accent:#16151a;--k-on-accent:#fff;
@@ -7,7 +7,7 @@ import{$ as C,A as ae,Aa as v,B as re,Ba as We,C as ie,Ca as Ze,D as se,Da as et
   --k-width:1180px;--k-gutter:clamp(16px,5vw,64px);--k-section:clamp(56px,9vw,128px);
   --k-radius:14px;--k-gap:20px;
   --k-ease:cubic-bezier(.2,.7,.2,1);
-  ${xt()}
+  ${jt()}
 }
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
@@ -45,6 +45,20 @@ h3.k-title{font-size:clamp(22px,2.2vw,30px)}
 .k-icon{font-size:1.6em;line-height:1}
 .k-list{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:.4em}
 .k-divider{border:0;border-top:1px solid var(--k-line);margin:8px 0;width:100%}
+
+/* ---- rich text (markdown) ---- */
+.k-markdown{max-width:72ch;display:flex;flex-direction:column;gap:.9em}
+.k-section>.k-markdown{margin-inline:auto}
+.k-markdown>*{margin:0}
+.k-markdown h2{font-size:clamp(24px,2.6vw,34px);margin-top:.8em}
+.k-markdown h3{font-size:clamp(20px,2vw,26px);margin-top:.6em}
+.k-markdown a{text-decoration:underline;text-underline-offset:.2em}
+.k-markdown ul,.k-markdown ol{padding-left:1.3em;display:flex;flex-direction:column;gap:.35em}
+.k-markdown blockquote{border-left:3px solid var(--k-accent);padding-left:1em;color:var(--k-muted)}
+.k-markdown img{border-radius:var(--k-radius)}
+.k-markdown table{border-collapse:collapse;width:100%;font-size:.95em}
+.k-markdown th,.k-markdown td{border-bottom:1px solid var(--k-line);padding:.5em .6em;text-align:left}
+.k-markdown code{font-family:ui-monospace,Consolas,monospace;font-size:.9em;background:color-mix(in srgb,var(--k-text) 8%,transparent);padding:.1em .35em;border-radius:6px}
 
 /* ---- links and menu ---- */
 .k-link{text-decoration:underline;text-underline-offset:.2em;text-decoration-thickness:1px}
@@ -110,23 +124,20 @@ h3.k-title{font-size:clamp(22px,2.2vw,30px)}
 @media (min-width:641px) and (max-width:1024px){.k-only-tablet{display:contents}}
 @media (max-width:1024px){.k-only-desktop{display:none}}
 
-/* ---- entrances ---- */
-.k-enter{transition:opacity .9s var(--k-ease),transform .9s var(--k-ease),filter .9s;will-change:transform,opacity}
-.k-enter:not(.k-seen){opacity:0}
-.k-enter-left:not(.k-seen){transform:translateX(-60px)}
-.k-enter-right:not(.k-seen){transform:translateX(60px)}
-.k-enter-bottom:not(.k-seen){transform:translateY(50px)}
-.k-enter-top:not(.k-seen){transform:translateY(-50px)}
-.k-enter-zoom:not(.k-seen){transform:scale(.85)}
-.k-enter-fade:not(.k-seen){filter:blur(6px)}
-.k-enter-now{animation:.9s var(--k-ease) both}
-.k-enter-now-bottom{animation-name:k-from-bottom}.k-enter-now-top{animation-name:k-from-top}
-.k-enter-now-left{animation-name:k-from-left}.k-enter-now-right{animation-name:k-from-right}.k-enter-now-zoom{animation-name:k-from-zoom}
-@keyframes k-from-bottom{from{transform:translateY(28px)}}
-@keyframes k-from-top{from{transform:translateY(-28px)}}
-@keyframes k-from-left{from{transform:translateX(-36px)}}
-@keyframes k-from-right{from{transform:translateX(36px)}}
-@keyframes k-from-zoom{from{transform:scale(.94)}}
+/* ---- entrances: pure CSS (scroll-driven), visible without JavaScript and in browsers without support ---- */
+@supports (animation-timeline: view()){
+  @media (prefers-reduced-motion:no-preference){
+    .k-enter{animation:k-from-bottom linear both;animation-timeline:view();animation-range:entry 0% entry 55%}
+    .k-enter-left{animation-name:k-from-left}.k-enter-right{animation-name:k-from-right}.k-enter-top{animation-name:k-from-top}
+    .k-enter-zoom{animation-name:k-from-zoom}.k-enter-fade{animation-name:k-from-fade}
+  }
+}
+@keyframes k-from-bottom{from{opacity:0;transform:translateY(40px)}}
+@keyframes k-from-top{from{opacity:0;transform:translateY(-40px)}}
+@keyframes k-from-left{from{opacity:0;transform:translateX(-50px)}}
+@keyframes k-from-right{from{opacity:0;transform:translateX(50px)}}
+@keyframes k-from-zoom{from{opacity:0;transform:scale(.9)}}
+@keyframes k-from-fade{from{opacity:0}}
 @keyframes k-fade{from{opacity:0}}
 @keyframes k-lift{from{opacity:0;transform:translateY(30px)}}
 @keyframes k-zoom{from{opacity:0;transform:scale(.9)}}
@@ -156,19 +167,21 @@ h3.k-title{font-size:clamp(22px,2.2vw,30px)}
 .k-bubble.k-bubble-3d{left:0;top:0;bottom:auto;translate:-50% calc(-100% - 14px)}
 .k-mute{position:fixed;right:18px;bottom:18px;z-index:100;width:44px;height:44px;border-radius:50%;border:0;background:color-mix(in srgb,var(--k-bg) 80%,transparent);backdrop-filter:blur(10px);box-shadow:0 6px 20px -8px rgba(0,0,0,.4);cursor:pointer;font-size:18px}
 
-/* ---- page transitions ---- */
-::view-transition-old(root),::view-transition-new(root){animation-duration:.45s;animation-timing-function:var(--k-ease)}
-[data-k-transition=slide]::view-transition-old(root){animation-name:k-out-left}
-[data-k-transition=slide]::view-transition-new(root){animation-name:k-in-right}
-[data-k-transition=zoom]::view-transition-new(root){animation-name:k-zoom}
-[data-k-transition=curtain]::view-transition-new(root){animation-name:k-curtain}
+/* ---- page transitions: native, between real pages (no JavaScript) ---- */
+@view-transition{navigation:auto}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.4s;animation-timing-function:var(--k-ease)}
+html[data-k-transition=none]{view-transition-name:none}
+html[data-k-transition=slide]::view-transition-old(root){animation-name:k-out-left}
+html[data-k-transition=slide]::view-transition-new(root){animation-name:k-in-right}
+html[data-k-transition=zoom]::view-transition-new(root){animation-name:k-zoom}
+html[data-k-transition=curtain]::view-transition-new(root){animation-name:k-curtain}
 @keyframes k-out-left{to{transform:translateX(-30%);opacity:0}}
 @keyframes k-in-right{from{transform:translateX(30%);opacity:0}}
 @keyframes k-curtain{from{clip-path:inset(0 0 100% 0)}}
 
 /* ---- errors (development) ---- */
 .k-dev-error{position:fixed;inset:auto 16px 16px 16px;z-index:99999;max-height:60vh;overflow:auto;padding:18px 20px;border-radius:14px;background:#1b1020;color:#ffe3ea;font:14px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;box-shadow:0 20px 50px -20px rgba(0,0,0,.6);border:1px solid #ff4f8b}
-`;function xt(){return Object.entries({red:"#e5484d",orange:"#f76b15",yellow:"#ffc53d",green:"#30a46c",blue:"#0090ff",purple:"#8e4ec6",pink:"#e93d82",black:"#111111",white:"#ffffff",gray:"#8b8d98",cream:"#fff4e8",beige:"#efe3cf",brown:"#8a5a3b",teal:"#12a594",gold:"#d4a72c",silver:"#c0c4cc",navy:"#14213d",coral:"#ff7f61",mint:"#7fe0c0",lavender:"#b9a6ef",sky:"#7cc4fa",sand:"#e9d8b4",slate:"#3c4454",night:"#0b1020"}).map(([i,t])=>`--k-${i}:${t};`).join("")}function S(e){let i=e instanceof Error?e.message:String(e);if(console.error("Kaury:",e),globalThis.__kauryDev&&typeof document<"u"&&document.body){let n=document.querySelector(".k-dev-error");n||(n=document.createElement("div"),n.className="k-dev-error",n.addEventListener("click",()=>n.remove()),document.body.append(n)),n.innerHTML=`<b>Runtime error</b>
-${i.replace(/</g,"&lt;")}
+`;function jt(){return Object.entries({red:"#e5484d",orange:"#f76b15",yellow:"#ffc53d",green:"#30a46c",blue:"#0090ff",purple:"#8e4ec6",pink:"#e93d82",black:"#111111",white:"#ffffff",gray:"#8b8d98",cream:"#fff4e8",beige:"#efe3cf",brown:"#8a5a3b",teal:"#12a594",gold:"#d4a72c",silver:"#c0c4cc",navy:"#14213d",coral:"#ff7f61",mint:"#7fe0c0",lavender:"#b9a6ef",sky:"#7cc4fa",sand:"#e9d8b4",slate:"#3c4454",night:"#0b1020"}).map(([a,t])=>`--k-${a}:${t};`).join("")}function _(e){let a=e instanceof Error?e.message:String(e);if(console.error("Kaury:",e),globalThis.__kauryDev&&typeof document<"u"&&document.body){let o=document.querySelector(".k-dev-error");o||(o=document.createElement("div"),o.className="k-dev-error",o.addEventListener("click",()=>o.remove()),document.body.append(o)),o.innerHTML=`<b>Runtime error</b>
+${a.replace(/</g,"&lt;")}
 
-<small>(click to close)</small>`}}$(S);L(S);export{gt as BASE_STYLE,B as Cell,I as Derived,V as NetworkError,oe as abs,at as action,Me as attr,Je as autoLink,Q as average,x as batch,De as bind,Oe as bindCheck,nt as bodyOf,Ge as card,ne as ceil,Ae as component,Ee as confetti,ve as copy,ge as delay,U as derived,_e as each,H as effect,je as equal,xe as every,g as findPage,te as floor,Fe as form,me as formatDate,M as go,Re as h,$e as has,Xe as img,f as inBrowser,he as later,se as length,F as load,Ce as m,Be as mark,Z as max,W as min,We as mobileMenu,ot as motion,Ze as mouse,st as namedObject,le as now,lt as object,it as objects,He as on,X as onCleanup,Ve as options,Ye as path,be as persist,ie as pick,kt as playSound,de as price,O as print,Le as prop,Se as px,re as random,fe as range,_ as raw,A as reactive,j as renderPage,S as report,v as resolveLinks,k as root,qe as rootClass,Ie as rootNodes,ee as round,u as route,rt as says,ct as scene,pt as sceneReady,tt as screen,et as scroll,ye as scrollTo,G as send,ut as seo,h as setLocale,Te as setText,dt as setting,ze as share,ke as shuffle,Ue as slot,Qe as slug,mt as sound,ae as sqrt,ft as start,w as startGlobals,q as state,Pe as style,J as sum,D as t,Ke as text,ue as toList,pe as toNumber,ce as toText,N as untracked,we as vibrate,Ne as when};
+<small>(click to close)</small>`}}P(_);M(_);export{zt as BASE_STYLE,A as Cell,D as Derived,W as NetworkError,re as abs,lt as action,N as allPaths,Te as attr,Ze as autoLink,ee as average,f as batch,Fe as bind,Ge as bindCheck,rt as bodyOf,Ve as card,ie as ceil,bt as clientCollection,qe as component,Pe as confetti,ze as copy,be as delay,U as derived,He as each,H as effect,Re as equal,ve as every,Y as findPage,ae as floor,Qe as form,ue as formatDate,wt as go,Me as h,Se as has,Xe as img,u as inBrowser,j as installMenus,we as later,pe as length,Q as load,Le as m,Ae as mark,nt as markdown,ne as max,te as min,tt as mobileMenu,st as motion,ot as mouse,dt as namedObject,de as now,mt as object,pt as objects,_e as on,B as onCleanup,We as options,Ye as path,ye as persist,ce as pick,xt as playSound,fe as price,G as print,Ee as prop,Ne as px,le as random,xe as range,y as raw,v as rawItems,h as reactive,X as renderPage,_ as report,$ as resolveLinks,x as root,Je as rootClass,De as rootNodes,oe as round,b as route,ct as says,kt as scene,ft as sceneReady,it as screen,at as scroll,Ce as scrollTo,V as send,yt as seo,ht as serverCollection,z as setLocale,Oe as setText,ut as setting,$e as share,ge as shuffle,Ue as slot,et as slug,gt as sound,se as sqrt,vt as start,R as startGlobals,J as state,Ie as style,Z as sum,F as t,Ke as text,he as toList,ke as toNumber,me as toText,q as untracked,je as vibrate,Be as when};

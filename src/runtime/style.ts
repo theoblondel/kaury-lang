@@ -49,6 +49,20 @@ h3.k-title{font-size:clamp(22px,2.2vw,30px)}
 .k-list{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:.4em}
 .k-divider{border:0;border-top:1px solid var(--k-line);margin:8px 0;width:100%}
 
+/* ---- rich text (markdown) ---- */
+.k-markdown{max-width:72ch;display:flex;flex-direction:column;gap:.9em}
+.k-section>.k-markdown{margin-inline:auto}
+.k-markdown>*{margin:0}
+.k-markdown h2{font-size:clamp(24px,2.6vw,34px);margin-top:.8em}
+.k-markdown h3{font-size:clamp(20px,2vw,26px);margin-top:.6em}
+.k-markdown a{text-decoration:underline;text-underline-offset:.2em}
+.k-markdown ul,.k-markdown ol{padding-left:1.3em;display:flex;flex-direction:column;gap:.35em}
+.k-markdown blockquote{border-left:3px solid var(--k-accent);padding-left:1em;color:var(--k-muted)}
+.k-markdown img{border-radius:var(--k-radius)}
+.k-markdown table{border-collapse:collapse;width:100%;font-size:.95em}
+.k-markdown th,.k-markdown td{border-bottom:1px solid var(--k-line);padding:.5em .6em;text-align:left}
+.k-markdown code{font-family:ui-monospace,Consolas,monospace;font-size:.9em;background:color-mix(in srgb,var(--k-text) 8%,transparent);padding:.1em .35em;border-radius:6px}
+
 /* ---- links and menu ---- */
 .k-link{text-decoration:underline;text-underline-offset:.2em;text-decoration-thickness:1px}
 .k-links{display:flex;gap:clamp(14px,2.5vw,32px);flex-wrap:wrap;align-items:center}
@@ -113,23 +127,20 @@ h3.k-title{font-size:clamp(22px,2.2vw,30px)}
 @media (min-width:641px) and (max-width:1024px){.k-only-tablet{display:contents}}
 @media (max-width:1024px){.k-only-desktop{display:none}}
 
-/* ---- entrances ---- */
-.k-enter{transition:opacity .9s var(--k-ease),transform .9s var(--k-ease),filter .9s;will-change:transform,opacity}
-.k-enter:not(.k-seen){opacity:0}
-.k-enter-left:not(.k-seen){transform:translateX(-60px)}
-.k-enter-right:not(.k-seen){transform:translateX(60px)}
-.k-enter-bottom:not(.k-seen){transform:translateY(50px)}
-.k-enter-top:not(.k-seen){transform:translateY(-50px)}
-.k-enter-zoom:not(.k-seen){transform:scale(.85)}
-.k-enter-fade:not(.k-seen){filter:blur(6px)}
-.k-enter-now{animation:.9s var(--k-ease) both}
-.k-enter-now-bottom{animation-name:k-from-bottom}.k-enter-now-top{animation-name:k-from-top}
-.k-enter-now-left{animation-name:k-from-left}.k-enter-now-right{animation-name:k-from-right}.k-enter-now-zoom{animation-name:k-from-zoom}
-@keyframes k-from-bottom{from{transform:translateY(28px)}}
-@keyframes k-from-top{from{transform:translateY(-28px)}}
-@keyframes k-from-left{from{transform:translateX(-36px)}}
-@keyframes k-from-right{from{transform:translateX(36px)}}
-@keyframes k-from-zoom{from{transform:scale(.94)}}
+/* ---- entrances: pure CSS (scroll-driven), visible without JavaScript and in browsers without support ---- */
+@supports (animation-timeline: view()){
+  @media (prefers-reduced-motion:no-preference){
+    .k-enter{animation:k-from-bottom linear both;animation-timeline:view();animation-range:entry 0% entry 55%}
+    .k-enter-left{animation-name:k-from-left}.k-enter-right{animation-name:k-from-right}.k-enter-top{animation-name:k-from-top}
+    .k-enter-zoom{animation-name:k-from-zoom}.k-enter-fade{animation-name:k-from-fade}
+  }
+}
+@keyframes k-from-bottom{from{opacity:0;transform:translateY(40px)}}
+@keyframes k-from-top{from{opacity:0;transform:translateY(-40px)}}
+@keyframes k-from-left{from{opacity:0;transform:translateX(-50px)}}
+@keyframes k-from-right{from{opacity:0;transform:translateX(50px)}}
+@keyframes k-from-zoom{from{opacity:0;transform:scale(.9)}}
+@keyframes k-from-fade{from{opacity:0}}
 @keyframes k-fade{from{opacity:0}}
 @keyframes k-lift{from{opacity:0;transform:translateY(30px)}}
 @keyframes k-zoom{from{opacity:0;transform:scale(.9)}}
@@ -159,12 +170,14 @@ h3.k-title{font-size:clamp(22px,2.2vw,30px)}
 .k-bubble.k-bubble-3d{left:0;top:0;bottom:auto;translate:-50% calc(-100% - 14px)}
 .k-mute{position:fixed;right:18px;bottom:18px;z-index:100;width:44px;height:44px;border-radius:50%;border:0;background:color-mix(in srgb,var(--k-bg) 80%,transparent);backdrop-filter:blur(10px);box-shadow:0 6px 20px -8px rgba(0,0,0,.4);cursor:pointer;font-size:18px}
 
-/* ---- page transitions ---- */
-::view-transition-old(root),::view-transition-new(root){animation-duration:.45s;animation-timing-function:var(--k-ease)}
-[data-k-transition=slide]::view-transition-old(root){animation-name:k-out-left}
-[data-k-transition=slide]::view-transition-new(root){animation-name:k-in-right}
-[data-k-transition=zoom]::view-transition-new(root){animation-name:k-zoom}
-[data-k-transition=curtain]::view-transition-new(root){animation-name:k-curtain}
+/* ---- page transitions: native, between real pages (no JavaScript) ---- */
+@view-transition{navigation:auto}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.4s;animation-timing-function:var(--k-ease)}
+html[data-k-transition=none]{view-transition-name:none}
+html[data-k-transition=slide]::view-transition-old(root){animation-name:k-out-left}
+html[data-k-transition=slide]::view-transition-new(root){animation-name:k-in-right}
+html[data-k-transition=zoom]::view-transition-new(root){animation-name:k-zoom}
+html[data-k-transition=curtain]::view-transition-new(root){animation-name:k-curtain}
 @keyframes k-out-left{to{transform:translateX(-30%);opacity:0}}
 @keyframes k-in-right{from{transform:translateX(30%);opacity:0}}
 @keyframes k-curtain{from{clip-path:inset(0 0 100% 0)}}

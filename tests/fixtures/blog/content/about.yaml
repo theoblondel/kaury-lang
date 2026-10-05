@@ -1,0 +1,4 @@
+name: "Studio"
+services:
+  - Web
+  - Video

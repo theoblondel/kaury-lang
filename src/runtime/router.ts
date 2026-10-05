@@ -1,36 +1,63 @@
-// Pages, navigation and SEO. The site is rendered on the server (HTML that Google reads),
-// then the browser adopts that HTML (hydration) and navigates without reloading.
+// Pages, SEO and start-up. Every page is rendered on the server (HTML that Google reads).
+// In the browser:
+//  - a static page (no state, no interaction) runs no page code at all;
+//  - a dynamic page adopts the server HTML (hydration), or is rebuilt if it differs.
+// Navigation is between real pages, with native view transitions.
 
-import { root, batch } from './reactive.js'
-import { inBrowser, resolveLinks, setPaths, setHydrating, HydrationMismatch, checkLeftovers } from './dom.js'
+import { root, batch, takeDynamic } from './reactive.js'
+import { inBrowser, resolveLinks, setPaths, setHydrating, HydrationMismatch, checkLeftovers, installMenus } from './dom.js'
 import { startGlobals, route } from './motion.js'
 import { setLocale } from './utils.js'
+import { rawItems, takeUsedCollections } from './content.js'
 
+type Route = { path: string; params: Record<string, string>; item?: any }
 export interface KauryPage {
   path: string
-  render: (route: { path: string; params: Record<string, string> }, root: any) => any
-  seo: { title?: string; description?: string; image?: string } | null
+  render: (route: Route, root: any) => any
+  seo: ((route: Route) => { title?: string; description?: string; image?: string } | null) | null
+  lang?: (route: Route) => string | null
   transition: string | null
+  each?: () => any
+  pathOf?: (item: any) => string
 }
 export interface KauryModule {
   $pages: KauryPage[]
   $site: { name?: string; lang?: string; seo?: any; transition?: string; favicon?: string; url?: string }
 }
 
-let mod: KauryModule | null = null
-let container: any = null
 let releaseCurrent: (() => void) | null = null
 
-export function findPage(pages: KauryPage[], path: string): { page: KauryPage; params: Record<string, string> } | null {
-  const clean = path.replace(/\/index\.html$/, '/').replace(/(.)\/$/, '$1') || '/'
+const clean = (p: string) => p.replace(/\/index\.html$/, '/').replace(/(.)\/$/, '$1') || '/'
+
+/** Every address a module can build (pages with « for » are expanded). */
+export function allPaths(m: KauryModule): string[] {
+  const out: string[] = []
+  for (const p of m.$pages) {
+    if (p.each && p.pathOf) for (const item of rawItems(p.each())) out.push(clean(p.pathOf(item)))
+    else out.push(p.path)
+  }
+  return out
+}
+
+export function findPage(pages: KauryPage[], path: string): { page: KauryPage; params: Record<string, string>; item?: any } | null {
+  const target = clean(path)
   for (const page of pages) {
-    const pattern = page.path.replace(/(.)\/$/, '$1')
+    if (page.each && page.pathOf) {
+      // the item may be inlined in the page (browser), otherwise searched in the collection
+      const inline = typeof document !== 'undefined' && inBrowser() ? document.getElementById('k-item') : null
+      if (inline?.textContent && page.path === inline.dataset.kPath) {
+        const item = JSON.parse(inline.textContent)
+        if (clean(page.pathOf(item)) === target) return { page, params: {}, item }
+      }
+      for (const item of rawItems(page.each())) if (clean(page.pathOf(item)) === target) return { page, params: {}, item }
+      continue
+    }
     const names: string[] = []
-    const re = new RegExp('^' + pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/:([\p{L}_][\p{L}\p{N}_-]*)/gu, (_m, n) => {
+    const re = new RegExp('^' + clean(page.path).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/:([\p{L}_][\p{L}\p{N}_-]*)/gu, (_m, n) => {
       names.push(n)
       return '([^/]+)'
     }) + '$', 'u')
-    const m = re.exec(clean)
+    const m = re.exec(target)
     if (m) {
       const params: Record<string, string> = {}
       names.forEach((n, i) => (params[n] = decodeURIComponent(m[i + 1])))
@@ -41,9 +68,22 @@ export function findPage(pages: KauryPage[], path: string): { page: KauryPage; p
   return notFound ? { page: notFound, params: {} } : null
 }
 
+export interface RenderInfo {
+  title: string
+  description?: string
+  image?: string
+  lang?: string
+  found: boolean
+  hydrated: boolean
+  dynamic: boolean // the page needs its JavaScript in the browser
+  collections: string[] // content collections the page read
+  item?: any
+  pattern?: string
+}
+
 /** Renders a page into a container (browser or server). With hydrate, adopts the HTML already there. */
-export function renderPage(m: KauryModule, path: string, target: any, hydrate = false): { title: string; description?: string; image?: string; found: boolean; hydrated: boolean } {
-  setPaths(m.$pages.map((p) => p.path))
+export function renderPage(m: KauryModule, path: string, target: any, hydrate = false): RenderInfo {
+  setPaths(allPaths(m))
   setLocale(m.$site.lang)
   const r = findPage(m.$pages, path)
   batch(() => {
@@ -59,9 +99,11 @@ export function renderPage(m: KauryModule, path: string, target: any, hydrate = 
     p.className = 'k-page k-not-found'
     p.innerHTML = '<section class="k-section"><h1 class="k-title">Page not found</h1><p class="k-text"><a href="/">Back to the home page</a></p></section>'
     target.appendChild(p)
-    return { title: `Page not found · ${name ?? ''}`, found: false, hydrated: false }
+    return { title: `Page not found · ${name ?? ''}`, found: false, hydrated: false, dynamic: false, collections: [] }
   }
-  const route0 = { path, params: r.params }
+  const route0: Route = { path, params: r.params, item: r.item }
+  takeDynamic()
+  takeUsedCollections()
   let hydrated = false
   if (hydrate && target.firstChild) {
     target.$kNext = undefined
@@ -87,69 +129,37 @@ export function renderPage(m: KauryModule, path: string, target: any, hydrate = 
     const [, release] = root(() => r.page.render(route0, target))
     releaseCurrent = release
   }
+  const dynamic = takeDynamic()
+  const collections = takeUsedCollections()
   resolveLinks(target)
-  const seo = r.page.seo ?? {}
+  const seo = r.page.seo?.(route0) ?? {}
   const title = seo.title ? (name && seo.title !== name ? `${seo.title} · ${name}` : seo.title) : name ?? 'Kaury'
-  return { title, description: seo.description ?? m.$site.seo?.description, image: seo.image ?? m.$site.seo?.image, found: true, hydrated }
+  return {
+    title, description: seo.description ?? m.$site.seo?.description, image: seo.image ?? m.$site.seo?.image,
+    lang: r.page.lang?.(route0) ?? undefined, found: true, hydrated, dynamic, collections, item: r.item, pattern: r.page.path,
+  }
 }
 
 /** Starts the site in the browser. */
 export function start(m: KauryModule, selector = '#app') {
-  mod = m
-  container = document.querySelector(selector) ?? document.body
+  const container = document.querySelector(selector) ?? document.body
+  const html = document.documentElement
+  if (m.$site.transition) html.dataset.kTransition = m.$site.transition
   startGlobals()
-  const info = renderPage(m, location.pathname, container, true)
-  document.documentElement.dataset.kRender = info.hydrated ? 'hydrated' : 'rendered'
-  document.title = info.title
-  goToHash(false)
-  document.addEventListener('click', (e) => {
-    const a = (e.target as HTMLElement)?.closest?.('a')
-    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
-    const href = a.getAttribute('href')
-    if (!href || a.target === '_blank' || a.hasAttribute('download')) return
-    const url = new URL(href, location.href)
-    if (url.origin !== location.origin) return
-    if (url.pathname === location.pathname && url.hash) return // anchor on the same page: native scrolling
-    if (!findPage(m.$pages, url.pathname)) return
-    e.preventDefault()
-    go(url.pathname + url.search + url.hash)
-  })
-  addEventListener('popstate', () => change(location.pathname, false))
+  // static page: the server HTML is final, no page code runs
+  if (html.dataset.kPage === 'static') {
+    html.dataset.kRender = 'static'
+  } else {
+    const info = renderPage(m, location.pathname, container, container.firstChild !== null)
+    html.dataset.kRender = info.hydrated ? 'hydrated' : 'rendered'
+    if (!container.firstChild || !info.found) document.title = info.title
+  }
+  installMenus()
 }
 
-function goToHash(smooth: boolean) {
-  if (!location.hash) return
-  document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' })
-}
-
-/** Navigates to another page (with a transition when one is set). */
+/** Goes to another page (a real navigation, with the native transition). */
 export function go(path: string) {
-  if (!inBrowser()) return
-  if (!mod) {
-    location.href = path
-    return
-  }
-  history.pushState(null, '', path)
-  change(new URL(path, location.href).pathname, true)
-}
-
-function change(path: string, top: boolean) {
-  const m = mod!
-  const r = findPage(m.$pages, path)
-  const transition = r?.page.transition ?? m.$site.transition ?? 'fade'
-  const doIt = () => {
-    const info = renderPage(m, path, container)
-    document.title = info.title
-    const meta = document.querySelector('meta[name="description"]')
-    if (meta && info.description) meta.setAttribute('content', info.description)
-    if (location.hash) goToHash(false)
-    else if (top) scrollTo({ top: 0 })
-  }
-  const doc = document as any
-  if (transition !== 'none' && doc.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    document.documentElement.dataset.kTransition = transition
-    doc.startViewTransition(doIt)
-  } else doIt()
+  if (inBrowser()) location.href = path
 }
 
 /** SEO setting coming from inside a page. */

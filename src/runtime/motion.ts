@@ -2,7 +2,7 @@
 // The same motions work on a title, a 2D image or a 3D model: every "body" has an
 // adapter that applies the transform (CSS or Three.js).
 
-import { reactive, state, onCleanup, batch } from './reactive.js'
+import { reactive, state, onCleanup, batch, markDynamic } from './reactive.js'
 import { inBrowser, h } from './dom.js'
 
 // ---------------- global reactive values ----------------
@@ -235,6 +235,7 @@ function applyAction(a: Motion, t: Transform, ts: number): boolean {
 /** Adds a permanent motion to an element or an object. */
 export function motion(el: any, type: string, o: Record<string, any> = {}) {
   if (!el) return
+  if (type !== 'enters-from') markDynamic()
   if (type === 'says') {
     if (inBrowser()) setTimeout(() => says(el, o.value ?? o.word ?? '', o), 600)
     return
@@ -264,27 +265,9 @@ export function action(el: any, type: string, o: Record<string, any> = {}) {
 }
 
 function entersFrom(el: any, o: Record<string, any>) {
-  // never hidden in the server HTML: content is visible even before JavaScript runs
-  if (!inBrowser()) return
+  // pure CSS (scroll-driven animation): no JavaScript, content visible even without it
   const dir = Object.keys(o).find((k) => ['left', 'right', 'top', 'bottom', 'fade', 'zoom'].includes(k)) ?? o.word ?? 'bottom'
-  if (reduced || typeof IntersectionObserver === 'undefined') return
-  // already on screen at load (hero): it stays visible and only slides in (no fade, so the first paint is not delayed)
-  const r = el.getBoundingClientRect?.()
-  if (r && r.top < innerHeight && r.bottom > 0 && document.readyState !== 'complete') {
-    el.classList.add(`k-enter-now`, `k-enter-now-${dir}`)
-    return
-  }
   el.classList.add('k-enter', `k-enter-${dir}`)
-  const io = new IntersectionObserver((es) => {
-    for (const e of es) {
-      if (e.isIntersecting) {
-        el.classList.add('k-seen')
-        io.disconnect()
-      }
-    }
-  }, { threshold: 0.15 })
-  requestAnimationFrame(() => io.observe(el))
-  onCleanup(() => io.disconnect())
 }
 
 // ---------------- speech bubbles ----------------
@@ -342,6 +325,7 @@ export interface ObjectOptions {
 }
 
 export function object(parent: any, d: ObjectOptions): any {
+  markDynamic()
   const el = h(parent, 'div', `k-object k-${d.kind}`)
   const src = String(d.src ?? '')
   const o = d.options ?? {}
@@ -397,6 +381,7 @@ export function object(parent: any, d: ObjectOptions): any {
 }
 
 export function scene(parent: any, o: Record<string, any> = {}): any {
+  markDynamic()
   const el = h(parent, 'div', 'k-scene')
   el.$kScene = { objects: [] as any[], layers: [] as any[], settings: { ...o } as Record<string, any> }
   if (o.height) el.style.height = typeof o.height === 'number' ? `${o.height}px` : o.height
@@ -476,6 +461,7 @@ function mountWhenVisible(el: any, mount: () => Promise<unknown>, mode: 'wait' |
 let muted = false
 const sounds = new Set<HTMLAudioElement>()
 export function sound(parent: any, src: string, o: Record<string, any> = {}): any {
+  markDynamic()
   const el = h(parent, 'div', 'k-sound')
   if (!inBrowser()) return el
   const audio = new Audio(src)
