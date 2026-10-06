@@ -1,4 +1,3 @@
-* text=auto eol=lf
-*.kaury linguist-language=Python linguist-detectable=true
-*.webp binary
-*.glb binary
+# Built bundles of the playground: not hand-written code
+playground/kaury-compiler.js linguist-generated
+playground/rt/** linguist-generated
