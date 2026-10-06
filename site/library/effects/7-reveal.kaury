@@ -1,0 +1,17 @@
+// Scroll reveal · minimal
+// height 520
+site "Scroll reveal"
+  colors ink #111111, paper #FFFFFF, blue #2B59FF
+  fonts "Satoshi"
+  style background paper, color ink
+
+let steps = ["Brief", "Sketch", "Design", "Build", "Launch"]
+
+page "/"
+  section padding 48
+    text "Scroll ↓", color blue, weight 600
+    for s, i in steps
+      row gap 24, border-top 1 #11111122, padding 28 0
+        text "0{i + 1}", color blue, font "mono"
+        title s, size 64, tracking -2
+        enters from bottom

@@ -1,0 +1,19 @@
+// Brutalist · brutalist
+site "Brutalist"
+  colors paper #F2F0E9, ink #111111, acid #D7FF3A, pink #FF4FA3
+  fonts "Space Grotesk"
+  style background paper, color ink
+
+style brutal
+  background acid, color ink, border 3 ink, radius 0, padding 16 28, shadow hard ink, weight 800, uppercase, tracking 1
+  hover move -3 -3, shadow hard pink
+
+style brutal-dark
+  background ink, color paper, border 3 ink, radius 0, padding 16 28, shadow hard pink, weight 800, uppercase, tracking 1
+  hover move -3 -3, shadow hard acid
+
+page "/"
+  section fullscreen, center
+    row gap 22, center
+      button "Buy it now", brutal
+      button "No thanks", brutal-dark

@@ -1,0 +1,21 @@
+// Centered logo · luxury
+site "Centered logo"
+  colors noir #15120F, ivory #F4EEE3, gold #B08D57
+  fonts "Satoshi", "Gambetta"
+  style background ivory, color noir
+
+style serif-logo
+  font "titles", size 34, italic, tracking -1
+
+style small-caps
+  uppercase, tracking 3, size 12, weight 500
+
+page "/"
+  section header, border-bottom 1 #B08D5766, padding 22 40
+    row gap 28, small-caps
+      link "Collections" "#"
+      link "Atelier" "#"
+    logo "Maison Ivre", serif-logo
+    row gap 28, small-caps
+      link "Journal" "#"
+      link "Appointment" "#"

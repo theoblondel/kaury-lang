@@ -1,0 +1,11 @@
+// Minimal · minimal
+site "Minimal"
+  colors ink #141414, paper #FAFAF7
+  fonts "Satoshi"
+  style background paper, color ink
+
+page "/"
+  section header, border-bottom 1 #14141414
+    logo "Northwind"
+    links Product, Pricing, Customers, Blog
+    button "Sign in", small

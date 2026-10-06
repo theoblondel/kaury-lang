@@ -1,0 +1,15 @@
+// Glass · glass
+site "Glass"
+  colors violet #7B5CFF, rose #FF7AC6, sun #FFC46B, deep #1B1340
+  fonts "General Sans"
+  style background deep, color white
+
+style glass-pill
+  glass, color white, radius 999, padding 18 32, weight 600, border 1 #FFFFFF55, shadow none
+  hover background #FFFFFF33, lift 2
+
+page "/"
+  section fullscreen, center, mesh violet rose sun
+    row gap 16, center
+      button "Download the app", glass-pill
+      button "Watch the film ▶", glass-pill

@@ -1,0 +1,23 @@
+// Big quote · luxury
+site "Big quote"
+  colors ink #1A1714, paper #F3EEE6, clay #B5502E
+  fonts "Satoshi", "Gambetta"
+  style background paper, color ink
+
+style quote-card
+  background white, radius 4, padding 56 64, gap 28, max-width 820, shadow soft
+
+style quote
+  font "titles", size 38, line-height 1.2, tracking -1
+
+page "/"
+  section fullscreen, center
+    column quote-card
+      text "“", font "titles", size 120, color clay, line-height 0.5
+      text "They did not redesign our website. They redesigned how people *feel* when they find us.", quote
+      row gap 14
+        row width 52, height 52, round, background clay, center
+          text "É", color white, weight 700, size 22
+        column gap 0
+          text "Élise Marchand", weight 700
+          text "Founder, Atelier Marchand", color #1A171499, size 15

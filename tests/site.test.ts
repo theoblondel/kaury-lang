@@ -102,7 +102,7 @@ test('named styles, states, parts, element defaults and animations: a site witho
   assert.match(html, /\.k-button\{border:2px solid #1c1a1a;border-radius:999px/i)
   assert.match(html, /\.ks-card-dark\{background:#1c1a1a[^}]*padding:24px/i)
   assert.match(html, /\.ks-card-dark:hover\{[^}]*translateY\(-4px\)/)
-  assert.match(html, /\.ks-card-dark :where\(a\)\{color:#f56e2e\}/i)
+  assert.ok(html.includes('.ks-card-dark :where(a:not(.k-logo,.k-button)){color:#f56e2e}'), 'link part of a named style')
   assert.match(html, /\.ks-tab-pill\[aria-selected="?true"?\]\{background:#1c1a1a/i)
   assert.match(html, /@keyframes ks-slide\{0%\{transform:translate\(0[^)]*\)\}(100%|to)\{transform:translate\(-50%[^)]*\)\}\}/)
   assert.match(html, /\.ka-slide\{animation:ks-slide 30s linear 0s infinite/)

@@ -35,6 +35,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .k-header,.k-footer,.k-nav{display:flex;gap:var(--k-gap);padding:18px var(--k-gutter);align-items:center;flex-wrap:wrap;position:relative}
 .k-footer{padding-block:40px;color:var(--k-muted);font-size:.92em;border-top:1px solid var(--k-line);justify-content:space-between}
 .k-box,.k-column{display:flex;flex-direction:column;gap:var(--k-gap)}
+/* « pin » places a child over its parent: every box is that parent */
+:where(.k-box,.k-column,.k-row,.k-grid,.k-card){position:relative}
 .k-row{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:var(--k-gap)}
 .k-grid{display:grid;gap:var(--k-gap);grid-template-columns:repeat(var(--k-columns,3),minmax(0,1fr))}
 @media (max-width:1024px){.k-grid[class]{grid-template-columns:repeat(min(var(--k-columns,3),2),minmax(0,1fr))}}

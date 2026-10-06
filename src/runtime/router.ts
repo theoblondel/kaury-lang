@@ -154,7 +154,10 @@ export function start(m: KauryModule, selector = '#app') {
   if (html.dataset.kPage === 'static') {
     html.dataset.kRender = 'static'
   } else {
-    const info = renderPage(m, location.pathname, container, container.firstChild !== null)
+    // a site served from a folder (<html data-k-base="/demo/">): its pages are read from there
+    const base = html.dataset.kBase
+    const path = base && location.pathname.startsWith(base) ? '/' + location.pathname.slice(base.length) : location.pathname
+    const info = renderPage(m, path, container, container.firstChild !== null)
     html.dataset.kRender = info.hydrated ? 'hydrated' : 'rendered'
     if (!container.firstChild || !info.found) document.title = info.title
   }

@@ -1,0 +1,27 @@
+// Live badges · colorful
+site "Live badges"
+  colors ink #151320, paper #FAF8F5, red #FF3B47, green #19C37D, amber #FFB020
+  fonts "Satoshi"
+  style background paper, color ink
+
+style badge
+  background white, radius 999, padding 10 18 10 14, gap 10, shadow soft, size 15, weight 600
+
+style dot
+  width 10, height 10, round
+
+page "/"
+  section fullscreen, center
+    row gap 14, center
+      row badge
+        box dot, background red
+          pulse
+        text "Live now"
+      row badge
+        box dot, background green
+          pulse
+        text "All systems normal"
+      row badge
+        box dot, background amber
+          pulse
+        text "3 spots left"

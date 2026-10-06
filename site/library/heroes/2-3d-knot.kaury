@@ -1,0 +1,23 @@
+// 3D knot · immersive
+site "3D knot"
+  colors night #08070F, orange #FF6A2B, violet #7B5CFF
+  fonts "Satoshi", "Clash Display"
+  style background night, color white
+
+style emphasis
+  color orange
+
+page "/"
+  scene hero, fullscreen, center, immediate, particles stars, mesh #7B5CFF55 #FF6A2B44
+    light dramatic
+    camera follows mouse
+    object knot "knot", color orange, metal, size 1.6, position 0 0 -2
+      spin slow
+      follows mouse, smooth
+    column gap 22, center
+      text "● Now in 3D", color orange, uppercase, tracking 2, size 13
+      title "Make it\n*move*.", size 128, line-height 0.9, tracking -4, center
+      text "A 3D object, a light and a camera: twelve lines of Kaury.", size 20, color #FFFFFFB3, center
+      row gap 12, center
+        button "Start building", large, background orange, color night
+        button "Watch demo", large, background transparent, color white, border 1 #FFFFFF44

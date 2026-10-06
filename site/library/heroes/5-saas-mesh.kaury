@@ -1,0 +1,24 @@
+// SaaS glow · gradient
+site "SaaS glow"
+  colors ink #0D0D14, violet #7B5CFF, rose #FF7AC6, sky #63D5FF, cloud #FBFAFF
+  fonts "General Sans", "Cabinet Grotesk"
+  style background cloud, color ink
+
+style badge
+  glass, radius 999, padding 6 14, size 14, weight 500, border 1 #0D0D1414
+
+style emphasis
+  text-gradient violet rose, italic
+
+page "/"
+  section fullscreen, center, mesh #7B5CFF40 #FF7AC640 #63D5FF40
+    row center
+      text "✨ New — AI that writes your reports", badge
+        enters from bottom
+    title "Your data,\nfinally *clear*.", size 104, center, line-height 0.95, tracking -3
+      enters from bottom
+    text "Connect your tools in two minutes. Get the answer, not the spreadsheet.", size 20, center, color #0D0D14A6
+    row gap 12, center
+      button "Start free trial", large, background ink, color white
+      button "Book a demo", large, background white, color ink, border 1 #0D0D1420
+    text "★★★★★  loved by 4,000 teams", size 14, color #0D0D1480

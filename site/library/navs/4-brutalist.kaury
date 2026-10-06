@@ -1,0 +1,16 @@
+// Brutalist bar · brutalist
+site "Brutalist bar"
+  colors acid #D7FF3A, ink #111111, paper #F2F0E9
+  fonts "Space Mono", "Space Grotesk"
+  style background paper, color ink
+
+style brutal-bar
+  background acid, border-bottom 3 ink, padding 18 28
+  link font "mono", uppercase, size 13, weight 700, plain, color ink
+  button background ink, color acid, radius 0, shadow none, font "mono", uppercase
+
+page "/"
+  section header, brutal-bar
+    logo "[ KILN ]"
+    links Index, Objects, Archive, Info
+    button "Cart (0)", small

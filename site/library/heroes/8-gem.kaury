@@ -1,0 +1,20 @@
+// Glass gem · luxury
+site "Glass gem"
+  colors noir #0C0B0A, gold #C9A46A, ivory #F4EEE3
+  fonts "Satoshi", "Bodoni Moda"
+  style background noir, color ivory
+
+style emphasis
+  italic, color gold
+
+page "/"
+  scene jewel, fullscreen, center, immediate, particles dust
+    light studio
+    camera follows mouse
+    object gem "gem", glass, color gold, size 1.2, position 0 0.4 0
+      spin 30/s
+      float
+    column center, gap 18, margin 280 0 0 0
+      text "Maison Aurèle — Haute joaillerie", uppercase, tracking 5, size 12, color gold
+      title "Light, *kept*.", size 96, font "titles", weight 400, center
+      button "Discover the collection", background transparent, color ivory, border 1 gold, radius 0, uppercase, tracking 3, padding 18 34

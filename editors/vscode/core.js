@@ -770,7 +770,11 @@ var STYLES = {
   center: o("", ["centre", "centered"], "centers the content", "centre le contenu", "center"),
   radius: o("n", ["coins", "rounded"], "corner radius", "arrondi des coins", "radius 12"),
   round: o("", ["rond", "pill"], "fully round corners", "coins compl\xE8tement ronds", "round"),
-  shadow: o("m?", ["ombre"], "drop shadow", "ombre port\xE9e", "shadow soft", ["soft", "medium", "strong", "hard", "none", "inner"]),
+  shadow: o("m?c?", ["ombre"], "drop shadow (hard + a color: the offset shadow of brutalist designs)", "ombre port\xE9e (hard + une couleur : l\u2019ombre d\xE9cal\xE9e des designs brutalistes)", "shadow soft   /   shadow hard pink", ["soft", "medium", "strong", "hard", "none", "inner"]),
+  glow: o("c?n?", ["lueur", "neon"], "neon light around the element, or around the letters of a text", "lueur n\xE9on autour de l\u2019\xE9l\xE9ment, ou des lettres d\u2019un texte", "glow pink 30"),
+  "text-glow": o("c?n?", ["lueur-texte"], "neon light around the letters", "lueur n\xE9on autour des lettres", "text-glow cyan"),
+  stroke: o("n?c?", ["contour"], "letters drawn as an outline only", "lettres dessin\xE9es en contour seulement", "stroke 2 black"),
+  mesh: o("cc?c?c?", ["maillage"], "mesh gradient: soft colored lights melting into the background", "d\xE9grad\xE9 maill\xE9 : des lumi\xE8res color\xE9es qui se fondent dans le fond", "mesh pink purple orange"),
   border: o("n?c?", ["bordure"], "border (width, color)", "bordure (\xE9paisseur, couleur)", "border 1 gray"),
   "border-top": o("n?c?", ["bordure-haut"], "line above (width, color)", "trait au-dessus (\xE9paisseur, couleur)", "border-top 2 black"),
   "border-bottom": o("n?c?", ["bordure-bas"], "line below (width, color)", "trait en dessous (\xE9paisseur, couleur)", "border-bottom 1 gray"),
@@ -787,6 +791,7 @@ var STYLES = {
   "min-height": o("n", ["min-hauteur"], "minimum height", "hauteur minimale", "min-height 300"),
   fullscreen: o("", ["plein-ecran", "full"], "fills the whole screen height", "occupe toute la hauteur de l'\xE9cran", "fullscreen"),
   "full-width": o("", ["pleine-largeur", "bleed"], "fills the whole width, no margins", "occupe toute la largeur, sans marges", "full-width"),
+  zoom: o("n", ["echelle"], "shows it smaller (or bigger) with the same layout, like a thumbnail of a page: embed \u2026, zoom 0.5", "l\u2019affiche plus petit (ou plus grand) sans changer la mise en page, comme une miniature", 'embed "/demo/", "Demo", zoom 0.5, height 1200'),
   opacity: o("n", ["opacite"], "opacity from 0 to 1", "opacit\xE9 de 0 \xE0 1", "opacity 0.8"),
   blur: o("n", ["flou"], "blur", "flou", "blur 8"),
   glass: o("", ["verre"], "frosted glass effect", "effet verre d\xE9poli", "glass"),
@@ -1307,6 +1312,13 @@ var Parser = class {
           break;
       }
       if (this.isUiHead()) return this.command();
+      if (canon(t.v) === "hover" && this.peek(1).t === "word") {
+        throw this.error(
+          t,
+          msg("\u201Chover\u201D is an option of the element, not a line of its own.", "\xAB survol \xBB est une option de l'\xE9l\xE9ment, pas une ligne \xE0 part."),
+          msg("put it on the element line (box padding 24, hover lift 4) or under it in a style line (style hover lift 4).", "mets-la sur la ligne de l'\xE9l\xE9ment (box padding 24, hover lift 4) ou dessous dans une ligne style (style hover lift 4).")
+        );
+      }
     }
     const e2 = this.expression(FREE);
     const op = this.peek();
@@ -1750,7 +1762,11 @@ var Parser = class {
       this.next();
       return this.block(msg("this function", "cette fonction"));
     }
-    if (this.peek().t === "word" && this.isActionAhead()) return [this.statement()];
+    if (this.peek().t === "word" && this.isActionAhead()) {
+      const s = this.statement();
+      if (this.tokens[this.i - 1]?.t === "newline") this.i--;
+      return [s];
+    }
     return this.expression(FREE);
   }
   /** In a lambda, an assignment “-> total += 1” is an action. Also UI motions (-> jump). */
@@ -3057,7 +3073,7 @@ function literal(e2, siteColors) {
       if (e2.binding && e2.binding.kind !== "kaury" && e2.binding.kind !== "js") return void 0;
       if (siteColors[e2.name]) return `var(--k-${e2.name})`;
       const c = knownColor(e2.name);
-      if (c) return `var(--k-${c})`;
+      if (c) return COLORS[c].startsWith("#") ? `var(--k-${c})` : COLORS[c];
       return canon(e2.name) ?? canonValue(e2.name);
     }
     case "unary":
@@ -3155,8 +3171,34 @@ function declarations(head, opt, vals, siteColors) {
       return { decl: [["border-radius", px(v0)], ["overflow", "hidden"]] };
     case "round":
       return { decl: [["border-radius", "999px"]] };
-    case "shadow":
+    case "shadow": {
+      const c = vals.slice(1).find((x) => typeof x === "string");
+      if (v0 === "hard" && c) return { decl: [["box-shadow", `6px 6px 0 ${c}`]] };
       return { decl: [["box-shadow", SHADOWS[String(v0 ?? "soft")] ?? (typeof v0 === "number" ? `0 ${v0}px ${v0 * 3}px -${v0}px rgba(0,0,0,.25)` : SHADOWS.soft)]] };
+    }
+    case "glow":
+    case "text-glow": {
+      const c = String(vals.find((x) => typeof x === "string") ?? "var(--k-accent)");
+      const n = Number(vals.find((x) => typeof x === "number") ?? 24);
+      const soft = `color-mix(in srgb, ${c} 55%, transparent)`;
+      if (opt === "text-glow" || TEXT_HEADS.has(head) || head === "title" || head === "subtitle") return { decl: [["text-shadow", `0 0 ${n * 0.25}px ${c}, 0 0 ${n}px ${soft}, 0 0 ${n * 2}px ${soft}`]] };
+      return { decl: [["box-shadow", `0 0 0 1px ${c}, 0 0 ${n}px ${soft}, 0 0 ${n * 2.5}px ${soft}`]] };
+    }
+    case "stroke": {
+      const c = String(vals.find((x) => typeof x === "string") ?? "currentColor");
+      const n = Number(vals.find((x) => typeof x === "number") ?? 2);
+      return { decl: [["-webkit-text-stroke", `${n}px ${c}`], ["color", "transparent"]] };
+    }
+    case "zoom": {
+      const z = Number(v0) || 1;
+      return { decl: [["zoom", String(z)], ["width", `calc(100% / ${z})`], ["max-width", "none"]] };
+    }
+    case "mesh": {
+      const cols = vals.filter((x) => typeof x === "string");
+      const at = ["18% 22%", "82% 18%", "62% 88%", "12% 90%"];
+      const layers = cols.slice(0, 4).map((c, i) => `radial-gradient(at ${at[i]}, ${c} 0, transparent 55%)`);
+      return { decl: [["background", `${layers.join(", ")}, var(--k-bg)`]] };
+    }
     case "border-top":
     case "border-bottom": {
       const w = typeof v0 === "number" ? v0 : 1;
@@ -3258,7 +3300,7 @@ function bestText(bg) {
 }
 function autoContrast(c, siteColors) {
   const hex = hexOf(c, siteColors);
-  if (!hex) return [];
+  if (!hex || /^#([0-9a-f]{4}|[0-9a-f]{8})$/i.test(hex) && parseInt(hex.length === 5 ? hex[4] + hex[4] : hex.slice(7), 16) < 128) return [];
   return [["color", bestText(hex)]];
 }
 var FONTSHARE = /* @__PURE__ */ new Set([
@@ -3441,7 +3483,7 @@ var PART_SELECTOR = {
   title: ".k-title,h1,h2,h3,h4",
   subtitle: ".k-subtitle",
   text: ".k-text,p",
-  link: "a",
+  link: "a:not(.k-logo,.k-button)",
   image: "img",
   button: ".k-button",
   icon: ".k-icon",
@@ -3638,7 +3680,7 @@ var Generator = class {
             const hex = hexOf(String(v), this.info.colors);
             if (hex && !isLight(hex)) this.css.push(":root{--k-line:rgba(255,255,255,.12);--k-muted:rgba(255,255,255,.72);color-scheme:dark}");
           }
-          if (o2.name === "color") this.css.push(`:root{--k-text:${v};--k-ink:${v}}`);
+          if (o2.name === "color") this.css.push(v === "var(--k-ink)" ? ":root{--k-text:var(--k-ink)}" : `:root{--k-text:${v};--k-ink:${v}}`);
         }
       }
     }
@@ -4460,6 +4502,9 @@ var Generator = class {
         break;
     }
     this.skipText = false;
+    if (ctx.parentHead === "row" && m.options.some((o2) => o2.name === "center") && !m.options.some((o2) => o2.name === "margin")) {
+      m.options.push({ name: "margin", values: [{ k: "number", v: 0, pos: c.pos }], pos: c.pos });
+    }
     this.styleClass(n, head, m.options, []);
     this.childrenOf(c, { ...ctx, parent: n, target: n, parentHead: head });
     const mail = head === "form" ? opt("mail") : void 0;
@@ -4642,6 +4687,9 @@ var Generator = class {
             return `!$k.equal(${l}, ${r})`;
           case "in":
             return `$k.has(${r}, ${l})`;
+          // two lists joined: [1, 2] + more → one list (numbers and texts add as usual)
+          case "+":
+            return [e2.l.k, e2.r.k].some((k) => k === "number" || k === "text") ? `(${l} + ${r})` : `$k.plus(${l}, ${r})`;
           default:
             return `(${l} ${e2.op} ${r})`;
         }

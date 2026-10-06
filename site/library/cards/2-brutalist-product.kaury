@@ -1,0 +1,32 @@
+// Product, brutalist · brutalist
+site "Brutalist product"
+  colors paper #F2F0E9, ink #111111, acid #D7FF3A, pink #FF4FA3, sky #7CC4FA
+  fonts "Space Grotesk"
+  style background paper, color ink
+
+let items = [
+  { name: "Chair Nº1", price: "CHF 340", color: "#D7FF3A", tag: "NEW" },
+  { name: "Lamp Arc", price: "CHF 180", color: "#FF4FA3", tag: "-20%" },
+  { name: "Vase Blob", price: "CHF 65", color: "#7CC4FA", tag: "LAST ONE" }
+]
+
+style brutal-card
+  background white, border 3 ink, radius 0, padding 0, gap 0, shadow hard ink
+  hover move -4 -4
+
+style swatch
+  height 170, width 100%, border-bottom 3 ink, center
+
+style label
+  background ink, color paper, padding 4 10, font "mono", size 12, weight 700
+
+page "/"
+  section fullscreen, center
+    grid 3 columns, gap 28
+      for p in items
+        column brutal-card
+          box swatch, background p.color
+            text p.tag, label
+          row padding 16, gap 8
+            text p.name, weight 800, size 20, uppercase
+            text p.price, font "mono", margin 0 0 0 auto

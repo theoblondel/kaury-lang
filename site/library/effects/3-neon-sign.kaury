@@ -1,0 +1,19 @@
+// Neon sign · neon
+site "Neon sign"
+  colors wall #0A0810, pink #FF3D9A, cyan #3DF5FF
+  fonts "Satoshi", "Monoton"
+  style background wall, color white
+
+animation buzz, 4s, loop
+  from opacity 1
+  6% opacity 0.3
+  8% opacity 1
+  60% opacity 1
+  62% opacity 0.5
+  64% opacity 1
+  to opacity 1
+
+page "/"
+  section fullscreen, center
+    title "Open", font "titles", size 140, color pink, text-glow pink 34, buzz, center
+    text "late · every night", font "titles", size 28, color cyan, text-glow cyan 18, center

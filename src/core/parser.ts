@@ -279,6 +279,11 @@ class Parser {
           break
       }
       if (this.isUiHead()) return this.command()
+      // « hover lift 4 » alone on its line: it belongs to the element, or to a style
+      if (canon(t.v) === 'hover' && this.peek(1).t === 'word') {
+        throw this.error(t, msg('“hover” is an option of the element, not a line of its own.', '« survol » est une option de l\'élément, pas une ligne à part.'),
+          msg('put it on the element line (box padding 24, hover lift 4) or under it in a style line (style hover lift 4).', 'mets-la sur la ligne de l\'élément (box padding 24, hover lift 4) ou dessous dans une ligne style (style hover lift 4).'))
+      }
     }
     // expression or assignment
     const e = this.expression(FREE)
@@ -736,7 +741,12 @@ class Parser {
       this.next()
       return this.block(msg('this function', 'cette fonction'))
     }
-    if (this.peek().t === 'word' && this.isActionAhead()) return [this.statement()]
+    if (this.peek().t === 'word' && this.isActionAhead()) {
+      const s = this.statement()
+      // « every 1s, -> n += 1 »: the end of the line belongs to the line that holds the arrow
+      if (this.tokens[this.i - 1]?.t === 'newline') this.i--
+      return [s]
+    }
     return this.expression(FREE)
   }
 

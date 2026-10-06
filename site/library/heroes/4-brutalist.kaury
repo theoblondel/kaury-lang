@@ -1,0 +1,29 @@
+// Brutalist · brutalist
+site "Brutalist"
+  colors acid #D7FF3A, ink #111111, paper #F2F0E9, pink #FF4FA3
+  fonts "Space Grotesk", "Anton"
+  style background acid, color ink
+
+style shout
+  font "titles", size 190, line-height 0.82, uppercase, tracking -2
+
+style hollow
+  font "titles", size 190, line-height 0.82, uppercase, tracking -2, stroke 3 ink
+
+style hire
+  background ink, color acid, radius 0, shadow hard pink, padding 18 30, uppercase, weight 800
+  hover move -3 -3
+
+style tag
+  background ink, color acid, padding 6 12, font "mono", uppercase, size 13, tilt -4
+
+page "/"
+  section fullscreen, padding 40 48
+    row
+      text "KILN—STUDIO", font "mono", weight 700
+      text "EST. 2019 / BERLIN", font "mono", margin 0 0 0 auto
+    title "Raw", shout
+    title "Ideas.", hollow
+    row gap 24
+      text "We make loud brands for quiet people.", tag
+      button "Hire us ↗", hire

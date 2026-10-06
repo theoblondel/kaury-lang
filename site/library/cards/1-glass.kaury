@@ -1,0 +1,26 @@
+// Glass cards · glass
+site "Glass cards"
+  colors deep #120E2B, violet #7B5CFF, rose #FF7AC6, aqua #4DE1FF
+  fonts "General Sans"
+  style background deep, color white
+
+let plans = [
+  { icon: "☁️", name: "Sync", text: "Every device, always up to date." },
+  { icon: "🔒", name: "Vault", text: "End-to-end encrypted, by default." },
+  { icon: "⚡", name: "Boost", text: "Ten times faster on any network." }
+]
+
+style glass-card
+  glass, radius 28, padding 30, gap 10, border 1 #FFFFFF2E, color white
+  hover lift 8, background #FFFFFF26
+  text color #FFFFFFB3
+
+page "/"
+  section fullscreen, center, mesh violet rose aqua
+    grid 3 columns, gap 20
+      for p in plans
+        column glass-card
+          icon p.icon
+          subtitle p.name, level 3, size 26
+          text p.text
+          enters from bottom

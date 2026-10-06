@@ -69,7 +69,7 @@ const ELEMENT_SELECTOR: Record<string, string> = {
 }
 /** Parts inside an element (“link color rust” in a style). */
 const PART_SELECTOR: Record<string, string> = {
-  title: '.k-title,h1,h2,h3,h4', subtitle: '.k-subtitle', text: '.k-text,p', link: 'a', image: 'img', button: '.k-button',
+  title: '.k-title,h1,h2,h3,h4', subtitle: '.k-subtitle', text: '.k-text,p', link: 'a:not(.k-logo,.k-button)', image: 'img', button: '.k-button',
   icon: '.k-icon', code: ':not(pre)>code', block: 'pre', list: 'ul,ol', item: 'li', table: 'table', cell: 'th,td',
   quote: 'blockquote', summary: 'summary', emphasis: 'em', logo: '.k-logo',
 }
@@ -264,7 +264,8 @@ class Generator {
             const hex = hexOf(String(v), this.info.colors)
             if (hex && !isLight(hex)) this.css.push(':root{--k-line:rgba(255,255,255,.12);--k-muted:rgba(255,255,255,.72);color-scheme:dark}')
           }
-          if (o.name === 'color') this.css.push(`:root{--k-text:${v};--k-ink:${v}}`)
+          // never a variable defined by itself (a site color named « ink » is already --k-ink)
+          if (o.name === 'color') this.css.push(v === 'var(--k-ink)' ? ':root{--k-text:var(--k-ink)}' : `:root{--k-text:${v};--k-ink:${v}}`)
         }
       }
     }
@@ -1121,6 +1122,10 @@ class Generator {
     }
 
     this.skipText = false
+    // « center » in a row centers what is inside, it does not push the neighbours away (no auto margins)
+    if (ctx.parentHead === 'row' && m.options.some((o) => o.name === 'center') && !m.options.some((o) => o.name === 'margin')) {
+      m.options.push({ name: 'margin', values: [{ k: 'number', v: 0, pos: c.pos } as Expr], pos: c.pos })
+    }
     this.styleClass(n, head, m.options, [])
     this.childrenOf(c, { ...ctx, parent: n, target: n, parentHead: head })
     const mail = head === 'form' ? opt('mail') : undefined
@@ -1314,6 +1319,8 @@ class Generator {
           case '==': return `$k.equal(${l}, ${r})`
           case '!=': return `!$k.equal(${l}, ${r})`
           case 'in': return `$k.has(${r}, ${l})`
+          // two lists joined: [1, 2] + more → one list (numbers and texts add as usual)
+          case '+': return [e.l.k, e.r.k].some((k) => k === 'number' || k === 'text') ? `(${l} + ${r})` : `$k.plus(${l}, ${r})`
           default: return `(${l} ${e.op} ${r})`
         }
       }

@@ -1,0 +1,33 @@
+// Features, dark · bold
+site "Features dark"
+  colors night #0B0B0D, lime #C6FF4D, ash #1A1A1F
+  fonts "Satoshi", "Clash Display"
+  style background night, color white
+
+let features = [
+  { n: "01", title: "Instant deploys", text: "Push, and it is live everywhere in four seconds." },
+  { n: "02", title: "Edge cache", text: "Pages served from 300 cities, close to everyone." },
+  { n: "03", title: "Preview links", text: "Every branch gets its own address to share." },
+  { n: "04", title: "Rollbacks", text: "Go back to any version in one click." }
+]
+
+style feature
+  background ash, radius 20, padding 28, gap 10, border 1 #FFFFFF12
+  hover border 1 lime, lift 4
+  text color #FFFFFF99
+
+style emphasis
+  color lime
+
+page "/"
+  section features
+    row gap 24
+      title "Ship *faster*.\nSleep better.", size 72, tracking -3, line-height 0.95
+      text "Everything you need to go from a commit to the world, without a single config file.", size 19, color #FFFFFF99, max-width 380, margin 0 0 0 auto
+    grid 2 columns, gap 16
+      for f in features
+        column feature
+          text f.n, font "mono", color lime
+          subtitle f.title, level 3, size 26
+          text f.text
+          enters from bottom

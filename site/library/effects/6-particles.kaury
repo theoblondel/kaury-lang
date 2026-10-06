@@ -1,0 +1,11 @@
+// Snow night · immersive
+site "Snow night"
+  colors night #0D1424, frost #DCEBFF
+  fonts "Satoshi", "Gambetta"
+  style background night, color frost
+
+page "/"
+  scene snow, fullscreen, center, immediate, particles snow, gradient #0D1424 #23345A 180
+    text "Zermatt · Dec 2026", uppercase, tracking 4, size 13, center
+    title "First *snow*.", font "titles", weight 400, size 110, center
+    button "Book the chalet", background frost, color night

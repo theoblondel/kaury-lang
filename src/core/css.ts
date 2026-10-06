@@ -21,7 +21,8 @@ export function literal(e: Expr | undefined, siteColors: Record<string, string>)
       if (e.binding && e.binding.kind !== 'kaury' && e.binding.kind !== 'js') return undefined
       if (siteColors[e.name]) return `var(--k-${e.name})`
       const c = knownColor(e.name)
-      if (c) return `var(--k-${c})`
+      // named colors are variables; transparent and the theme colors are written as they are
+      if (c) return COLORS[c].startsWith('#') ? `var(--k-${c})` : COLORS[c]
       return canon(e.name) ?? canonValue(e.name)
     }
     case 'unary':
@@ -115,7 +116,39 @@ export function declarations(head: string, opt: string, vals: (string | number |
     case 'center': return { decl: [['text-align', 'center'], ['align-items', 'center'], ['justify-content', 'center'], ['margin-inline', 'auto']] }
     case 'radius': return { decl: [['border-radius', px(v0)], ['overflow', 'hidden']] }
     case 'round': return { decl: [['border-radius', '999px']] }
-    case 'shadow': return { decl: [['box-shadow', SHADOWS[String(v0 ?? 'soft')] ?? (typeof v0 === 'number' ? `0 ${v0}px ${v0 * 3}px -${v0}px rgba(0,0,0,.25)` : SHADOWS.soft)]] }
+    case 'shadow': {
+      // shadow hard pink: the offset shadow of brutalist designs, in a color
+      const c = vals.slice(1).find((x) => typeof x === 'string')
+      if (v0 === 'hard' && c) return { decl: [['box-shadow', `6px 6px 0 ${c}`]] }
+      return { decl: [['box-shadow', SHADOWS[String(v0 ?? 'soft')] ?? (typeof v0 === 'number' ? `0 ${v0}px ${v0 * 3}px -${v0}px rgba(0,0,0,.25)` : SHADOWS.soft)]] }
+    }
+    case 'glow':
+    case 'text-glow': {
+      // neon: a light of the color around the element (or around the letters of a text)
+      const c = String(vals.find((x) => typeof x === 'string') ?? 'var(--k-accent)')
+      const n = Number(vals.find((x) => typeof x === 'number') ?? 24)
+      const soft = `color-mix(in srgb, ${c} 55%, transparent)`
+      if (opt === 'text-glow' || TEXT_HEADS.has(head) || head === 'title' || head === 'subtitle') return { decl: [['text-shadow', `0 0 ${n * 0.25}px ${c}, 0 0 ${n}px ${soft}, 0 0 ${n * 2}px ${soft}`]] }
+      return { decl: [['box-shadow', `0 0 0 1px ${c}, 0 0 ${n}px ${soft}, 0 0 ${n * 2.5}px ${soft}`]] }
+    }
+    case 'stroke': {
+      // letters drawn as an outline only
+      const c = String(vals.find((x) => typeof x === 'string') ?? 'currentColor')
+      const n = Number(vals.find((x) => typeof x === 'number') ?? 2)
+      return { decl: [['-webkit-text-stroke', `${n}px ${c}`], ['color', 'transparent']] }
+    }
+    case 'zoom': {
+      // the element keeps the layout of a wider one: zoom 0.5 shows a desktop page in half the width
+      const z = Number(v0) || 1
+      return { decl: [['zoom', String(z)], ['width', `calc(100% / ${z})`], ['max-width', 'none']] }
+    }
+    case 'mesh': {
+      // a mesh gradient: soft colored lights melting into the background
+      const cols = vals.filter((x): x is string => typeof x === 'string')
+      const at = ['18% 22%', '82% 18%', '62% 88%', '12% 90%']
+      const layers = cols.slice(0, 4).map((c, i) => `radial-gradient(at ${at[i]}, ${c} 0, transparent 55%)`)
+      return { decl: [['background', `${layers.join(', ')}, var(--k-bg)`]] }
+    }
     case 'border-top':
     case 'border-bottom': {
       const w = typeof v0 === 'number' ? v0 : 1
@@ -198,7 +231,8 @@ export function bestText(bg: string): string {
 
 function autoContrast(c: string, siteColors: Record<string, string>): Decl[] {
   const hex = hexOf(c, siteColors)
-  if (!hex) return []
+  // a see-through background (#12121210) keeps the text of what is behind it
+  if (!hex || /^#([0-9a-f]{4}|[0-9a-f]{8})$/i.test(hex) && parseInt(hex.length === 5 ? hex[4] + hex[4] : hex.slice(7), 16) < 128) return []
   return [['color', bestText(hex)]]
 }
 

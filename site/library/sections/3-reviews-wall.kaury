@@ -1,0 +1,31 @@
+// Reviews wall · colorful
+site "Reviews wall"
+  colors ink #1D1630, cream #FFF8F0, grape #6C3BFF, candy #FF4FA3, sun #FFC94D, mint #4DDFA8
+  fonts "Satoshi", "Cabinet Grotesk"
+  style background cream, color ink
+
+let reviews = [
+  { q: "I paid my rent, split dinner and saved for Japan before lunch.", n: "Ana, Lisbon", c: "#6C3BFF", t: "#FFFFFF" },
+  { q: "Finally an app my parents understand.", n: "Tom, Bern", c: "#FFC94D", t: "#1D1630" },
+  { q: "The design is so good I open it for fun.", n: "Lea, Paris", c: "#4DDFA8", t: "#1D1630" },
+  { q: "No fees. Like, really none.", n: "Sam, Berlin", c: "#FF4FA3", t: "#FFFFFF" },
+  { q: "Support answered in four minutes. On a Sunday.", n: "Noor, Milan", c: "#FFFFFF", t: "#1D1630" },
+  { q: "My savings goal hit 100% and it threw confetti at me.", n: "Kai, Oslo", c: "#1D1630", t: "#FFF8F0" }
+]
+
+style review
+  radius 24, padding 28, gap 16, shadow soft
+  hover tilt -1.5, grow 1.02
+
+style emphasis
+  color grape
+
+page "/"
+  section reviews
+    title "4.9 ★ from *80,000* people", size 56, center, tracking -2
+    grid 3 columns, gap 16
+      for r in reviews
+        column review, background r.c, color r.t
+          text "“{r.q}”", size 21, weight 600, line-height 1.3
+          text r.n, opacity 0.7, size 14
+          enters from bottom

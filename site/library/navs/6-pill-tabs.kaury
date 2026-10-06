@@ -1,0 +1,24 @@
+// Pill tabs · minimal
+site "Pill tabs"
+  colors ink #121212, mist #EEEEEA, white #FFFFFF
+  fonts "Satoshi"
+  style background white, color ink
+
+state tab = 0
+let tabs = ["Overview", "Features", "Pricing", "Changelog"]
+
+style tab-bar
+  background mist, radius 999, padding 6, gap 4
+
+style tab-pill
+  background transparent, color ink, radius 999, padding 10 20, size 15, weight 500, shadow none
+  hover background #12121210
+  selected background ink, color white
+
+page "/"
+  section header, padding 24 32
+    logo "◐ Halo"
+    row tab-bar, attr "role" "tablist"
+      for t, i in tabs
+        button t, tab-pill, selected (tab == i) -> tab = i
+    button "Try it", small

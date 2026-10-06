@@ -4,7 +4,7 @@ export { state, derived, effect, batch, root, untracked, reactive, raw, onCleanu
 export {
   t, print, load, send, sum, average, min, max, round, floor, ceil, abs, sqrt, random, pick, length, now, toText, toNumber,
   price, formatDate, shuffle, range, toList, delay, every, later, persist, copy, vibrate, scrollTo, share, equal, has, prop, m,
-  confetti, NetworkError, setLocale, jsonLd,
+  confetti, NetworkError, setLocale, jsonLd, plus,
 } from './utils.js'
 export {
   h, setText, text, attr, style, px, path, img, on, when, each, component, mark, rootNodes, rootClass, slot, bind, bindCheck,

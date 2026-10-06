@@ -1,0 +1,19 @@
+// Rotating words · playful
+site "Rotating words"
+  colors ink #1D1630, cream #FFF8F0, grape #6C3BFF, candy #FF4FA3
+  fonts "Satoshi", "Cabinet Grotesk"
+  style background cream, color ink
+
+animation swap, 0.5s
+  from move 0 40, opacity 0
+  to move 0 0, opacity 1
+
+let words = ["websites", "shops", "portfolios", "games", "apps"]
+state shown = 0
+every 1.6s, -> shown = (shown + 1) % length(words)
+
+page "/"
+  section fullscreen, center
+    title "We build", size 88, center, tracking -3
+    for w, i in words
+      title w, size 88, center, tracking -3, text-gradient grape candy, swap, hidden (shown != i)

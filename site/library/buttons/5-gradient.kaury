@@ -1,0 +1,19 @@
+// Sunset gradient · colorful
+site "Gradient"
+  colors coral #FF5F6D, honey #FFC371, ink #2A1A1F, blush #FFF4EE
+  fonts "Cabinet Grotesk"
+  style background blush, color ink
+
+style sunset
+  gradient coral honey, color white, radius 18, padding 18 34, weight 800, size 18, shadow medium
+  hover lift 4, grow 1.03
+
+style sunset-ghost
+  background transparent, color coral, radius 18, padding 18 26, weight 800, size 18, shadow none
+  hover background #FF5F6D1A
+
+page "/"
+  section fullscreen, center
+    row gap 10, center
+      button "Start for free", sunset
+      button "Talk to sales", sunset-ghost

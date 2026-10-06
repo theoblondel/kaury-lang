@@ -1,0 +1,32 @@
+// Ticker · bold
+site "Ticker"
+  colors ink #111111, acid #D7FF3A, paper #F2F0E9
+  fonts "Satoshi", "Anton"
+  style background paper, color ink
+
+let words = ["Design", "Code", "Motion", "3D", "Brand", "Launch"]
+
+animation slide, 18s, loop, linear
+  from move 0 0
+  to move -50% 0
+
+animation slide-back, 22s, loop, linear
+  from move -50% 0
+  to move 0 0
+
+style band
+  padding 18 0, clip, full-width
+
+style word
+  font "titles", size 72, uppercase, padding 0 28, line-height 1
+
+page "/"
+  section fullscreen, center, padding 0
+    section one, band, background acid, tilt -3
+      row no-wrap, slide, gap 0
+        for w in words + words
+          text "{w} ✳", word
+    section two, band, background ink, color acid, tilt 2
+      row no-wrap, slide-back, gap 0
+        for w in words + words
+          text "{w} ●", word

@@ -1,0 +1,19 @@
+// Announcement bar · colorful
+site "Announcement"
+  colors grape #6C3BFF, candy #FF4FA3, cream #FFF8F0, ink #1D1630
+  fonts "Cabinet Grotesk"
+  style background cream, color ink
+
+style news
+  gradient grape candy, color white, center, padding 10 16, size 14, weight 600
+  link color white, underline
+
+page "/"
+  section top, news, full-width
+    row center, gap 10
+      text "✨ New: dark mode and 3D charts are here."
+      link "See what's new →" "#"
+  section header
+    logo "Plume"
+    links Product, Templates, Pricing
+    button "Start free", small

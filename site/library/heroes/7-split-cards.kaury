@@ -1,0 +1,35 @@
+// Floating cards · colorful
+site "Floating cards"
+  colors ink #1D1630, cream #FFF8F0, grape #6C3BFF, candy #FF4FA3, sun #FFC94D, mint #4DDFA8
+  fonts "Satoshi", "Cabinet Grotesk"
+  style background cream, color ink
+
+style float-card
+  radius 24, padding 22, shadow strong, width 240, gap 6, color white
+
+style emphasis
+  color grape
+
+page "/"
+  section fullscreen
+    grid columns 1 1, gap 40
+      tablet columns 1
+      column gap 24
+        title "Money,\nmade *fun*.", size 104, line-height 0.92, tracking -3
+        text "Split bills, save for trips and pay friends in one tap. No fees, ever.", size 20
+        row gap 12
+          button "Get the app", large, background ink, color white
+          button "How it works", large, background transparent, color ink, border 2 ink
+      box height 460
+        column float-card, gradient grape candy, pin top 10 left 10%, tilt -8
+          text "Trip to Lisbon ✈️", bold
+          text "CHF 1,240 / 2,000", size 26, weight 800
+          float
+        column float-card, background sun, color ink, pin top 40% right 4%, tilt 6
+          text "Pizza night 🍕", bold
+          text "Split in 4 — done", size 20, weight 800
+          float 0.6
+        column float-card, background mint, color ink, pin bottom 0 left 22%, tilt -3
+          text "Saved this month", bold
+          text "+ CHF 310", size 30, weight 800
+          float 0.4

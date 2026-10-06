@@ -1,0 +1,40 @@
+// Pricing with a toggle · minimal
+site "Pricing toggle"
+  colors ink #121212, paper #F7F7F4, blue #2B59FF
+  fonts "Satoshi", "Cabinet Grotesk"
+  style background paper, color ink
+
+state yearly = false
+let plans = [
+  { name: "Solo", month: 12, text: "One person, every feature." },
+  { name: "Team", month: 39, text: "Up to ten people.", featured: true },
+  { name: "Scale", month: 99, text: "Unlimited, with a person to call." }
+]
+
+style switch
+  background white, radius 999, padding 5, gap 4, shadow soft
+
+style seg
+  background transparent, color ink, radius 999, padding 10 20, shadow none, size 15
+  selected background ink, color white
+
+style plan
+  background white, radius 24, padding 30, gap 12, shadow soft
+  current background ink, color white, shadow strong
+  hover lift 6
+
+page "/"
+  section prices, center
+    title "Simple prices.", size 64, center, tracking -2
+    row switch, attr "role" "tablist"
+      button "Monthly", seg, selected (not yearly) -> yearly = false
+      button "Yearly  −20%", seg, selected yearly -> yearly = true
+    grid 3 columns, gap 18
+      for p in plans
+        column plan, current (p.featured == true)
+          text p.name, weight 700
+          row gap 6
+            text "€{if yearly then round(p.month * 0.8) else p.month}", font "titles", size 56, weight 800, line-height 1
+            text "/ month", opacity 0.6
+          text p.text, opacity 0.7
+          button "Choose {p.name}", background blue, color white

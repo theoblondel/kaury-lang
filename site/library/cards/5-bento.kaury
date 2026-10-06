@@ -1,0 +1,36 @@
+// Bento grid · colorful
+site "Bento"
+  colors ink #141218, cream #FAF7F2, grape #6C3BFF, sun #FFC94D, mint #4DDFA8, coral #FF6B5B
+  fonts "Satoshi", "Cabinet Grotesk"
+  style background cream, color ink
+
+style tile
+  radius 28, padding 28, gap 8, clip
+  hover grow 1.02
+
+style huge
+  font "titles", size 64, weight 800, line-height 1, tracking -2
+
+page "/"
+  section fullscreen
+    grid columns 2 1 1, gap 16
+      column tile, background grape, color white, min-height 420
+        text "Your week", bold
+        text "38 h", huge
+        text "of deep work. +12% vs last week.", color #FFFFFFB3
+        object "torus", color sun, metal, height 200, immediate
+          spin slow
+      column gap 16
+        column tile, background sun, min-height 202
+          text "Streak 🔥", bold
+          text "21", huge
+        column tile, background mint, min-height 202
+          text "Focus", bold
+          text "92%", huge
+      column gap 16
+        column tile, background coral, color white, min-height 202
+          text "Meetings", bold
+          text "4", huge
+        column tile, background ink, color cream, min-height 202
+          text "Next up", bold
+          text "Design review · 14:00", size 20, weight 700

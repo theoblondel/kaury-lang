@@ -1,0 +1,22 @@
+// Big call to action · bold
+site "Big CTA"
+  colors ink #111111, orange #FF5B1F, paper #F4F1EA
+  fonts "Satoshi", "Anton"
+  style background paper, color ink
+
+style cta
+  background orange, color ink, radius 36, padding 64 48, gap 22, center, clip
+
+style mega
+  font "titles", size 120, uppercase, line-height 0.85, center
+
+style call
+  background ink, color orange, padding 20 40
+  hover grow 1.05
+
+page "/"
+  section cta-section
+    column cta
+      text "★ Limited spots for 2027 ★", uppercase, tracking 3, weight 700, size 13
+      title "Let us make\nsomething loud", mega
+      button "Book a call ↗", large, call

@@ -1,0 +1,18 @@
+// Floating glass · glass
+// height 260
+site "Floating glass"
+  colors deep #0E0B1F, violet #7B5CFF, rose #FF7AC6, aqua #4DE1FF
+  fonts "General Sans"
+  style background deep, color white
+
+style float-nav
+  glass, radius 999, padding 10 12 10 26, margin 24 auto 0, max-width 860, border 1 #FFFFFF2E
+  link color white, plain, weight 500
+  button background white, color deep, shadow none
+
+page "/"
+  section fullscreen, mesh violet rose aqua, padding 0 16
+    section header, float-nav
+      logo "Aurora"
+      links Features, Pricing, Docs
+      button "Get the app", small

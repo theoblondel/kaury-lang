@@ -49,7 +49,7 @@ test('every example of the vocabulary compiles', async () => {
     const real = r.errors.filter((e) => !/does not exist/.test(e.message))
     if (real.length) failures.push(`${label}: ${line}\n→ ${real.map((e) => e.message).join('\n→ ')}`)
   }
-  const isElementLine = (ex: string) => ex.split(' ')[0] in vocabulary.ELEMENTS || ['mobile', 'tablet', 'desktop', 'hover', 'style'].includes(ex.split(' ')[0])
+  const isElementLine = (ex: string) => ex.split(' ')[0] in vocabulary.ELEMENTS || ['mobile', 'tablet', 'desktop', 'style'].includes(ex.split(' ')[0])
   // style and universal options: on a box (or as written when the example is a whole line)
   for (const t of [vocabulary.STYLES, vocabulary.UNIVERSAL_OPTIONS]) {
     for (const [name, spec] of Object.entries(t)) {

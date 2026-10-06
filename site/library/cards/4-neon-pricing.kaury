@@ -1,0 +1,27 @@
+// Neon pricing · neon
+site "Neon pricing"
+  colors night #07060D, pink #FF2E88, cyan #2EF2FF, violet #9B5CFF
+  fonts "Satoshi", "Clash Display"
+  style background night, color white
+
+style neon-card
+  background #FFFFFF08, border 1 #FFFFFF1F, radius 24, padding 32, gap 14, width 320
+  hover glow violet 24, lift 6
+  current border 1 pink, glow pink 30
+
+style price
+  font "titles", size 56, weight 600, line-height 1
+
+page "/"
+  section fullscreen, center
+    row gap 22, center
+      column neon-card
+        text "Starter", uppercase, tracking 3, size 12, color cyan
+        text "€9", price
+        text "For side projects.", color #FFFFFF99
+        button "Choose", background transparent, color white, border 1 #FFFFFF33
+      column neon-card, current true
+        text "Pro — most loved", uppercase, tracking 3, size 12, color pink
+        text "€29", price, text-glow pink 14
+        text "For teams that ship every day.", color #FFFFFF99
+        button "Start now", background pink, color night, glow pink 18

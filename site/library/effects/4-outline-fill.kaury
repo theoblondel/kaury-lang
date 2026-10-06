@@ -1,0 +1,17 @@
+// Outline to fill · brutalist
+site "Outline"
+  colors paper #F2F0E9, ink #111111, pink #FF4FA3
+  fonts "Satoshi", "Anton"
+  style background paper, color ink
+
+let lines = ["Strategy", "Identity", "Websites", "Campaigns"]
+
+style hollow
+  font "titles", size 96, uppercase, line-height 1, stroke 2 ink, cursor pointer
+  hover color pink, move 24 0
+
+page "/"
+  section fullscreen, padding 40 56
+    text "Hover the words ↓", font "mono", size 13
+    for l in lines
+      title l, hollow

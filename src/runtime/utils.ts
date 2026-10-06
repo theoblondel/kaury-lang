@@ -56,6 +56,14 @@ export async function send(url: string, data: unknown = {}, method = 'POST'): Pr
   return load(url, { method, body: body as any, headers })
 }
 
+/** a + b: two lists make one list; anything else adds as JavaScript does. */
+export function plus(a: any, b: any): any {
+  const x = raw(a)
+  const y = raw(b)
+  if (Array.isArray(x) && Array.isArray(y)) return [...x, ...y]
+  return a + b
+}
+
 const valuesOf = (list: any, fn?: (x: any) => any): any[] => {
   const l = toList(list)
   return fn ? l.map(fn) : l

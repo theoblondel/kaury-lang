@@ -1,0 +1,18 @@
+// Bold dark · bold
+site "Bold dark"
+  colors night #0B0B0C, lime #C6FF4D
+  fonts "Satoshi", "Clash Display"
+  style background night, color white
+
+style big-logo
+  font "titles", size 30, weight 700, tracking -1
+
+style loud
+  link uppercase, tracking 2, size 13, weight 600, plain, color #FFFFFFB3
+  button background lime, color night, radius 999, weight 700
+
+page "/"
+  section header, loud, padding 26 40
+    logo "VOLT®", big-logo
+    links Work, Studio, Journal, Contact
+    button "Start a project ↗", small

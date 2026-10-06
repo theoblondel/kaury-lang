@@ -1,0 +1,18 @@
+// Confetti · playful
+site "Confetti"
+  colors grape #6C3BFF, candy #FF4FA3, cream #FFF8F0
+  fonts "Chillax"
+  style background cream, color grape
+
+state party = 0
+
+style jelly
+  gradient grape candy, color white, radius 999, padding 20 38, weight 700, size 20, shadow strong
+  hover grow 1.08, tilt -3
+
+page "/"
+  section fullscreen, center
+    button "Celebrate 🎉", jelly ->
+      party += 1
+      confetti()
+    text "Clicked {party} times", size 14

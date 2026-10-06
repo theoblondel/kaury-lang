@@ -1,0 +1,15 @@
+// Minimal · minimal
+// height 200
+site "Minimal footer"
+  colors ink #141414, paper #FAFAF7
+  fonts "Satoshi"
+  style background paper, color ink
+
+page "/"
+  spacer 40
+  footer
+    text "© 2026 Northwind"
+    row gap 24
+      link "Privacy" "#", plain
+      link "Terms" "#", plain
+      link "Twitter ↗" "#", plain

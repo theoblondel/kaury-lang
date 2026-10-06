@@ -1,0 +1,38 @@
+// Profile · minimal
+site "Profile"
+  colors ink #18181B, paper #F4F4F5, blue #3B5BFF
+  fonts "Satoshi"
+  style background paper, color ink
+
+state following = false
+
+style profile
+  background white, radius 28, padding 32, gap 18, shadow medium, width 360, center
+
+style avatar
+  width 96, height 96, round, gradient blue #9F7BFF, center
+  text color white, size 40, weight 800
+
+style stat
+  gap 0, center
+  text size 13, color #18181B88
+
+page "/"
+  section fullscreen, center
+    column profile
+      row avatar
+        text "M"
+      column gap 2, center
+        subtitle "Mira Okafor", level 3, size 24
+        text "Product designer · Lagos", color #18181B88
+      row gap 32, center
+        column stat
+          text "128", size 22, weight 800, color ink
+          text "projects"
+        column stat
+          text "14k", size 22, weight 800, color ink
+          text "followers"
+        column stat
+          text "4.9", size 22, weight 800, color ink
+          text "rating"
+      button (if following then "Following ✓" else "Follow"), large -> following = not following

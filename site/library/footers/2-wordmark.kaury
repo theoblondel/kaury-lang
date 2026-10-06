@@ -1,0 +1,30 @@
+// Giant wordmark · bold
+// height 420
+site "Wordmark footer"
+  colors night #0B0B0C, lime #C6FF4D
+  fonts "Satoshi", "Anton"
+  style background night, color white
+
+style links-col
+  gap 6
+  link color #FFFFFFB3, plain
+
+style wordmark
+  font "titles", size 240, uppercase, line-height 0.8, color lime, center, tracking -4
+
+page "/"
+  section end, padding 48 40 0
+    row gap 64
+      column links-col
+        text "Studio", weight 700
+        link "Work" "#"
+        link "About" "#"
+        link "Jobs" "#"
+      column links-col
+        text "Social", weight 700
+        link "Instagram ↗" "#"
+        link "LinkedIn ↗" "#"
+      column links-col, margin 0 0 0 auto
+        text "Say hi", weight 700
+        link "hello@volt.studio" "#"
+    title "Volt®", wordmark

@@ -1,0 +1,32 @@
+// Columns, dark · minimal
+// height 380
+site "Columns footer"
+  colors night #0F1115, slate #9AA3B2, blue #4D7CFF
+  fonts "Satoshi"
+  style background night, color white
+
+let cols = [
+  { t: "Product", l: ["Features", "Pricing", "Changelog", "Status"] },
+  { t: "Company", l: ["About", "Careers", "Press", "Contact"] },
+  { t: "Resources", l: ["Docs", "Guides", "Community", "Security"] }
+]
+
+style col
+  gap 10
+  link color slate, plain, size 15
+
+page "/"
+  section end, padding 56 48
+    grid columns 1.5 1 1 1, gap 32
+      tablet columns 2
+      column gap 14
+        text "◆ Prism", size 22, weight 800
+        text "Analytics that respect people.", color slate
+      for c in cols
+        column col
+          text c.t, weight 700
+          for x in c.l
+            link x "#"
+    row border-top 1 #FFFFFF14, padding 24 0 0 0
+      text "© 2026 Prism SA, Geneva", color slate, size 14
+      text "Made with Kaury", color slate, size 14, margin 0 0 0 auto

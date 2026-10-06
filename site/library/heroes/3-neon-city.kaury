@@ -1,0 +1,21 @@
+// Neon city · neon
+site "Neon city"
+  colors night #05040B, pink #FF2E88, cyan #2EF2FF
+  fonts "Satoshi", "Tanker"
+  style background night, color white
+
+animation flicker, 3s, loop
+  from opacity 1
+  48% opacity 1
+  50% opacity 0.4
+  52% opacity 1
+  to opacity 1
+
+style neon-title
+  font "titles", size 170, line-height 0.85, uppercase, color pink, text-glow pink 30
+
+page "/"
+  scene city, fullscreen, center, particles stars
+    text "◢ Friday · 23:00 · Warehouse 9", color cyan, text-glow cyan 12, uppercase, tracking 4, size 14
+    title "Night\nshift", neon-title, flicker, center
+    button "Get tickets", large, background transparent, color cyan, border 2 cyan, glow cyan 20, radius 0, uppercase, tracking 3

@@ -1,0 +1,24 @@
+// Typewriter · minimal
+site "Typewriter"
+  colors ink #101010, paper #FFFFFF, blue #2B59FF
+  fonts "Satoshi", "Space Mono"
+  style background paper, color ink
+
+animation types-in, 2.4s, steps 22, delay 0.4s
+  from reveal 0%
+  to reveal 100%
+
+animation blink, 1s, loop, steps 2
+  from opacity 1
+  to opacity 0
+
+page "/"
+  section fullscreen, padding 64
+    text "$ kaury new studio", font "titles", color blue, size 18
+    row gap 0
+      title "We build things that work.", font "titles", size 72, tracking -2, types-in, no-wrap
+      title "▌", font "titles", size 72, color blue, blink
+    text "Engineering studio. Websites, apps, tools — shipped in weeks.", size 20, color #10101099
+    row gap 24
+      link "→ See our work" "#", weight 600, plain
+      link "→ Say hello" "#", weight 600, plain

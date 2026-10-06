@@ -1,0 +1,19 @@
+// Luxury · luxury
+site "Luxury"
+  colors noir #15120F, ivory #F4EEE3, gold #B08D57
+  fonts "Satoshi", "Gambetta"
+  style background ivory, color noir
+
+style lux-solid
+  background noir, color ivory, radius 0, padding 20 40, uppercase, tracking 4, size 12, weight 500, shadow none
+  hover background gold
+
+style lux-link
+  background transparent, color noir, radius 0, padding 8 2, border-bottom 1 gold, font "titles", italic, size 22, shadow none
+  hover color gold
+
+page "/"
+  section fullscreen, center
+    row gap 36, center
+      button "Book a fitting", lux-solid
+      button "Discover the collection", lux-link

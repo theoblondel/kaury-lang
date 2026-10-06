@@ -18,4 +18,6 @@ site/public/robots.txt
 site/public/.well-known/
 site/content/reference.yaml
 site/content/examples.yaml
+site/content/library.yaml
+site/public/lib/
 site/content/release.yaml

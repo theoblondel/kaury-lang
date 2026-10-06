@@ -1,0 +1,25 @@
+// Newsletter, brutalist · brutalist
+// height 380
+site "Brutalist footer"
+  colors acid #D7FF3A, ink #111111, pink #FF4FA3
+  fonts "Space Grotesk", "Anton"
+  style background acid, color ink
+
+style box-in
+  border 3 ink, background white, padding 28, gap 16, shadow hard ink, radius 0
+
+page "/"
+  section end, padding 40 48
+    grid columns 1.2 1, gap 32
+      tablet columns 1
+      title "Get the\nzine →", font "titles", size 110, uppercase, line-height 0.85
+      column box-in
+        text "One email a month. Ideas, not ads.", weight 700
+        form -> joined = true
+          field email "you@mail.com", type email, required
+          button "Subscribe", background ink, color acid, radius 0, shadow none, uppercase
+        if joined
+          text "You are in. ✳", color pink, weight 800
+    row border-top 3 ink, padding 18 0 0 0
+      text "KILN—STUDIO © 2026", font "mono"
+      text "BERLIN / ONLINE", font "mono", margin 0 0 0 auto

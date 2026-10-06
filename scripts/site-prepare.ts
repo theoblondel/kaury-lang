@@ -12,6 +12,7 @@ import { ELEMENTS, STYLES, ELEMENT_OPTIONS, UNIVERSAL_OPTIONS, MOTIONS, LIGHTS, 
 import { KAURY_FUNCTIONS, KAURY_VALUES } from '../src/core/globals.js'
 import { allKeywords, aliasesOf } from '../src/core/keywords.js'
 import { compile } from '../src/core/index.js'
+import { buildLibrary } from './library.js'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const site = join(root, 'site')
@@ -170,6 +171,9 @@ mkdirSync(join(pub, '.well-known'), { recursive: true })
 writeFileSync(join(pub, '.well-known', 'ai-catalog.json'), JSON.stringify(catalog, null, 2) + '\n')
 
 // AI crawlers are welcome: being read and quoted is the point of this site
-writeFileSync(join(pub, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /play/\n\n# AI assistants and their crawlers are welcome: start with /llms.txt\nUser-agent: GPTBot\nAllow: /\nUser-agent: OAI-SearchBot\nAllow: /\nUser-agent: ChatGPT-User\nAllow: /\nUser-agent: ClaudeBot\nAllow: /\nUser-agent: Claude-User\nAllow: /\nUser-agent: Claude-SearchBot\nAllow: /\nUser-agent: PerplexityBot\nAllow: /\nUser-agent: Google-Extended\nAllow: /\nUser-agent: Applebot-Extended\nAllow: /\n\nSitemap: ${URL}/sitemap.xml\n`)
+writeFileSync(join(pub, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /play/\nDisallow: /lib/\n\n# AI assistants and their crawlers are welcome: start with /llms.txt\nUser-agent: GPTBot\nAllow: /\nUser-agent: OAI-SearchBot\nAllow: /\nUser-agent: ChatGPT-User\nAllow: /\nUser-agent: ClaudeBot\nAllow: /\nUser-agent: Claude-User\nAllow: /\nUser-agent: Claude-SearchBot\nAllow: /\nUser-agent: PerplexityBot\nAllow: /\nUser-agent: Google-Extended\nAllow: /\nUser-agent: Applebot-Extended\nAllow: /\n\nSitemap: ${URL}/sitemap.xml\n`)
 
-console.log(`site prepared: ${reference.elements.length} elements, ${reference.styles.length} styles, ${docs.length} docs pages, ${posts.length} posts, ${examples.length} examples`)
+// ---------------- library: ready-made pieces and homepages, each built into its own preview ----------------
+const library = await buildLibrary(root, site)
+
+console.log(`site prepared: ${reference.elements.length} elements, ${reference.styles.length} styles, ${docs.length} docs pages, ${posts.length} posts, ${examples.length} examples, ${library.pieces} library pieces (${library.built} built)`)

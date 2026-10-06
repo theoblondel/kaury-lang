@@ -1,0 +1,25 @@
+// Questions · minimal
+site "Questions"
+  colors ink #141414, paper #FAFAF7, blue #2B59FF
+  fonts "Satoshi", "Cabinet Grotesk"
+  style background paper, color ink
+
+let faq = [
+  { q: "Is there a free plan?", a: "Yes. Free forever for one person, with every feature." },
+  { q: "Can I cancel any time?", a: "In one click, from your settings. You keep your data." },
+  { q: "Where is my data stored?", a: "In Switzerland, encrypted, never sold." },
+  { q: "Do you offer discounts for schools?", a: "Schools and non-profits get 50% off. Write to us." }
+]
+
+page "/"
+  section questions
+    grid columns 1 1.4, gap 48
+      tablet columns 1
+      column gap 14
+        title "Questions?", size 56, tracking -2
+        text "Everything people ask before they start. Something missing?", opacity 0.7
+        link "Ask us →" "#", color blue, weight 600
+      column gap 0
+        for f in faq
+          details f.q
+            text f.a, opacity 0.75

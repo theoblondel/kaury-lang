@@ -1,0 +1,19 @@
+// Neon · neon
+site "Neon"
+  colors night #07060D, pink #FF2E88, cyan #2EF2FF
+  fonts "Clash Display"
+  style background night, color white
+
+style neon-pink
+  background transparent, color pink, border 2 pink, radius 14, padding 16 32, glow pink 16, text-glow pink 8, uppercase, tracking 3, weight 600
+  hover background pink, color night, glow pink 36
+
+style neon-cyan
+  background transparent, color cyan, border 2 cyan, radius 14, padding 16 32, glow cyan 16, text-glow cyan 8, uppercase, tracking 3, weight 600
+  hover background cyan, color night, glow cyan 36
+
+page "/"
+  section fullscreen, center
+    row gap 22, center
+      button "Play now", neon-pink
+      button "Join the club", neon-cyan

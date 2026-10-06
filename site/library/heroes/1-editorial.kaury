@@ -1,0 +1,28 @@
+// Editorial · luxury
+site "Editorial"
+  colors ink #1A1714, paper #F3EEE6, clay #B5502E
+  fonts "Satoshi", "Gambetta"
+  style background paper, color ink
+
+style emphasis
+  italic, color clay
+
+style kicker
+  uppercase, tracking 3, size 12, weight 500
+
+style giant
+  font "titles", size 150, line-height 0.86, tracking -6, weight 400
+
+animation rise, 1.1s
+  from move 0 60, opacity 0
+  to move 0 0, opacity 1
+
+page "/"
+  section fullscreen, padding 48 56
+    row kicker, border-bottom 1 ink, padding 0 0 14 0
+      text "Issue Nº 12"
+      text "Autumn 2026", margin 0 0 0 auto
+    title "Slow\n*living*,\nfast.", giant, rise
+    row gap 40
+      text "Twelve homes, six countries and one idea: fewer, better things.", size 20, max-width 420
+      button "Read the issue →", to "#", background ink, color paper, radius 0, padding 18 30

@@ -1,0 +1,15 @@
+// Magnetic · playful
+site "Magnetic"
+  colors ink #0F0F12, lime #C6FF4D, smoke #F4F4F0
+  fonts "Satoshi"
+  style background smoke, color ink
+
+style magnet
+  background ink, color lime, radius 999, padding 22 40, weight 700, size 18
+  hover grow 1.06
+
+page "/"
+  section fullscreen, center
+    button "Catch me if you can", magnet
+      follows mouse, smooth
+    text "It follows your mouse.", color #0F0F1299, size 14

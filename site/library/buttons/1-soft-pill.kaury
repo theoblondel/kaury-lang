@@ -1,0 +1,19 @@
+// Soft pill · minimal
+site "Soft pill"
+  colors ink #16151A, cream #F7F3EC
+  fonts "Satoshi"
+  style background cream, color ink
+
+style pill
+  background ink, color cream, radius 999, padding 18 30, weight 600
+  hover lift 3, shadow medium
+
+style pill-line
+  background transparent, color ink, border 2 ink, radius 999, padding 16 28, weight 600, shadow none
+  hover background ink, color cream
+
+page "/"
+  section fullscreen, center
+    row gap 14, center
+      button "Get started", pill
+      button "Learn more →", pill-line
