@@ -3,11 +3,13 @@
   "version": "0.2.0",
   "main": "dist/core.js",
   "scripts": {
-    "build": "node scripts/build.mjs",
+    "build": "node scripts/build.mjs && tsx scripts/editor.ts",
     "test": "tsx --test tests/*.test.ts",
     "kaury": "tsx src/cli/index.ts",
     "typecheck": "tsc --noEmit",
-    "measure": "node scripts/measure.mjs"
+    "measure": "node scripts/measure.mjs",
+    "site": "tsx scripts/site-prepare.ts && tsx src/cli/index.ts build site/site.kaury --lang en",
+    "site:dev": "tsx scripts/site-prepare.ts && tsx src/cli/index.ts dev site/site.kaury --lang en"
   },
   "keywords": [
     "language",

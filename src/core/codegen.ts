@@ -5,9 +5,10 @@
 
 import type { Command, Expr, Stmt, Binding, ResolvedOption, Pos } from './ast.js'
 import { canon, canonValue } from './keywords.js'
-import { declarations, hexOf, isLight, literal, bestText } from './css.js'
+import { declarations, hexOf, isLight, literal, bestText, fontFamily } from './css.js'
 import { globalSpec, kauryMethod, PROPERTIES } from './globals.js'
 import type { ModuleInfo } from './checker.js'
+import { ELEMENTS } from './vocabulary.js'
 
 const JS_RESERVED = new Set([
   'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'enum',
@@ -54,13 +55,30 @@ export function assetPath(s: string): string {
 // options that are not styles (handled by the element itself)
 const NON_STYLE = new Set(['level', 'alt', 'cover', 'loop', 'muted', 'autoplay', 'controls', 'to', 'outline', 'ghost', 'large', 'small',
   'disabled', 'new-tab', 'type', 'required', 'label', 'rows', 'image', 'position', 'rotation', 'fallback', 'shadows', 'fog', 'ground',
-  'particles', 'distance', 'volume', 'animation', 'immediate', 'class', 'tag', 'attr', 'id', 'html'])
+  'particles', 'distance', 'volume', 'animation', 'immediate', 'class', 'look', 'tag', 'attr', 'id', 'html', 'selected', 'current', 'open'])
 const DYNAMIC_PROP: Record<string, string> = {
   background: 'background', color: 'color', size: 'font-size', opacity: 'opacity', width: 'width', height: 'height',
   tint: 'color', radius: 'border-radius', margin: 'margin', padding: 'padding', gap: 'gap',
 }
 const PX_UNIT = new Set(['size', 'width', 'height', 'radius', 'margin', 'padding', 'gap'])
 const TEXT_HEADS = new Set(['title', 'subtitle', 'text', 'link', 'icon', 'item'])
+/** “style header”, “style emphasis”…: the elements a named style restyles everywhere. */
+const ELEMENT_SELECTOR: Record<string, string> = {
+  header: '.k-section-header,.k-header', emphasis: 'em', links: '.k-links', link: '.k-link',
+}
+/** Parts inside an element (“link color rust” in a style). */
+const PART_SELECTOR: Record<string, string> = {
+  title: '.k-title,h1,h2,h3,h4', subtitle: '.k-subtitle', text: '.k-text,p', link: 'a', image: 'img', button: '.k-button',
+  icon: '.k-icon', code: ':not(pre)>code', block: 'pre', list: 'ul,ol', item: 'li', table: 'table', cell: 'th,td',
+  quote: 'blockquote', summary: 'summary', emphasis: 'em', logo: '.k-logo',
+}
+
+/** States of a named style → CSS. */
+const STATE_SELECTOR: Record<string, string> = {
+  selected: '[aria-selected="true"]', current: '[aria-current="page"]', open: '[open]', focus: ':focus-visible',
+  pressed: ':active', disabled: ':disabled', checked: ':checked',
+}
+
 const MEDIA: Record<string, string> = {
   mobile: '@media (max-width: 640px)',
   tablet: '@media (min-width: 641px) and (max-width: 1024px)',
@@ -182,8 +200,8 @@ class Generator {
         case 'fonts': {
           const names = p0.map((x) => literal(x, {})).filter((x): x is string => typeof x === 'string')
           names.forEach((n) => this.fonts.add(n))
-          if (names[0]) this.css.push(`:root{--k-font:"${names[0]}", var(--k-font-fallback)}`)
-          if (names[1]) this.css.push(`:root{--k-font-titles:"${names[1]}", var(--k-font-fallback)}`)
+          if (names[0]) this.css.push(`:root{--k-font:${fontFamily(names[0])}}`)
+          if (names[1]) this.css.push(`:root{--k-font-titles:${fontFamily(names[1])}}`)
           break
         }
         case 'lang':
@@ -220,6 +238,17 @@ class Generator {
       }
     }
     if (rules.length) {
+      // site-wide measures, not styles of <body>: radius of every block, width of the content, space between children
+      const THEME: Record<string, string> = { radius: '--k-radius', 'max-width': '--k-width', gap: '--k-gap' }
+      for (const r of rules) {
+        if (!r.meaning) continue
+        r.meaning.options = r.meaning.options.filter((o) => {
+          const v = THEME[o.name] ? literal(o.values[0], this.info.colors) : undefined
+          if (v === undefined) return true
+          this.css.push(`:root{${THEME[o.name]}:${typeof v === 'number' ? v + 'px' : v}}`)
+          return false
+        })
+      }
       // site style: applies to <body>, and its colors become the colors of the whole site
       this.styleRules('body', 'site', rules)
       for (const r of rules) {
@@ -316,7 +345,7 @@ class Generator {
     return `{ path: ${JSON.stringify(i.path)}${each}, render: ${fn}, seo: ($route) => { ${prelude} return ${seo} }, lang: ($route) => { ${prelude} return ${lang} }, alternates: ($route) => { ${prelude} return ${alternates} }, head: ($route) => { ${prelude} return ${head} }, transition: ${transition} }`
   }
 
-  /** Declares at the top of a scope the states/variables created by « x = … » without let/state. */
+  /** Declares at the top of a scope the states/variables created by “x = …” without let/state. */
   private implicitDeclarations(body: Stmt[], view: boolean) {
     const walk = (list: Stmt[]) => {
       for (const i of list) {
@@ -325,6 +354,10 @@ class Generator {
           const n = jsName(i.declares.name)
           if (i.declares.kind === 'state') this.emit(`const ${n} = $k.state(null)`, i.pos)
           else this.emit(`let ${n}`, i.pos)
+        }
+        if (i.k === 'toggle' && i.declares && !this.declared.has(i.declares)) {
+          this.declared.add(i.declares)
+          this.emit(`const ${jsName(i.declares.name)} = $k.state(false)`, i.pos)
         }
         if (i.k === 'if') {
           walk(i.then)
@@ -389,7 +422,7 @@ class Generator {
         const ex = i.exported ? 'export ' : ''
         const kind = i.binding?.kind
         if (kind === 'state') this.emit(`${ex}const ${n} = $k.state(${this.ex(i.value)})`, i.pos)
-        else if (kind === 'derived') this.emit(`${ex}const ${n} = $k.derived(() => ${this.ex(i.value)})`, i.pos)
+        else if (kind === 'derived') this.emit(`${ex}const ${n} = $k.derived(() => (${this.ex(i.value)}))`, i.pos)
         else this.emit(`${ex}const ${n} = ${this.ex(i.value)}`, i.pos)
         return
       }
@@ -495,6 +528,28 @@ class Generator {
         // raw CSS: added to the stylesheet of the site, as written
         this.css.push(i.code)
         return
+      case 'animation-def':
+        this.animationDef(i)
+        return
+      case 'style-def':
+        // named style → a class of the site: .ks-promise
+        {
+          // “style button” restyles every button of the site; “style promise” makes a new word
+          const bases = (ELEMENT_SELECTOR[i.name] ?? (i.name in ELEMENTS ? `.k-${i.name}` : `.ks-${i.name}`)).split(',')
+          const head = i.name in ELEMENTS ? i.name : 'box'
+          for (const r of i.rules) {
+            const state = r.state ? STATE_SELECTOR[r.state] : ''
+            const parts = r.part ? (PART_SELECTOR[r.part] ?? `.ks-${r.part}`).split(',') : ['']
+            // :where() keeps a part as light as one class: an option written on the element itself still wins
+            // one of your own words inside (eyebrow in dark) wins over that word alone: no :where()
+            const own = !!r.part && !PART_SELECTOR[r.part]
+            const sel = bases.map((b) => `${b}${state}${r.part ? (own ? ` .ks-${r.part}` : ` :where(${parts.map((p) => p.trim()).join(',')})`) : ''}`).join(',')
+            const h = r.part ? (r.part in ELEMENTS ? r.part : PART_SELECTOR[r.part] ? 'text' : 'box') : head
+            if (r.state || r.part) this.optionsToCss(sel, h, r.meaning!.options, r.head === 'style' ? undefined : MEDIA[r.head], [])
+            else this.styleRules(sel, h, [r])
+          }
+        }
+        return
       case 'component':
         return this.component(i)
       case 'command':
@@ -537,7 +592,7 @@ class Generator {
     for (const i of body) {
       if (i.k === 'command' && i.meaning && (i.meaning.kind === 'style' || i.meaning.kind === 'screen')) {
         if (i.children.some((e) => e.k !== 'command' || e.head !== 'style')) {
-          // « mobile » with content: shown only on mobile
+          // “mobile” with content: shown only on mobile
           const w = this.fresh()
           this.emit(`const ${w} = $k.h(${ctx.parent}, "div", "k-only-${i.head}")`, i.pos)
           this.content(i.children, { ...ctx, parent: w }, parentHead)
@@ -562,6 +617,40 @@ class Generator {
 
   private newClass(): string {
     return `${this.prefix}-${(++this.classes).toString(36)}`
+  }
+
+  /** animation name, 2s, loop … + steps → @keyframes and a class .ka-name that plays it. */
+  private animationDef(i: Extract<Stmt, { k: 'animation-def' }>) {
+    const steps: string[] = []
+    for (const f of i.frames) {
+      const before = this.css.length
+      this.optionsToCss('@@', 'box', f.meaning!.options.filter((o) => !o.name.startsWith('hover:')), undefined, [])
+      const decls = this.css.splice(before).map((r) => /^@@\{(.*)\}$/.exec(r)?.[1]).filter(Boolean)
+      steps.push(`${f.state}{${decls.join(';')}}`)
+    }
+    let duration = '1s', delay = '', count = '1', ease = 'cubic-bezier(.16,1,.3,1)', direction = '', onScroll = false
+    for (const it of i.options) {
+      const vals = it.atoms.map((a) => literal(a, this.info.colors))
+      const [w, x] = vals
+      if (typeof w === 'string' && /^[\d.]+m?s$/.test(w)) duration = w
+      else if (w === 'loop' || w === 'boucle') count = 'infinite'
+      else if (w === 'delay' || w === 'delai') delay = String(x ?? '0s')
+      else if (w === 'linear' || w === 'lineaire') ease = 'linear'
+      else if (w === 'smooth' || w === 'doux') ease = 'ease-in-out'
+      else if (w === 'bounce' || w === 'rebond') ease = 'cubic-bezier(.34,1.56,.64,1)'
+      else if (w === 'steps' || w === 'etapes') ease = `steps(${x ?? 10},end)`
+      else if (w === 'alternate' || w === 'aller-retour') direction = 'alternate'
+      else if (w === 'times' || w === 'fois') count = String(x ?? 1)
+      else if (w === 'scroll' || w === 'defilement') onScroll = true
+      else if (typeof w === 'number') count = String(w)
+    }
+    const anim = `ks-${i.name}`
+    this.css.push(`@keyframes ${anim}{${steps.join('')}}`)
+    const rule = onScroll
+      ? `animation:${anim} linear both;animation-timeline:view();animation-range:entry 0% cover 45%`
+      : `animation:${anim} ${duration} ${ease} ${delay || '0s'} ${count} ${direction || 'normal'} both`
+    this.css.push(`.ka-${i.name}{${rule}}`)
+    this.css.push(`@media (prefers-reduced-motion:reduce){.ka-${i.name}{animation:none}}`)
   }
 
   /** style/mobile/… lines → CSS rules for a selector; returns the dynamic ones. */
@@ -622,6 +711,11 @@ class Generator {
       if (media && /^\.[\w-]+$/.test(s)) s = s + s
       const rule = `${s}{${decls.join(';')}}`
       this.css.push(media ? `${media}{${rule}}` : rule)
+    }
+    if (options.some((o) => o.name === 'grain')) {
+      const page = sel === 'body'
+      this.css.push(`${sel}::after{content:"";position:${page ? 'fixed' : 'absolute'};inset:0;z-index:60;pointer-events:none;opacity:.4;mix-blend-mode:multiply;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.11 0 0 0 0 0.1 0 0 0 0 0.1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}`)
+      if (!page) normal.push('position:relative')
     }
     add(sel, dedupe(normal))
     if (hover.length) {
@@ -703,7 +797,7 @@ class Generator {
   private objectOptions(options: ResolvedOption[]): string {
     const props: string[] = []
     for (const o of options) {
-      const isColor = ['background', 'fog', 'ground'].includes(o.name)
+      const isColor = ['background', 'fog', 'ground', 'color', 'tint'].includes(o.name)
       const vals = o.values.map((v) => (isColor ? this.exValue(v)
         : v.k === 'name' && !v.binding ? JSON.stringify(canon(v.name) ?? canonValue(v.name))
           : o.name === 'fallback' ? this.exPath(v) : this.exValue(v)))
@@ -798,6 +892,7 @@ class Generator {
       return
     }
     let tag = ({
+      details: 'details', embed: 'iframe',
       section: 'section', header: 'header', footer: 'footer', nav: 'nav', grid: 'div', column: 'div', row: 'div', box: 'div',
       card: 'article', title: 'h1', subtitle: 'h2', text: 'p', image: 'img', video: 'video', link: 'a', links: 'nav', logo: 'a',
       button: 'button', form: 'form', field: 'input', textarea: 'textarea', select: 'select', checkbox: 'input', list: 'ul',
@@ -825,6 +920,14 @@ class Generator {
       if (typeof l === 'string') classes.push(...l.split(/\s+/).filter(Boolean))
       else dynamicClass = own
     }
+    // look "name": a class of your own added to the default look (styled in a css block)
+    let dynamicLook: Expr | undefined
+    const look = opt('look')?.values[0]
+    if (look) {
+      const l = look.k === 'text' ? literal(look, {}) : undefined
+      if (typeof l === 'string') classes.push(...l.split(/\s+/).filter(Boolean))
+      else dynamicLook = look
+    }
 
     // fields with a label: the label wraps the field
     let into = parent
@@ -848,7 +951,16 @@ class Generator {
     }
     if (m.objectName) this.emit(`${n}.id = ${JSON.stringify(m.objectName)}`)
     if (dynamicClass) this.emit(`$k.classes(${n}, () => ${this.ex(dynamicClass)})`)
+    if (dynamicLook) this.emit(`$k.classes(${n}, () => ${this.ex(dynamicLook)})`)
     if (opt('id')) this.attr(n, 'id', opt('id')!.values[0])
+    // states driven by a condition: hidden (x), selected (tab == 1), current (…), open (…)
+    for (const [o, a, on, off] of [['hidden', 'hidden', 'true', 'null'], ['selected', 'aria-selected', '"true"', '"false"'], ['current', 'aria-current', '"page"', 'null'], ['open', 'open', 'true', 'null']] as const) {
+      const v = opt(o)?.values[0]
+      if (v && literal(v, {}) === undefined) this.emit(`$k.attr(${n}, ${JSON.stringify(a)}, () => (${this.ex(v)}) ? ${on} : ${off})`)
+      else if (opt(o) && o !== 'hidden') this.emit(`${n}.setAttribute(${JSON.stringify(a)}, ${on === 'true' ? '""' : on})`)
+      // a selected button is a tab (aria-selected belongs to tabs)
+      if (o === 'selected' && opt(o) && head === 'button') this.emit(`${n}.setAttribute("role", "tab")`)
+    }
     for (const a of m.options.filter((o) => o.name === 'attr')) {
       const nameLit = a.values[0]?.k === 'text' ? literal(a.values[0], {}) : a.values[0]?.k === 'name' ? (a.values[0] as any).name : undefined
       if (typeof nameLit !== 'string') continue
@@ -956,11 +1068,30 @@ class Generator {
           this.emit(`const ${i2} = $k.h(${n}, "img", "k-logo-image")`)
           this.emit(`${i2}.alt = ${JSON.stringify(this.site.name ?? 'Logo')}`)
           this.image(i2, x, true)
+          // logo "mark.svg" "Kaury": the mark and the name
+          if (p[1]) {
+            const t2 = this.fresh()
+            this.emit(`const ${t2} = $k.h(${n}, "span", "k-logo-text")`)
+            this.text(t2, p[1])
+          }
         } else if (x) this.text(n, x)
         break
       }
       case 'spacer':
         if (p[0]) this.emit(`${n}.style.height = $k.px(${this.ex(p[0])})`)
+        break
+      case 'details': {
+        // details "Question": the content below shows when it is opened
+        const s2 = this.fresh()
+        this.emit(`const ${s2} = $k.h(${n}, "summary", "k-summary")`)
+        if (p[0]) this.text(s2, p[0])
+        break
+      }
+      case 'embed':
+        // the page inside loads only when it comes near the screen (never during the first paint)
+        if (p[0]) this.emit(`$k.frame(${n}, () => ${this.ex(p[0])})`)
+        if (p[1]) this.attr(n, 'title', p[1])
+        this.emit(`${n}.setAttribute("loading", "lazy")`)
         break
       case 'slot':
         this.emit(`$k.slot(${n}, $p.$slot)`)
@@ -1049,7 +1180,11 @@ class Generator {
   private text(n: string, e: Expr | undefined) {
     if (!e || this.skipText) return
     const l = e.k === 'text' || e.k === 'number' ? literal(e, {}) : undefined
-    if (l !== undefined) this.emit(`$k.setText(${n}, ${JSON.stringify(String(l))})`)
+    // "One file. An *immersive* website." → emphasis, without writing HTML
+    if (typeof l === 'string' && /\*[^*\s]([^*\n]*[^*\s])?\*/.test(l)) {
+      const h = l.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\*([^*\s](?:[^*\n]*[^*\s])?)\*/g, '<em>$1</em>').replace(/\n/g, '<br>')
+      this.emit(`$k.html(${n}, () => ${JSON.stringify(h)})`)
+    } else if (l !== undefined) this.emit(`$k.setText(${n}, ${JSON.stringify(String(l))})`)
     else this.emit(`$k.text(${n}, () => ${this.ex(e)})`)
   }
 
@@ -1129,7 +1264,8 @@ class Generator {
       case 'list':
         return `[${e.items.map((x) => this.ex(x)).join(', ')}]`
       case 'object':
-        return `{ ${e.props.map((p) => (p.spread ? `...${this.ex(p.value)}` : `${jsKey(p.key)}: ${this.ex(p.value)}`)).join(', ')} }`
+        // always between parentheses: “() => ({ … })” is an object, “() => { … }” would be a block
+        return `({ ${e.props.map((p) => (p.spread ? `...${this.ex(p.value)}` : `${jsKey(p.key)}: ${this.ex(p.value)}`)).join(', ')} })`
       case 'member': {
         const o = this.ex(e.object)
         const m = kauryMethod(e.prop)

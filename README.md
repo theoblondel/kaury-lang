@@ -1,30 +1,33 @@
 # Kaury
 
-**A complete language like JavaScript, half as long, and the only one that makes immersion as simple as a title.**
+**The programming language for immersive websites.** One `.kaury` file holds the logic, the structure, the style and the 3D of a site. The compiler turns it into server-rendered HTML that scores 100 on Lighthouse.
 
 ```kaury
+site "Crush"
+  colors pink #FF4F8B, cream #FFF4E8
+  fonts "Satoshi", "Cabinet Grotesk"
+  style background cream
+
 state likes = 0
 
+style card-soft
+  background white, radius 20, padding 24
+  hover lift 6, shadow medium
+
 page "/"
-  style background cream, font "Clash Display"
-
-  section header
-    logo "crush.svg"
-    links Home, Flavors, Shop
-
+  seo "Crush", "Canned mocktails"
   scene fullscreen, particles bubbles
     light sunset
-    object can "crush.glb"
+    object "knot", color pink, metal
       spin on scroll
       follows mouse, smooth
-    title "Taste the difference", size 80, pink
-
+    title "Taste the *difference*", size 80
   section
-    button "I like it {likes}" -> likes += 1
-      style background pink, radius 12
+    column card-soft
+      button "I like it ({likes})" -> likes += 1
 ```
 
-Logic, structure, style and 3D live in the same file. You split by part of the site (page, component), never by technique.
+No HTML, no CSS, no JavaScript to write: pages, styles, animations, data and 3D are words of the language. You split a site by page and component, never by technique.
 
 ## Start
 
@@ -37,59 +40,57 @@ kaury dev
 
 | Command | What it does |
 |---|---|
-| `kaury new my-site` | creates a ready-to-use project |
+| `kaury new my-site` | creates a project (with `AGENTS.md` and the spec, so AI assistants can work in it) |
 | `kaury dev` | shows the site and reloads it on every change |
+| `kaury check [--json]` | checks the code without building; `--json` for editors and AI agents |
 | `kaury build` | makes the final, optimized site in `dist/` |
-| `kaury check [--json]` | checks the code without building (`--json` for AIs) |
-| `kaury run program.kaury` | runs a program without pages |
-| `kaury compile site.kaury` | shows the generated JavaScript |
-| `kaury deploy --netlify` | builds then publishes |
+| `kaury deploy --netlify` | builds then publishes (`--vercel` too) |
+| `kaury run file.kaury` | runs a program without pages |
+| `kaury compile file.kaury` | shows the generated JavaScript |
 
-French keywords work too (`soit`, `si`, `pour`, `titre`…), and error messages follow the language of your system (`--lang fr|en`).
+Messages are in English. French keywords and messages exist too (`--lang fr`).
 
-## What Kaury does for you
+## What you get
 
-- **Reactive by default**: a `state` changes → the page follows. `let total = price * quantity` recomputes itself.
-- **Plain-language errors**, with the line, the underlined word and the fix ("did you mean "count"?").
-- **Lighthouse 100 / 100 / 100 / 100** on the example site, 3D included (mobile and desktop):
-  - every page is rendered on the server, then the browser *adopts* that HTML (hydration) instead of rebuilding it;
-  - images get real dimensions, responsive WebP versions and the right loading priority;
-  - fonts are downloaded at build time and served by the site (fast, and no data sent to Google);
-  - CSS is inlined, nothing blocks the first paint;
-  - the 3D library loads only on pages that need it, after the page is displayed and the visitor's first gesture;
-  - text colors on colored backgrounds are chosen for WCAG contrast.
-- **SEO and AI-friendly**: canonical links, Open Graph, JSON-LD, `sitemap.xml`, `robots.txt`, `llms.txt`, plus `.htaccess` and `_headers` for caching.
-- **Mobile by default**: grids fold, titles shrink, menus collapse behind a button, the 3D camera steps back on narrow screens.
-- **Open to JavaScript**: `import confetti from "canvas-confetti"`, and a `js` block for the rest.
-- **Made for AIs**: [`docs/kaury-ai.md`](docs/kaury-ai.md) can be pasted as is into Claude, ChatGPT or Cursor.
+- **Reactive by default**: `state` changes, the page follows; `let total = price * quantity` recomputes itself.
+- **A design system without CSS**: named styles with states, parts and screens (`style card`, `hover …`, `selected …`, `link …`, `mobile …`), and animations (`animation slide, 30s, loop` + `from` / `to`).
+- **3D as a word**: objects (`.glb`, or built-in shapes: `sphere`, `knot`, `gem`, `torus`…), scenes, lights, cameras, particles, characters. Three.js loads only on pages that need it, after the first paint.
+- **Content**: Markdown, MDX and YAML collections read at build time, one page per item, code blocks colored at build time.
+- **Fast by construction**: server rendering and hydration, inlined CSS (only the rules a static page needs), responsive WebP, self-hosted fonts (text and title weights preloaded), zero JavaScript on pages without interaction, frames loaded near the screen. The language's own site scores 100 on desktop and 97–100 on mobile.
+- **SEO and GEO**: canonical links, Open Graph, `sitemap.xml`, `robots.txt`, `llms.txt`, JSON-LD (`head json-ld({ … })`).
+- **Accessible by default**: text colors chosen for WCAG contrast, real HTML in front of the 3D, reduced motion respected, tabs with the right roles.
+- **Errors that explain**: the line, the underlined word and the fix — `did you mean "count"?`.
+- **Made for AI assistants**: [`docs/kaury-ai.md`](docs/kaury-ai.md) is the whole language in one file. Give it to Claude, ChatGPT, Gemini or Cursor, then loop on `kaury check --json`.
 
 ## How it works
 
 ```
-.kaury → 1. lexer → 2. parser → 3. checker → 4. code generator → HTML + CSS + JS
-                                              5. immersion toolkit (Three.js, Lottie), loaded on demand
+.kaury → lexer → parser → checker → code generator → HTML + CSS + JS
+                                     immersion (Three.js, Lottie), loaded on demand
 ```
 
 | Folder | Content |
 |---|---|
-| `src/core/` | lexer, parser, checker, code generator (TypeScript, also runs in the browser) |
-| `src/runtime/` | reactivity, DOM and hydration, router, motions, server rendering |
-| `src/immersion/` | 3D (Three.js), Lottie, particles |
-| `src/cli/` | the `kaury` command, image and font optimization |
+| `src/core/` | lexer, parser, checker, code generator, syntax highlighting (also runs in the browser) |
+| `src/runtime/` | reactivity, DOM and hydration, router, motions, server rendering, Markdown |
+| `src/immersion/` | 3D (Three.js), shapes, Lottie, particles |
+| `src/cli/` | the `kaury` command, build, images, fonts, content collections |
+| `site/` | the site of the language, written in Kaury (no CSS file) |
 | `examples/` | Crush (complete immersive site), hello |
-| `docs/` | specification for AIs |
+| `docs/` | the specification for AI assistants |
 | `editors/vscode/` | VS Code extension |
-| `playground/` | online playground |
-| `tests/` | `npm test` |
+| `playground/` | the in-browser playground |
+| `tests/` | `npm test` — every example of the docs is compiled |
 
 ## Developing Kaury
 
 ```bash
 npm install
-npm test                 # core, errors, build, hydration, robustness
+npm test                                  # language, errors, build, hydration, docs examples
 npm run kaury -- dev examples/crush/site.kaury
-npm run build            # dist/ (command) + playground bundles
-node scripts/measure.mjs dist / --desktop   # Lighthouse
+npm run build                             # dist/ (command) + playground bundles
+npm run site                              # builds the site of the language in site/dist
+node scripts/measure.mjs site/dist /      # Lighthouse (mobile; add --desktop)
 ```
 
 MIT license.

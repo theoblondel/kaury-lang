@@ -28,8 +28,8 @@ export function knownColor(word: string): string | undefined {
 // ---------------- Options ----------------
 // Expected values: n = number (px by default), c = color, t = text, m = word from a list, e = any expression
 export interface OptionSpec {
-  args: string // e.g. « n », « c », « nn? », « » (flag), « m », « * » (anything)
-  words?: string[] // allowed values for « m » (canonical)
+  args: string // e.g. “n”, “c”, “nn?”, “” (flag), “m”, “*” (anything)
+  words?: string[] // allowed values for “m” (canonical)
   aliases?: string[]
   help: string
   helpFr: string
@@ -49,6 +49,7 @@ export const STYLES: Record<string, OptionSpec> = {
   weight: o('n', ['poids'], 'font weight (100 to 900)', 'épaisseur du texte (100 à 900)', 'weight 600'),
   italic: o('', ['italique'], 'italic text', 'texte en italique', 'italic'),
   underline: o('', ['souligne'], 'underlined text', 'texte souligné', 'underline'),
+  plain: o('', ['simple', 'no-underline'], 'no underline (links)', 'sans soulignement (liens)', 'link "Docs" "/docs/", plain'),
   uppercase: o('', ['majuscules', 'caps'], 'uppercase text', 'texte en majuscules', 'uppercase'),
   'line-height': o('n', ['interligne'], 'line height (1.5 = one and a half)', 'hauteur de ligne (1.5 = une fois et demie)', 'line-height 1.6'),
   tracking: o('n', ['lettres', 'letter-spacing'], 'space between letters', 'espace entre les lettres', 'tracking 2'),
@@ -56,11 +57,17 @@ export const STYLES: Record<string, OptionSpec> = {
   center: o('', ['centre', 'centered'], 'centers the content', 'centre le contenu', 'center'),
   radius: o('n', ['coins', 'rounded'], 'corner radius', 'arrondi des coins', 'radius 12'),
   round: o('', ['rond', 'pill'], 'fully round corners', 'coins complètement ronds', 'round'),
-  shadow: o('m?', ['ombre'], 'drop shadow', 'ombre portée', 'shadow soft', ['soft', 'medium', 'strong', 'none', 'inner']),
+  shadow: o('m?', ['ombre'], 'drop shadow', 'ombre portée', 'shadow soft', ['soft', 'medium', 'strong', 'hard', 'none', 'inner']),
   border: o('n?c?', ['bordure'], 'border (width, color)', 'bordure (épaisseur, couleur)', 'border 1 gray'),
-  margin: o('nnnn', ['marge'], 'space around (1 to 4 values)', 'espace autour (1 à 4 valeurs)', 'margin 24'),
-  padding: o('nnnn', ['remplissage', 'interieur'], 'inner space (1 to 4 values)', 'espace intérieur (1 à 4 valeurs)', 'padding 32'),
-  gap: o('n', ['espace', 'spacing'], 'space between children', 'espace entre les enfants', 'gap 24'),
+  'border-top': o('n?c?', ['bordure-haut'], 'line above (width, color)', 'trait au-dessus (épaisseur, couleur)', 'border-top 2 black'),
+  'border-bottom': o('n?c?', ['bordure-bas'], 'line below (width, color)', 'trait en dessous (épaisseur, couleur)', 'border-bottom 1 gray'),
+  pin: o('*', ['epingle'], 'placed over its parent: pin bottom right, pin top 20 left 10%', 'posé par-dessus son parent : epingle bas droite', 'pin bottom right'),
+  clip: o('', ['coupe'], 'hides what overflows', 'cache ce qui dépasse', 'clip'),
+  'no-wrap': o('', ['sans-retour'], 'keeps everything on one line (for a ticker)', 'garde tout sur une ligne (pour un bandeau)', 'row no-wrap'),
+  grain: o('', [], 'paper grain texture (on the site style: the whole page)', 'texture de grain papier (sur le style du site : toute la page)', 'style background cream, grain'),
+  margin: o('nn?n?n?', ['marge'], 'space around (1 to 4 values)', 'espace autour (1 à 4 valeurs)', 'margin 24'),
+  padding: o('nn?n?n?', ['remplissage', 'interieur'], 'inner space (1 to 4 values)', 'espace intérieur (1 à 4 valeurs)', 'padding 32'),
+  gap: o('nn?', ['espace', 'spacing'], 'space between children (one value, or rows then columns)', 'espace entre les enfants', 'gap 24'),
   width: o('n', ['largeur'], 'width', 'largeur', 'width 320'),
   height: o('n', ['hauteur'], 'height', 'hauteur', 'height 400'),
   'max-width': o('n', ['max-largeur'], 'maximum width', 'largeur maximale', 'max-width 720'),
@@ -72,16 +79,18 @@ export const STYLES: Record<string, OptionSpec> = {
   glass: o('', ['verre'], 'frosted glass effect', 'effet verre dépoli', 'glass'),
   gradient: o('cc?c?n?', ['degrade'], 'gradient background (2 or 3 colors, angle)', 'fond en dégradé (2 ou 3 couleurs, angle)', 'gradient pink orange'),
   'text-gradient': o('cc?c?', ['texte-degrade'], 'gradient text', 'texte en dégradé', 'text-gradient pink purple'),
-  columns: o('n', ['colonnes', 'colonne', 'cols', 'column'], 'number of columns', 'nombre de colonnes', 'grid 3 columns'),
+  columns: o('nn?n?n?', ['colonnes', 'colonne', 'cols', 'column'], 'number of columns, or their widths', 'nombre de colonnes, ou leurs largeurs', 'grid 3 columns   /   grid columns 2 1'),
   direction: o('m', [], 'direction of the children', 'sens des enfants', 'direction row', ['row', 'column']),
-  hidden: o('', ['cache', 'hide'], 'hides the element', 'cache l\'élément', 'mobile hidden'),
-  sticky: o('', ['colle'], 'stays at the top while scrolling', 'reste collé en haut au défilement', 'sticky'),
+  hidden: o('e?', ['cache', 'hide'], 'hides the element (always, or while a condition is true)', 'cache l\'élément (toujours, ou tant qu\'une condition est vraie)', 'mobile hidden   /   hidden (tab != 1)'),
+  sticky: o('n?', ['colle'], 'stays at the top while scrolling (distance from the top)', 'reste collé en haut au défilement (distance du haut)', 'sticky 96'),
   front: o('', ['devant'], 'goes in front of other elements', 'passe devant les autres éléments', 'front'),
   cursor: o('m', ['curseur'], 'cursor shape', 'forme du curseur', 'cursor pointer', ['pointer', 'arrow', 'text', 'none']),
   hover: o('*', ['survol'], 'style when the mouse is over it', 'style quand la souris passe dessus', 'hover lift 4'),
   lift: o('n', ['monte'], 'moves up', 'décale vers le haut', 'hover lift 4'),
   grow: o('n?', ['grossit', 'scale'], 'enlarges (1.1 = +10 %)', 'agrandit (1.1 = +10 %)', 'hover grow 1.05'),
-  tilt: o('n', ['penche'], 'tilts (degrees)', 'incline (degrés)', 'tilt -3'),
+  tilt: o('n', ['penche', 'rotate'], 'tilts (degrees)', 'incline (degrés)', 'tilt -3'),
+  move: o('nn?', ['deplace', 'translate'], 'moves the element (x, y), for hover and animations', 'déplace l\'élément (x, y), pour le survol et les animations', 'move -50% 0'),
+  reveal: o('n', ['devoile'], 'shows only the top part (0% to 100%), for animations', 'ne montre que le haut (0 % à 100 %), pour les animations', 'reveal 100%'),
   animate: o('m', ['anime'], 'simple entrance', 'apparition simple', 'animate fade', ['fade', 'lift', 'zoom', 'left', 'right']),
 }
 
@@ -131,6 +140,11 @@ export const ELEMENT_OPTIONS: Record<string, Record<string, OptionSpec>> = {
     shadows: o('', ['ombres'], 'the object casts a shadow', 'l\'objet projette une ombre au sol', 'shadows'),
     alt: o('t', ['texte', 'description'], 'description for accessibility and Google', 'description pour l\'accessibilité et Google', 'alt "Strawberry can"'),
     immediate: o('', ['immediat'], 'starts the 3D without waiting for a first gesture', 'démarre la 3D sans attendre un premier geste', 'immediate'),
+    color: o('c', ['couleur'], 'color of a shape (sphere, knot…)', 'couleur d\'une forme', 'object "knot", color orange'),
+    metal: o('', ['metal'], 'shiny metal material for a shape', 'matière métal brillant pour une forme', 'object "sphere", metal'),
+    matte: o('', ['mat'], 'matte material for a shape', 'matière mate pour une forme', 'object "cube", matte'),
+    glass: o('', ['verre'], 'glass material for a shape', 'matière verre pour une forme', 'object "gem", glass'),
+    glow: o('', ['brille'], 'the shape glows', 'la forme brille', 'object "torus", glow'),
   },
   scene: {
     height: o('n', ['hauteur'], 'scene height', 'hauteur de la scène', 'height 600'),
@@ -153,12 +167,16 @@ ELEMENT_OPTIONS.subtitle = ELEMENT_OPTIONS.title
 /** Options every web element accepts: to reuse an existing stylesheet or reach exact HTML. */
 export const UNIVERSAL_OPTIONS: Record<string, OptionSpec> = {
   class: o('e', ['classe'], 'CSS classes of your own (replaces the default look)', 'classes CSS à toi (remplace l\'apparence par défaut)', 'box class "hero"'),
+  look: o('e', ['allure'], 'a class of your own added to the default look, styled in a css block', 'une classe à toi ajoutée à l\'apparence par défaut, stylée dans un bloc css', 'grid 3 columns, look "pricing"'),
   tag: o('e', ['balise'], 'exact HTML tag', 'balise HTML exacte', 'box tag "figure"'),
   attr: o('ee?', ['attribut'], 'HTML attribute (name, value)', 'attribut HTML (nom, valeur)', 'box attr "aria-hidden" "true"'),
   id: o('e', [], 'id of the element (anchor)', 'identifiant de l\'élément (ancre)', 'box id "prices"'),
+  selected: o('e?', ['selectionne'], 'selected tab or item (a style can say how it looks: selected …)', 'onglet ou élément sélectionné', 'button "Code", selected (tab == 0)'),
+  current: o('e?', ['courant'], 'the current page or step (current …)', 'la page ou l\'étape en cours', 'link "Docs" "/docs/", current (route.path == "/docs/")'),
+  open: o('e?', ['ouvert'], 'a details element shown open', 'un details affiché ouvert', 'details "Price?", open'),
   html: o('e?', [], 'content written in HTML (trusted text only)', 'contenu écrit en HTML (texte de confiance uniquement)', 'text "Hello<br>world", html'),
 }
-const UNIVERSAL_HEADS = new Set(['section', 'header', 'footer', 'nav', 'grid', 'column', 'row', 'box', 'card', 'title', 'subtitle', 'text', 'image', 'video', 'link', 'links', 'logo', 'button', 'form', 'field', 'textarea', 'select', 'checkbox', 'list', 'item', 'icon', 'divider', 'spacer', 'markdown'])
+const UNIVERSAL_HEADS = new Set(['details', 'embed', 'section', 'header', 'footer', 'nav', 'grid', 'column', 'row', 'box', 'card', 'title', 'subtitle', 'text', 'image', 'video', 'link', 'links', 'logo', 'button', 'form', 'field', 'textarea', 'select', 'checkbox', 'list', 'item', 'icon', 'divider', 'spacer', 'markdown'])
 
 export const MOTIONS: Record<string, OptionSpec> = {
   spin: o('*', [], 'spins: spin, spin 90/s, spin on scroll, spin x', 'tourne sur lui-même : tourne, tourne 90/s, tourne au defilement', 'spin on scroll'),
@@ -219,6 +237,8 @@ export const ELEMENTS: Record<string, ElementSpec> = {
   divider: e('hr', 'special', 'separator line', 'ligne de séparation', 'divider'),
   spacer: e('div', 'special', 'empty space', 'espace vide', 'spacer 48'),
   markdown: e('div', 'text', 'Markdown text rendered as rich text (titles, lists, links)', 'texte Markdown affiché en texte riche (titres, listes, liens)', 'markdown post.body'),
+  details: e('details', 'container', 'a question or title that opens on click to show what is below', 'une question ou un titre qui s\'ouvre au clic', 'details "Is it free?"'),
+  embed: e('iframe', 'media', 'another page shown inside this one (map, video, app)', 'une autre page affichée dans celle-ci', 'embed "https://…", "Map of the shop"'),
   slot: e('div', 'special', 'inside a component: where the content given between its lines goes', 'dans un composant : là où va le contenu donné entre ses lignes', 'slot'),
   scene: e('div', 'immersion', '2D or 3D immersive area', 'zone immersive 2D ou 3D', 'scene'),
   object: e('div', 'immersion', 'object .glb, .gltf, .png, .svg, .json (Lottie)', 'objet .glb, .gltf, .png, .svg, .json (Lottie)', 'object can "crush.glb"'),

@@ -189,7 +189,7 @@ test('content collections: one page per item, markdown, images, static pages', a
   assert.match(home, /href="\/blog\/second-post"/)
   const post = readFileSync(join(r.dir, 'blog', 'first-post', 'index.html'), 'utf8')
   assert.match(post, /<title>First post · Blog<\/title>/)
-  assert.match(post, /<h2[^>]*>Hello<\/h2>/)
+  assert.match(post, /<h2 id="hello"><a class="k-anchor"[^>]*>#<\/a>Hello<\/h2>/)
   assert.match(post, /<strong>bold<\/strong>/)
   assert.match(post, /src="\/_kaury\/content\/[0-9a-f]{8}-cover\.webp"/)
   assert.match(post, /srcset=/)

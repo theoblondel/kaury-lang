@@ -3,7 +3,17 @@
 
 import { KauryError, closest, msg, q } from './errors.js'
 import { tokenize, type Token } from './lexer.js'
-import { canon } from './keywords.js'
+import { canon, stripAccents } from './keywords.js'
+import { styleOption } from './vocabulary.js'
+
+/** Parts inside an element that a named style can describe: “link color rust”. */
+export const STYLE_PARTS = ['title', 'subtitle', 'text', 'link', 'image', 'button', 'icon', 'code', 'block', 'list', 'item', 'table', 'cell', 'quote', 'summary', 'emphasis', 'logo']
+
+/** States a named style can describe (French aliases included). */
+export const STYLE_STATES: Record<string, string> = {
+  selected: 'selected', selectionne: 'selected', current: 'current', courant: 'current', open: 'open', ouvert: 'open',
+  focus: 'focus', pressed: 'pressed', appuye: 'pressed', disabled: 'disabled', desactive: 'disabled', checked: 'checked', coche: 'checked',
+}
 import type { Command, Expr, Stmt, Item, Param, Pos } from './ast.js'
 
 /** Words that start a UI line (element, style, motion, event…). Canonical forms. */
@@ -11,7 +21,7 @@ export const UI_HEADS = new Set([
   // web
   'section', 'header', 'footer', 'nav', 'grid', 'column', 'row', 'box', 'card', 'title', 'subtitle',
   'text', 'image', 'video', 'link', 'links', 'logo', 'button', 'form', 'field', 'textarea', 'select', 'checkbox',
-  'list', 'item', 'icon', 'divider', 'spacer', 'slot', 'markdown', 'style', 'mobile', 'tablet', 'desktop', 'seo',
+  'list', 'item', 'icon', 'divider', 'spacer', 'slot', 'markdown', 'details', 'embed', 'style', 'mobile', 'tablet', 'desktop', 'seo',
   'colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'alternate', 'head', 'wrapper', 'base',
   // immersion
   'scene', 'object', 'character', 'light', 'camera', 'on', 'follows', 'enters', 'spin', 'float', 'jump',
@@ -31,8 +41,8 @@ const COMPOUND: Record<string, string[]> = {
 }
 
 interface Flags {
-  implicit: boolean // « f a, b » = call without parentheses
-  item: boolean // inside a UI line: « -> » ends it, no bare lambda
+  implicit: boolean // “f a, b” = call without parentheses
+  item: boolean // inside a UI line: “->” ends it, no bare lambda
 }
 
 const FREE: Flags = { implicit: true, item: false }
@@ -125,7 +135,7 @@ class Parser {
     }
     if (t.t === 'eof' || t.t === 'dedent') return
     if (t.t === 'op' && t.v === '=') {
-      throw this.error(t, msg('« = » cannot be here.', '« = » ne peut pas être ici.'), msg('to compare two values, write « == ».', 'pour comparer deux valeurs, écris « == ».'))
+      throw this.error(t, msg('“=” cannot be here.', '« = » ne peut pas être ici.'), msg('to compare two values, write “==”.', 'pour comparer deux valeurs, écris « == ».'))
     }
     throw this.error(t, msg(`I did not expect ${this.describe(t)} here.`, `je ne m'attendais pas à ${this.describe(t)} ici.`),
       fix ?? msg('start a new line, or separate the options with commas.', 'passe à la ligne, ou sépare les options par des virgules.'))
@@ -189,8 +199,8 @@ class Parser {
         case 'if':
           return this.ifStmt()
         case 'else':
-          throw this.error(t, msg('« else » without an « if » right above.', '« sinon » sans « si » juste au-dessus.'),
-            msg('put « else » at the same level as its « if », right after the « if » block.', 'place « sinon » au même niveau que son « si », juste après le bloc du « si ».'))
+          throw this.error(t, msg('“else” without an “if” right above.', '« sinon » sans « si » juste au-dessus.'),
+            msg('put “else” at the same level as its “if”, right after the “if” block.', 'place « sinon » au même niveau que son « si », juste après le bloc du « si ».'))
         case 'for':
           return this.forStmt()
         case 'while':
@@ -239,7 +249,7 @@ class Parser {
         case 'js': {
           this.next()
           const raw = this.peek()
-          if (raw.t !== 'raw') throw this.error(t, msg('« js » must be alone on its line, with the JavaScript code indented below.', '« js » doit être seul sur sa ligne, avec le code JavaScript indenté dessous.'))
+          if (raw.t !== 'raw') throw this.error(t, msg('“js” must be alone on its line, with the JavaScript code indented below.', '« js » doit être seul sur sa ligne, avec le code JavaScript indenté dessous.'))
           this.next()
           this.endOfLine()
           return { k: 'js', code: raw.v, pos: this.pos(t) }
@@ -247,13 +257,20 @@ class Parser {
         case 'css': {
           this.next()
           const raw = this.peek()
-          if (raw.t !== 'raw') throw this.error(t, msg('« css » must be alone on its line, with the CSS indented below.', '« css » doit être seul sur sa ligne, avec le CSS indenté dessous.'))
+          if (raw.t !== 'raw') throw this.error(t, msg('“css” must be alone on its line, with the CSS indented below.', '« css » doit être seul sur sa ligne, avec le CSS indenté dessous.'))
           this.next()
           this.endOfLine()
           return { k: 'css', code: raw.v, pos: this.pos(t) }
         }
         case 'component':
           return this.component()
+        case 'animation':
+          if (this.peek(1).t === 'word') return this.animationDef()
+          break
+        case 'style':
+          // a named style: “style promise” alone on its line, options indented below
+          if (this.peek(1).t === 'word' && this.peek(2).t === 'newline' && this.peek(3).t === 'indent') return this.styleDef()
+          break
         case 'page':
           if (this.peek(1).t === 'text') return this.page()
           break
@@ -268,8 +285,8 @@ class Parser {
     const op = this.peek()
     if (op.t === 'op' && ASSIGN_OPS.has(op.v)) {
       if (e.k !== 'name' && e.k !== 'member' && e.k !== 'index') {
-        throw this.error(op, msg('nothing can be stored on the left of this « = ».', 'on ne peut rien ranger à gauche de ce « = ».'),
-          msg('the left of « = » must be a name: total = 3.', 'à gauche d\'un « = », il faut un nom : total = 3.'))
+        throw this.error(op, msg('nothing can be stored on the left of this “=”.', 'on ne peut rien ranger à gauche de ce « = ».'),
+          msg('the left of “=” must be a name: total = 3.', 'à gauche d\'un « = », il faut un nom : total = 3.'))
       }
       this.next()
       const value = this.expression(FREE)
@@ -277,11 +294,11 @@ class Parser {
       return { k: 'assign', target: e, op: op.v, value, pos: this.pos(t) }
     }
     if (op.t === 'op' && op.v === '->') {
-      throw this.error(op, msg('« -> » must follow a UI element or a parameter.', '« -> » doit suivre un élément d\'interface ou un paramètre.'),
+      throw this.error(op, msg('“->” must follow a UI element or a parameter.', '« -> » doit suivre un élément d\'interface ou un paramètre.'),
         msg('examples: button "Ok" -> count += 1   or   sum list, a -> a.price', 'exemples : bouton "Ok" -> compteur += 1   ou   somme liste, a -> a.prix'))
     }
     if (!inlineAction && (this.peek().t === 'indent' || (this.peek().t === 'newline' && this.peek(1).t === 'indent'))) {
-      // often a misspelled element: « secion » instead of « section »
+      // often a misspelled element: “secion” instead of “section”
       const word = e.k === 'name' ? e.name : e.k === 'call' && e.fn.k === 'name' ? e.fn.name : undefined
       const sug = word ? closest(word, [...UI_HEADS, 'component', 'function', 'page', 'site', 'for', 'if']) : undefined
       if (word && sug) {
@@ -295,7 +312,7 @@ class Parser {
     return { k: 'expr', e, pos: this.pos(t) }
   }
 
-  /** Is the next token an assignment (« site = 3 »)? */
+  /** Is the next token an assignment (“site = 3”)? */
   private assignmentFollows(): boolean {
     const s = this.peek(1)
     return s.t === 'op' && (ASSIGN_OPS.has(s.v) || ((s.v === '.' || s.v === '(' || s.v === '[') && !s.spaceBefore))
@@ -305,7 +322,7 @@ class Parser {
     const t = this.peek()
     if (t.t !== 'word') return false
     const s = this.peek(1)
-    // « title = 3 », « title.x », « title(…) »: names, not elements
+    // “title = 3”, “title.x”, “title(…)”: names, not elements
     if (s.t === 'op' && !['->', ',', '-', '[', '{', '('].includes(s.v)) return false
     if (s.t === 'op' && (s.v === '(' || s.v === '[') && !s.spaceBefore) return false
     if (s.t === 'op' && s.v === '-' && s.spaceBefore) return false
@@ -324,7 +341,7 @@ class Parser {
     const kw = t.v
     const name = this.expectName(reactive ? msg('this state', 'cet état') : msg('this variable', 'cette variable'), reactive ? 'state count = 0' : 'let tax = 8.1')
     if (!this.isOp('=')) {
-      throw this.error(this.peek(), msg(`« = » is missing after ${q(name.v)}.`, `il manque « = » après ${q(name.v)}.`), `${kw} ${name.v} = 0`)
+      throw this.error(this.peek(), msg(`“=” is missing after ${q(name.v)}.`, `il manque « = » après ${q(name.v)}.`), `${kw} ${name.v} = 0`)
     }
     this.next()
     const value = this.expression(FREE)
@@ -367,19 +384,19 @@ class Parser {
   }
 
   private ifBody(what: string): Stmt[] {
-    // short form: « if x > 3 then count += 1 »
+    // short form: “if x > 3 then count += 1”
     if (this.isWord('then')) {
       this.next()
       return [this.statement()]
     }
-    this.endOfLine(msg('after the condition, start a new line (or write « then » for an action on the same line).', 'après la condition, passe à la ligne (ou écris « puis » pour une action sur la même ligne).'))
+    this.endOfLine(msg('after the condition, start a new line (or write “then” for an action on the same line).', 'après la condition, passe à la ligne (ou écris « puis » pour une action sur la même ligne).'))
     return this.block(what)
   }
 
   private ifStmt(): Stmt {
     const t = this.next()
     const cond = this.condition()
-    const then = this.ifBody('« if »')
+    const then = this.ifBody('“if”')
     const elifs: { cond: Expr; body: Stmt[]; pos: Pos }[] = []
     let otherwise: Stmt[] | undefined
     while (this.isWord('else')) {
@@ -387,9 +404,9 @@ class Parser {
       if (this.isWord('if')) {
         this.next()
         const c = this.condition()
-        elifs.push({ cond: c, body: this.ifBody('« else if »'), pos: this.pos(s) })
+        elifs.push({ cond: c, body: this.ifBody('“else if”'), pos: this.pos(s) })
       } else {
-        otherwise = this.ifBody('« else »')
+        otherwise = this.ifBody('“else”')
         break
       }
     }
@@ -399,7 +416,7 @@ class Parser {
   private condition(): Expr {
     const e = this.expression(FREE)
     if (this.isOp('=')) {
-      throw this.error(this.peek(), msg('« = » stores a value; it does not compare.', '« = » range une valeur ; il ne compare pas.'), msg('to compare, write « == ».', 'pour comparer, écris « == ».'))
+      throw this.error(this.peek(), msg('“=” stores a value; it does not compare.', '« = » range une valeur ; il ne compare pas.'), msg('to compare, write “==”.', 'pour comparer, écris « == ».'))
     }
     return e
   }
@@ -415,7 +432,7 @@ class Parser {
     this.expectWord('in', `for ${v.v} in list`)
     const source = this.expression(FREE)
     this.endOfLine()
-    const body = this.block('« for »')
+    const body = this.block('“for”')
     return { k: 'for', variable: v.v, index, source, body, pos: this.pos(t) }
   }
 
@@ -424,21 +441,21 @@ class Parser {
     if (t.v === 'tant') this.expectWord('que', 'tant que vies > 0')
     const cond = this.condition()
     this.endOfLine()
-    const body = this.block('« while »')
+    const body = this.block('“while”')
     return { k: 'while', cond, body, pos: this.pos(t) }
   }
 
   private tryStmt(): Stmt {
     const t = this.next()
     this.endOfLine()
-    const body = this.block('« try »')
+    const body = this.block('“try”')
     let variable: string | undefined
     let handler: Stmt[] | undefined
     if (this.isWord('catch')) {
       this.next()
       if (this.peek().t === 'word') variable = this.next().v
       this.endOfLine()
-      handler = this.block('« catch »')
+      handler = this.block('“catch”')
     }
     return { k: 'try', body, variable, handler, pos: this.pos(t) }
   }
@@ -509,9 +526,9 @@ class Parser {
   private page(): Stmt {
     const t = this.next()
     const c = this.peek()
-    if (!c.v.startsWith('/')) throw this.error(c, msg(`a page address starts with « / »: ${q(c.v)}.`, `l'adresse d'une page commence par « / » : ${q(c.v)}.`), `page "/${c.v}"`)
+    if (!c.v.startsWith('/')) throw this.error(c, msg(`a page address starts with “/”: ${q(c.v)}.`, `l'adresse d'une page commence par « / » : ${q(c.v)}.`), `page "/${c.v}"`)
     const address = this.primary(FREE) as Extract<Expr, { k: 'text' }>
-    // « page "/blog/{post.slug}" for post in posts »: one page per item, built in advance
+    // “page "/blog/{post.slug}" for post in posts”: one page per item, built in advance
     let each: { variable: string; source: Expr } | undefined
     if (this.isWord('for')) {
       this.next()
@@ -519,7 +536,7 @@ class Parser {
       this.expectWord('in', 'page "/blog/{post.slug}" for post in posts')
       each = { variable: v.v, source: this.expression(FREE) }
     } else if (address.parts.some((p) => typeof p !== 'string')) {
-      throw this.error(c, msg('an address with {…} needs « for … in … » to know which pages to build.', 'une adresse avec {…} a besoin de « for … in … » pour savoir quelles pages construire.'), 'page "/blog/{post.slug}" for post in posts')
+      throw this.error(c, msg('an address with {…} needs “for … in …” to know which pages to build.', 'une adresse avec {…} a besoin de « for … in … » pour savoir quelles pages construire.'), 'page "/blog/{post.slug}" for post in posts')
     }
     this.endOfLine()
     const body = this.block(msg(`the page ${q(c.v)}`, `la page ${q(c.v)}`))
@@ -546,9 +563,86 @@ class Parser {
         this.next()
         head = `${head}-${cs}`
       } else if (head === 'on') {
-        throw this.error(s, msg('« on » must be followed by click, hover, scroll or load.', '« au » doit être suivi de clic, survol, defilement ou chargement.'), 'on click -> jump')
+        throw this.error(s, msg('“on” must be followed by click, hover, scroll or load.', '« au » doit être suivi de clic, survol, defilement ou chargement.'), 'on click -> jump')
       }
     }
+    return this.commandRest(t, head)
+  }
+
+  /**
+   * style promise                     ← a named style, used like an option: column promise
+   *   background paper, radius 24
+   *   hover lift 4
+   *   mobile padding 20
+   */
+  private styleDef(): Stmt {
+    const t = this.next()
+    const name = this.next()
+    this.endOfLine()
+    if (this.peek().t !== 'indent') throw this.error(this.peek(), msg(`the style ${q(name.v)} expects its options indented below.`, `le style ${q(name.v)} attend ses options indentées dessous.`), `style ${name.v}\n  background cream, radius 24`)
+    this.next()
+    const rules: Command[] = []
+    while (this.peek().t !== 'dedent' && this.peek().t !== 'eof') {
+      const lt = this.peek()
+      if (lt.t === 'newline') {
+        this.next()
+        continue
+      }
+      const word = lt.t === 'word' ? stripAccents(lt.v).toLowerCase() : ''
+      const screen = ['mobile', 'tablet', 'desktop'].includes(canon(lt.v) ?? lt.v)
+      const state = STYLE_STATES[word]
+      if (state) this.next()
+      // “link color rust”: a part inside the element (followed by an option, not by a comma)
+      const pw = this.peek()
+      const pword = pw.t === 'word' ? canon(pw.v) ?? stripAccents(pw.v) : ''
+      // a part is an element word (link, title…) or one of your own words (eyebrow), followed by an option
+      const ownWord = !!pword && !styleOption(pword) && !STYLE_STATES[pword] && !['mobile', 'tablet', 'desktop', 'hover'].includes(pword) && /^[a-z][\w-]*$/.test(pword)
+      const part = (STYLE_PARTS.includes(pword) || ownWord) && this.peek(1).t === 'word' ? pword : undefined
+      if (part) this.next()
+      if (state || part) {
+        const r = this.commandRest(this.peek(), 'style')
+        r.state = state
+        r.part = part
+        rules.push(r)
+      } else rules.push(screen ? this.command() : this.commandRest(lt, 'style'))
+    }
+    if (this.peek().t === 'dedent') this.next()
+    return { k: 'style-def', name: name.v, rules, pos: this.pos(t) }
+  }
+
+  /**
+   * animation marquee, 30s, loop, linear      ← a named animation, used like an option: row marquee
+   *   from move 0 0
+   *   to move -50% 0
+   */
+  private animationDef(): Stmt {
+    const t = this.next()
+    const name = this.next()
+    const options: Item[] = []
+    while (this.isOp(',')) {
+      this.next()
+      options.push(this.item())
+    }
+    this.endOfLine()
+    if (this.peek().t !== 'indent') throw this.error(this.peek(), msg(`the animation ${q(name.v)} expects its steps indented below (from …, to …).`, `l'animation ${q(name.v)} attend ses étapes indentées dessous (from …, to …).`), `animation ${name.v}, 2s, loop\n  from opacity 0\n  to opacity 1`)
+    this.next()
+    const frames: Command[] = []
+    while (this.peek().t !== 'dedent' && this.peek().t !== 'eof') {
+      const lt = this.next()
+      if (lt.t === 'newline') continue
+      const w = lt.t === 'word' ? canon(lt.v) ?? stripAccents(lt.v) : ''
+      const at = w === 'from' || w === 'de' ? '0%' : w === 'to' || w === 'vers' || w === 'a' ? '100%' : lt.t === 'number' ? `${lt.v}%` : undefined
+      if (!at) throw this.error(lt, msg('each step of an animation starts with from, to or a percentage (50%).', 'chaque étape d\'une animation commence par from, to ou un pourcentage (50%).'), '  50% move 0 -20')
+      const r = this.commandRest(lt, 'style')
+      r.state = at
+      frames.push(r)
+    }
+    if (this.peek().t === 'dedent') this.next()
+    return { k: 'animation-def', name: name.v, options, frames, pos: this.pos(t) }
+  }
+
+  /** The rest of a UI line once its head is known: items, action, children. */
+  private commandRest(t: Token, head: string): Command {
     const items: Item[] = []
     let action: Stmt[] | undefined
     let children: Stmt[] = []
@@ -574,9 +668,9 @@ class Parser {
       const arrow = this.next()
       if (this.peek().t === 'newline') {
         this.next()
-        action = this.block('« -> »')
+        action = this.block('“->”')
       } else if (this.peek().t === 'eof') {
-        throw this.error(arrow, msg('« -> » must be followed by an action.', '« -> » doit être suivi d\'une action.'), `${t.v} -> count += 1`)
+        throw this.error(arrow, msg('“->” must be followed by an action.', '« -> » doit être suivi d\'une action.'), `${t.v} -> count += 1`)
       } else {
         action = [this.statement(true)]
         children = this.optionalBlock()
@@ -584,6 +678,11 @@ class Parser {
     } else {
       this.endOfLine()
       children = this.optionalBlock()
+      // « on click » with the action indented below, no « -> » needed
+      if (head.startsWith('on-') && !items.length && children.length) {
+        action = children
+        children = []
+      }
     }
     return { k: 'command', head, rawHead: t.v, items, action, children, pos: this.pos(t) }
   }
@@ -595,7 +694,7 @@ class Parser {
       const v = this.peek()
       if (v.t === 'newline' || v.t === 'eof' || v.t === 'indent' || v.t === 'dedent') break
       if (v.t === 'op' && (v.v === ',' || v.v === '->')) break
-      if (v.t === 'op' && v.v === ')') throw this.error(v, msg('« ) » without « ( ».', '« ) » sans « ( ».'))
+      if (v.t === 'op' && v.v === ')') throw this.error(v, msg('“)” without “(”.', '« ) » sans « ( ».'))
       atoms.push(this.expression(ITEM))
     }
     return { atoms, pos: this.pos(start) }
@@ -641,7 +740,7 @@ class Parser {
     return this.expression(FREE)
   }
 
-  /** In a lambda, an assignment « -> total += 1 » is an action. Also UI motions (-> jump). */
+  /** In a lambda, an assignment “-> total += 1” is an action. Also UI motions (-> jump). */
   private isActionAhead(): boolean {
     const t = this.peek()
     const c = canon(t.v)
@@ -802,7 +901,7 @@ class Parser {
         while (!this.isOp(')')) {
           args.push(this.expression(FREE))
           if (this.isOp(',')) this.next()
-          else if (!this.isOp(')')) throw this.error(this.peek(), msg('« , » or « ) » is missing in this call.', 'il manque « , » ou « ) » dans cet appel.'), 'f(a, b)')
+          else if (!this.isOp(')')) throw this.error(this.peek(), msg('“,” or “)” is missing in this call.', 'il manque « , » ou « ) » dans cet appel.'), 'f(a, b)')
         }
         this.next()
         e = { k: 'call', fn: e, args, pos: this.pos(t) }
@@ -813,7 +912,7 @@ class Parser {
         e = { k: 'index', object: e, index, pos: this.pos(t) }
       } else break
     }
-    // implicit call: « print total », « sum cart, a -> a.price »
+    // implicit call: “print total”, “sum cart, a -> a.price”
     if (f.implicit && (e.k === 'name' || e.k === 'member') && this.argumentStarts()) {
       const args: Expr[] = []
       do {
@@ -882,7 +981,7 @@ class Parser {
           while (!this.isOp(']')) {
             items.push(this.expression(FREE))
             if (this.isOp(',')) this.next()
-            else if (!this.isOp(']')) throw this.error(this.peek(), msg('« , » is missing between two list items.', 'il manque « , » entre deux éléments de la liste.'), '[1, 2, 3]')
+            else if (!this.isOp(']')) throw this.error(this.peek(), msg('“,” is missing between two list items.', 'il manque « , » entre deux éléments de la liste.'), '[1, 2, 3]')
           }
           this.next()
           return { k: 'list', items, pos: this.pos(t) }
@@ -903,15 +1002,15 @@ class Parser {
                 props.push({ key: k.v, value: this.expression(FREE) })
               } else if (k.t === 'word') {
                 props.push({ key: k.v, value: { k: 'name', name: k.v, pos: this.pos(k) } })
-              } else throw this.error(this.peek(), msg(`« : » is missing after the key ${q(k.v)}.`, `il manque « : » après la clé ${q(k.v)}.`), '{ name: "Strawberry" }')
+              } else throw this.error(this.peek(), msg(`“:” is missing after the key ${q(k.v)}.`, `il manque « : » après la clé ${q(k.v)}.`), '{ name: "Strawberry" }')
             }
             if (this.isOp(',')) this.next()
-            else if (!this.isOp('}')) throw this.error(this.peek(), msg('« , » is missing between two properties.', 'il manque « , » entre deux propriétés.'), '{ name: "Strawberry", price: 4 }')
+            else if (!this.isOp('}')) throw this.error(this.peek(), msg('“,” is missing between two properties.', 'il manque « , » entre deux propriétés.'), '{ name: "Strawberry", price: 4 }')
           }
           this.next()
           return { k: 'object', props, pos: this.pos(t) }
         }
-        if (t.v === '->') throw this.error(t, msg('« -> » without a parameter before it.', '« -> » sans paramètre devant.'), 'x -> x * 2')
+        if (t.v === '->') throw this.error(t, msg('“->” without a parameter before it.', '« -> » sans paramètre devant.'), 'x -> x * 2')
         break
       }
     }

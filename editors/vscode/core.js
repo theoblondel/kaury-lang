@@ -6,15 +6,8 @@ var __export = (target, all) => {
 
 // src/core/errors.ts
 function detectLanguage() {
-  const g2 = globalThis;
-  const env = g2.process?.env?.KAURY_LANG;
-  if (env === "fr" || env === "en") return env;
-  try {
-    const loc = g2.navigator?.language ?? Intl.DateTimeFormat().resolvedOptions().locale ?? "";
-    if (String(loc).toLowerCase().startsWith("fr")) return "fr";
-  } catch {
-  }
-  return "en";
+  const env = globalThis.process?.env?.KAURY_LANG;
+  return env === "fr" ? "fr" : "en";
 }
 var language = detectLanguage();
 function setLanguage(l) {
@@ -202,8 +195,10 @@ function tokenize(source) {
           );
         }
       }
-      if (/^(js|javascript)\s*(\/\/.*)?$/.test(rest)) {
-        push({ t: "word", v: "js", line: lineNo, column: indent + 1, end: indent + 3, spaceBefore: true });
+      const rawKind = /^(js|javascript|css)\s*(\/\/.*)?$/.exec(rest)?.[1];
+      if (rawKind) {
+        const word = rawKind === "css" ? "css" : "js";
+        push({ t: "word", v: word, line: lineNo, column: indent + 1, end: indent + 1 + word.length, spaceBefore: true });
         const raw = [];
         let k = li + 1;
         let margin = -1;
@@ -418,15 +413,15 @@ function readText(line, start, lineNo) {
       if (p > 0) {
         throw new KauryError(
           { line: lineNo, column: i + 1 },
-          msg("interpolation \xAB { \xBB never closed in this text.", "insertion \xAB { \xBB jamais referm\xE9e dans ce texte."),
-          msg("close it with \xAB } \xBB, or write \\{ for a real brace.", "ferme-la avec \xAB } \xBB, ou \xE9cris \\{ pour une vraie accolade.")
+          msg("interpolation \u201C{\u201D never closed in this text.", "insertion \xAB { \xBB jamais referm\xE9e dans ce texte."),
+          msg("close it with \u201C}\u201D, or write \\{ for a real brace.", "ferme-la avec \xAB } \xBB, ou \xE9cris \\{ pour une vraie accolade.")
         );
       }
       const code = line.slice(i + 1, j);
       if (!code.trim()) {
         throw new KauryError(
           { line: lineNo, column: i + 1, length: 2 },
-          msg("empty interpolation \xAB {} \xBB in a text.", "insertion vide \xAB {} \xBB dans un texte."),
+          msg("empty interpolation \u201C{}\u201D in a text.", "insertion vide \xAB {} \xBB dans un texte."),
           msg('put a name between the braces: "Hello {name}".', 'mets un nom entre les accolades : "Bonjour {nom}".')
         );
       }
@@ -467,7 +462,7 @@ var TABLE = {
   for: ["pour"],
   in: ["dans"],
   while: ["tant"],
-  // « tant que »
+  // “tant que”
   que: [],
   await: ["attends", "wait"],
   try: ["essaie"],
@@ -490,6 +485,8 @@ var TABLE = {
   toggle: ["bascule"],
   go: ["aller", "goto"],
   js: ["javascript"],
+  css: [],
+  animation: [],
   // ---- web ----
   site: [],
   page: [],
@@ -522,6 +519,8 @@ var TABLE = {
   icon: ["icone"],
   divider: ["separateur"],
   spacer: ["espaceur"],
+  details: ["deplie"],
+  embed: ["integre", "iframe"],
   slot: ["contenu", "children"],
   markdown: ["md"],
   style: [],
@@ -535,6 +534,10 @@ var TABLE = {
   lang: ["langue", "language"],
   favicon: [],
   url: ["adresse"],
+  alternate: ["traduction", "alternates", "hreflang"],
+  head: ["tete"],
+  base: [],
+  wrapper: ["enveloppe"],
   // ---- immersion ----
   scene: [],
   object: ["objet", "model"],
@@ -663,7 +666,319 @@ var RESERVED = /* @__PURE__ */ new Set([
   "page"
 ]);
 
+// src/core/vocabulary.ts
+var vocabulary_exports = {};
+__export(vocabulary_exports, {
+  CAMERAS: () => CAMERAS,
+  COLORS: () => COLORS,
+  ELEMENTS: () => ELEMENTS,
+  ELEMENT_OPTIONS: () => ELEMENT_OPTIONS,
+  EVENTS: () => EVENTS,
+  LIGHTS: () => LIGHTS,
+  MOTIONS: () => MOTIONS,
+  MOTION_WORDS: () => MOTION_WORDS,
+  SETTINGS: () => SETTINGS,
+  STYLES: () => STYLES,
+  TRANSITIONS: () => TRANSITIONS,
+  UNIVERSAL_OPTIONS: () => UNIVERSAL_OPTIONS,
+  allOptions: () => allOptions,
+  elementOption: () => elementOption,
+  knownColor: () => knownColor,
+  optionSpec: () => optionSpec,
+  styleOption: () => styleOption
+});
+var COLORS = {
+  red: "#e5484d",
+  orange: "#f76b15",
+  yellow: "#ffc53d",
+  green: "#30a46c",
+  blue: "#0090ff",
+  purple: "#8e4ec6",
+  pink: "#e93d82",
+  black: "#111111",
+  white: "#ffffff",
+  gray: "#8b8d98",
+  cream: "#fff4e8",
+  beige: "#efe3cf",
+  brown: "#8a5a3b",
+  teal: "#12a594",
+  gold: "#d4a72c",
+  silver: "#c0c4cc",
+  navy: "#14213d",
+  coral: "#ff7f61",
+  mint: "#7fe0c0",
+  lavender: "#b9a6ef",
+  sky: "#7cc4fa",
+  sand: "#e9d8b4",
+  slate: "#3c4454",
+  night: "#0b1020",
+  transparent: "transparent"
+};
+var COLOR_ALIASES = {
+  rouge: "red",
+  jaune: "yellow",
+  vert: "green",
+  bleu: "blue",
+  violet: "purple",
+  rose: "pink",
+  noir: "black",
+  blanc: "white",
+  gris: "gray",
+  grey: "gray",
+  creme: "cream",
+  marron: "brown",
+  turquoise: "teal",
+  dore: "gold",
+  argent: "silver",
+  marine: "navy",
+  corail: "coral",
+  menthe: "mint",
+  lavande: "lavender",
+  ciel: "sky",
+  sable: "sand",
+  ardoise: "slate",
+  nuit: "night"
+};
+function knownColor(word) {
+  const w = stripAccents(word).toLowerCase();
+  if (w in COLORS) return w;
+  if (w in COLOR_ALIASES) return COLOR_ALIASES[w];
+  return void 0;
+}
+var o = (args, aliases, help, helpFr, example, words) => ({ args, aliases, help, helpFr, example, words });
+var STYLES = {
+  background: o("e", ["fond", "bg"], "background color, gradient or image", "couleur, d\xE9grad\xE9 ou image de fond", "background cream"),
+  color: o("c", ["couleur"], "text color", "couleur du texte", "color #333"),
+  font: o("t", ["police"], "typeface", "police de caract\xE8res", 'font "Clash Display"'),
+  size: o("n", ["taille"], "text size (or object size)", "taille du texte (ou de l'objet)", "size 24"),
+  bold: o("", ["gras"], "bold text", "texte en gras", "bold"),
+  light: o("", ["leger", "fin"], "thin text", "texte fin", "light"),
+  weight: o("n", ["poids"], "font weight (100 to 900)", "\xE9paisseur du texte (100 \xE0 900)", "weight 600"),
+  italic: o("", ["italique"], "italic text", "texte en italique", "italic"),
+  underline: o("", ["souligne"], "underlined text", "texte soulign\xE9", "underline"),
+  plain: o("", ["simple", "no-underline"], "no underline (links)", "sans soulignement (liens)", 'link "Docs" "/docs/", plain'),
+  uppercase: o("", ["majuscules", "caps"], "uppercase text", "texte en majuscules", "uppercase"),
+  "line-height": o("n", ["interligne"], "line height (1.5 = one and a half)", "hauteur de ligne (1.5 = une fois et demie)", "line-height 1.6"),
+  tracking: o("n", ["lettres", "letter-spacing"], "space between letters", "espace entre les lettres", "tracking 2"),
+  align: o("m", ["aligne"], "text alignment", "alignement du texte", "align center", ["left", "center", "right", "justify"]),
+  center: o("", ["centre", "centered"], "centers the content", "centre le contenu", "center"),
+  radius: o("n", ["coins", "rounded"], "corner radius", "arrondi des coins", "radius 12"),
+  round: o("", ["rond", "pill"], "fully round corners", "coins compl\xE8tement ronds", "round"),
+  shadow: o("m?", ["ombre"], "drop shadow", "ombre port\xE9e", "shadow soft", ["soft", "medium", "strong", "hard", "none", "inner"]),
+  border: o("n?c?", ["bordure"], "border (width, color)", "bordure (\xE9paisseur, couleur)", "border 1 gray"),
+  "border-top": o("n?c?", ["bordure-haut"], "line above (width, color)", "trait au-dessus (\xE9paisseur, couleur)", "border-top 2 black"),
+  "border-bottom": o("n?c?", ["bordure-bas"], "line below (width, color)", "trait en dessous (\xE9paisseur, couleur)", "border-bottom 1 gray"),
+  pin: o("*", ["epingle"], "placed over its parent: pin bottom right, pin top 20 left 10%", "pos\xE9 par-dessus son parent : epingle bas droite", "pin bottom right"),
+  clip: o("", ["coupe"], "hides what overflows", "cache ce qui d\xE9passe", "clip"),
+  "no-wrap": o("", ["sans-retour"], "keeps everything on one line (for a ticker)", "garde tout sur une ligne (pour un bandeau)", "row no-wrap"),
+  grain: o("", [], "paper grain texture (on the site style: the whole page)", "texture de grain papier (sur le style du site : toute la page)", "style background cream, grain"),
+  margin: o("nn?n?n?", ["marge"], "space around (1 to 4 values)", "espace autour (1 \xE0 4 valeurs)", "margin 24"),
+  padding: o("nn?n?n?", ["remplissage", "interieur"], "inner space (1 to 4 values)", "espace int\xE9rieur (1 \xE0 4 valeurs)", "padding 32"),
+  gap: o("nn?", ["espace", "spacing"], "space between children (one value, or rows then columns)", "espace entre les enfants", "gap 24"),
+  width: o("n", ["largeur"], "width", "largeur", "width 320"),
+  height: o("n", ["hauteur"], "height", "hauteur", "height 400"),
+  "max-width": o("n", ["max-largeur"], "maximum width", "largeur maximale", "max-width 720"),
+  "min-height": o("n", ["min-hauteur"], "minimum height", "hauteur minimale", "min-height 300"),
+  fullscreen: o("", ["plein-ecran", "full"], "fills the whole screen height", "occupe toute la hauteur de l'\xE9cran", "fullscreen"),
+  "full-width": o("", ["pleine-largeur", "bleed"], "fills the whole width, no margins", "occupe toute la largeur, sans marges", "full-width"),
+  opacity: o("n", ["opacite"], "opacity from 0 to 1", "opacit\xE9 de 0 \xE0 1", "opacity 0.8"),
+  blur: o("n", ["flou"], "blur", "flou", "blur 8"),
+  glass: o("", ["verre"], "frosted glass effect", "effet verre d\xE9poli", "glass"),
+  gradient: o("cc?c?n?", ["degrade"], "gradient background (2 or 3 colors, angle)", "fond en d\xE9grad\xE9 (2 ou 3 couleurs, angle)", "gradient pink orange"),
+  "text-gradient": o("cc?c?", ["texte-degrade"], "gradient text", "texte en d\xE9grad\xE9", "text-gradient pink purple"),
+  columns: o("nn?n?n?", ["colonnes", "colonne", "cols", "column"], "number of columns, or their widths", "nombre de colonnes, ou leurs largeurs", "grid 3 columns   /   grid columns 2 1"),
+  direction: o("m", [], "direction of the children", "sens des enfants", "direction row", ["row", "column"]),
+  hidden: o("e?", ["cache", "hide"], "hides the element (always, or while a condition is true)", "cache l'\xE9l\xE9ment (toujours, ou tant qu'une condition est vraie)", "mobile hidden   /   hidden (tab != 1)"),
+  sticky: o("n?", ["colle"], "stays at the top while scrolling (distance from the top)", "reste coll\xE9 en haut au d\xE9filement (distance du haut)", "sticky 96"),
+  front: o("", ["devant"], "goes in front of other elements", "passe devant les autres \xE9l\xE9ments", "front"),
+  cursor: o("m", ["curseur"], "cursor shape", "forme du curseur", "cursor pointer", ["pointer", "arrow", "text", "none"]),
+  hover: o("*", ["survol"], "style when the mouse is over it", "style quand la souris passe dessus", "hover lift 4"),
+  lift: o("n", ["monte"], "moves up", "d\xE9cale vers le haut", "hover lift 4"),
+  grow: o("n?", ["grossit", "scale"], "enlarges (1.1 = +10 %)", "agrandit (1.1 = +10 %)", "hover grow 1.05"),
+  tilt: o("n", ["penche", "rotate"], "tilts (degrees)", "incline (degr\xE9s)", "tilt -3"),
+  move: o("nn?", ["deplace", "translate"], "moves the element (x, y), for hover and animations", "d\xE9place l'\xE9l\xE9ment (x, y), pour le survol et les animations", "move -50% 0"),
+  reveal: o("n", ["devoile"], "shows only the top part (0% to 100%), for animations", "ne montre que le haut (0 % \xE0 100 %), pour les animations", "reveal 100%"),
+  animate: o("m", ["anime"], "simple entrance", "apparition simple", "animate fade", ["fade", "lift", "zoom", "left", "right"])
+};
+var ELEMENT_OPTIONS = {
+  title: { level: o("n", ["niveau"], "heading level (1 to 6)", "niveau du titre (1 \xE0 6)", "level 2") },
+  image: {
+    alt: o("t", ["texte", "description"], "description for accessibility", "description pour l'accessibilit\xE9", 'alt "A can"'),
+    cover: o("", ["couvre"], "fills the area by cropping", "remplit la zone en recadrant", "cover")
+  },
+  video: {
+    loop: o("", ["boucle"], "plays in a loop", "rejoue en boucle", "loop"),
+    muted: o("", ["muet"], "without sound", "sans le son", "muted"),
+    autoplay: o("", ["auto"], "starts by itself (muted)", "d\xE9marre seule (muette)", "autoplay"),
+    controls: o("", ["controles"], "shows the buttons", "affiche les boutons", "controls"),
+    cover: o("", ["couvre"], "fills the area", "remplit la zone", "cover")
+  },
+  button: {
+    to: o("t", ["vers", "href"], "goes to a page", "emm\xE8ne vers une page", 'to "/shop"'),
+    outline: o("", ["contour"], "outlined button", "bouton avec contour seul", "outline"),
+    ghost: o("", ["discret", "subtle"], "discreet button", "bouton discret", "ghost"),
+    large: o("", ["grand"], "large button", "grand bouton", "large"),
+    small: o("", ["petit"], "small button", "petit bouton", "small"),
+    disabled: o("e?", ["desactive"], "disabled (when the condition is true)", "d\xE9sactiv\xE9 (si la condition est vraie)", "disabled cart.length == 0")
+  },
+  link: { "new-tab": o("", ["nouvel", "blank"], "opens in a new tab", "ouvre dans un nouvel onglet", "new-tab") },
+  field: {
+    type: o("m", [], "kind of field", "genre de champ", "type email", ["text", "email", "number", "password", "date", "tel", "url", "search"]),
+    required: o("", ["requis"], "mandatory", "obligatoire", "required"),
+    label: o("t", ["etiquette"], "text above the field", "texte au-dessus du champ", 'label "Your email"')
+  },
+  textarea: {
+    required: o("", ["requis"], "mandatory", "obligatoire", "required"),
+    label: o("t", ["etiquette"], "text above", "texte au-dessus", 'label "Message"'),
+    rows: o("n", ["lignes"], "height in lines", "hauteur en lignes", "rows 5")
+  },
+  select: { label: o("t", ["etiquette"], "text above", "texte au-dessus", 'label "Size"') },
+  section: {},
+  seo: { image: o("t", [], "share image (1200\xD7630)", "image de partage (1200\xD7630)", 'image "share.jpg"') },
+  // ---- immersion ----
+  object: {
+    position: o("nnn?", [], "position x y (z)", "position x y (z)", "position 0 1 0"),
+    rotation: o("nnn?", [], "rotation in degrees x y z", "rotation en degr\xE9s x y z", "rotation 0 45 0"),
+    size: o("n", ["taille", "scale"], "object size (1 = normal)", "taille de l'objet (1 = normale)", "size 1.5"),
+    height: o("n", ["hauteur"], "area height (single object)", "hauteur de la zone (objet seul)", "height 500"),
+    fallback: o("t", ["secours"], "image when the device cannot show 3D", "image si l'appareil ne peut pas afficher la 3D", 'fallback "can.png"'),
+    shadows: o("", ["ombres"], "the object casts a shadow", "l'objet projette une ombre au sol", "shadows"),
+    alt: o("t", ["texte", "description"], "description for accessibility and Google", "description pour l'accessibilit\xE9 et Google", 'alt "Strawberry can"'),
+    immediate: o("", ["immediat"], "starts the 3D without waiting for a first gesture", "d\xE9marre la 3D sans attendre un premier geste", "immediate"),
+    color: o("c", ["couleur"], "color of a shape (sphere, knot\u2026)", "couleur d'une forme", 'object "knot", color orange'),
+    metal: o("", ["metal"], "shiny metal material for a shape", "mati\xE8re m\xE9tal brillant pour une forme", 'object "sphere", metal'),
+    matte: o("", ["mat"], "matte material for a shape", "mati\xE8re mate pour une forme", 'object "cube", matte'),
+    glass: o("", ["verre"], "glass material for a shape", "mati\xE8re verre pour une forme", 'object "gem", glass'),
+    glow: o("", ["brille"], "the shape glows", "la forme brille", 'object "torus", glow')
+  },
+  scene: {
+    height: o("n", ["hauteur"], "scene height", "hauteur de la sc\xE8ne", "height 600"),
+    background: o("e", ["fond"], "scene background", "fond de la sc\xE8ne", "background night"),
+    fog: o("c?", ["brouillard"], "depth fog", "brouillard de profondeur", "fog"),
+    ground: o("c?", ["sol", "floor"], "adds a ground that receives shadows", "ajoute un sol qui re\xE7oit les ombres", "ground"),
+    immediate: o("", ["immediat"], "starts the 3D without waiting for a first gesture", "d\xE9marre la 3D sans attendre un premier geste", "immediate"),
+    particles: o("m?n?", ["particules"], "ambient particles", "particules d'ambiance", "particles stars", ["stars", "snow", "bubbles", "dust", "confetti"])
+  },
+  light: {},
+  camera: { distance: o("n", [], "camera distance", "recul de la cam\xE9ra", "distance 6") },
+  sound: {
+    loop: o("", ["boucle"], "plays in a loop", "joue en boucle", "loop"),
+    volume: o("n", [], "volume from 0 to 1", "volume de 0 \xE0 1", "volume 0.4")
+  }
+};
+ELEMENT_OPTIONS.character = { ...ELEMENT_OPTIONS.object, animation: o("t", ["anime"], "animation played at start", "animation jou\xE9e au d\xE9part", 'animation "idle"') };
+ELEMENT_OPTIONS.subtitle = ELEMENT_OPTIONS.title;
+var UNIVERSAL_OPTIONS = {
+  class: o("e", ["classe"], "CSS classes of your own (replaces the default look)", "classes CSS \xE0 toi (remplace l'apparence par d\xE9faut)", 'box class "hero"'),
+  look: o("e", ["allure"], "a class of your own added to the default look, styled in a css block", "une classe \xE0 toi ajout\xE9e \xE0 l'apparence par d\xE9faut, styl\xE9e dans un bloc css", 'grid 3 columns, look "pricing"'),
+  tag: o("e", ["balise"], "exact HTML tag", "balise HTML exacte", 'box tag "figure"'),
+  attr: o("ee?", ["attribut"], "HTML attribute (name, value)", "attribut HTML (nom, valeur)", 'box attr "aria-hidden" "true"'),
+  id: o("e", [], "id of the element (anchor)", "identifiant de l'\xE9l\xE9ment (ancre)", 'box id "prices"'),
+  selected: o("e?", ["selectionne"], "selected tab or item (a style can say how it looks: selected \u2026)", "onglet ou \xE9l\xE9ment s\xE9lectionn\xE9", 'button "Code", selected (tab == 0)'),
+  current: o("e?", ["courant"], "the current page or step (current \u2026)", "la page ou l'\xE9tape en cours", 'link "Docs" "/docs/", current (route.path == "/docs/")'),
+  open: o("e?", ["ouvert"], "a details element shown open", "un details affich\xE9 ouvert", 'details "Price?", open'),
+  html: o("e?", [], "content written in HTML (trusted text only)", "contenu \xE9crit en HTML (texte de confiance uniquement)", 'text "Hello<br>world", html')
+};
+var UNIVERSAL_HEADS = /* @__PURE__ */ new Set(["details", "embed", "section", "header", "footer", "nav", "grid", "column", "row", "box", "card", "title", "subtitle", "text", "image", "video", "link", "links", "logo", "button", "form", "field", "textarea", "select", "checkbox", "list", "item", "icon", "divider", "spacer", "markdown"]);
+var MOTIONS = {
+  spin: o("*", [], "spins: spin, spin 90/s, spin on scroll, spin x", "tourne sur lui-m\xEAme : tourne, tourne 90/s, tourne au defilement", "spin on scroll"),
+  float: o("*", [], "floats gently: float, float 0.3", "flotte doucement", "float"),
+  jump: o("*", [], "jumps (once as an action, otherwise regularly)", "saute (une fois en action, sinon r\xE9guli\xE8rement)", "on click -> jump"),
+  pulse: o("*", [], "grows and shrinks rhythmically", "grossit et r\xE9tr\xE9cit en rythme", "pulse"),
+  sway: o("*", [], "sways left and right", "se balance de gauche \xE0 droite", "sway"),
+  "follows-mouse": o("*", [], "reacts to the mouse: follows mouse, smooth", "r\xE9agit \xE0 la souris : suit souris, doux", "follows mouse, smooth"),
+  "enters-from": o("*", [], "entrance: left, right, top, bottom, fade, zoom", "apparition : gauche, droite, haut, bas, fondu, zoom", "enters from left"),
+  parallax: o("*", [], "moves faster or slower than the scroll", "bouge plus ou moins vite que le d\xE9filement", "parallax 0.3"),
+  says: o("*", [], "speech bubble", "bulle de dialogue", 'says "Hi!"'),
+  play: o("*", [], "plays a named animation", "joue une animation nomm\xE9e", 'play "dance"')
+};
+var MOTION_WORDS = /* @__PURE__ */ new Set(["smooth", "fast", "slow", "x", "y", "z", "on", "scroll", "left", "right", "top", "bottom", "fade", "zoom", "reverse", "loop", "once"]);
+var LIGHTS = ["studio", "soft", "sunset", "night", "neon", "day", "dramatic"];
+var CAMERAS = ["fixed", "follows-mouse", "fly", "free", "orbit"];
+var TRANSITIONS = ["fade", "slide", "zoom", "curtain", "none"];
+var e = (tag, kind, help, helpFr, example) => ({ tag, kind, help, helpFr, example });
+var ELEMENTS = {
+  section: e("section", "container", "a part of the page", "une partie de la page", "section flavors"),
+  header: e("header", "container", "site header", "en-t\xEAte du site", "header"),
+  footer: e("footer", "container", "page footer", "pied de page", "footer"),
+  nav: e("nav", "container", "navigation", "navigation", "nav"),
+  grid: e("div", "container", "grid of columns", "grille de colonnes", "grid 3 columns, gap 24"),
+  column: e("div", "container", "stacks its children vertically", "empile ses enfants verticalement", "column gap 12"),
+  row: e("div", "container", "puts its children side by side", "aligne ses enfants c\xF4te \xE0 c\xF4te", "row gap 12"),
+  box: e("div", "container", "simple container", "conteneur simple", "box padding 24"),
+  card: e("article", "container", "card (image + text)", "carte (image + texte)", 'card "Strawberry" "strawberry.png"'),
+  title: e("h1", "text", "main heading", "titre principal", 'title "Hello", size 64'),
+  subtitle: e("h2", "text", "secondary heading", "titre secondaire", 'subtitle "Our flavors"'),
+  text: e("p", "text", "paragraph", "paragraphe", 'text "Welcome {name}"'),
+  image: e("img", "media", "image", "image", 'image "photo.jpg", radius 16'),
+  video: e("video", "media", "video", "vid\xE9o", 'video "film.mp4", autoplay, loop'),
+  link: e("a", "text", "link", "lien", 'link "Contact" "/contact"'),
+  links: e("nav", "special", "menu of links", "menu de liens", "links Home, Flavors, Shop"),
+  logo: e("a", "special", "logo linking to the home page", "logo cliquable vers l'accueil", 'logo "crush.svg"'),
+  button: e("button", "text", "button", "bouton", 'button "Buy" -> cart.add can'),
+  form: e("form", "container", "form (-> action on submit)", "formulaire (-> action \xE0 l'envoi)", 'form -> send "/api", { email }'),
+  field: e("input", "field", "input bound to a state", "champ de saisie li\xE9 \xE0 un \xE9tat", 'field email "Your email", type email'),
+  textarea: e("textarea", "field", "multi-line text area", "zone de texte", 'textarea message "Your message"'),
+  select: e("select", "field", "dropdown list", "liste d\xE9roulante", 'select size "S", "M", "L"'),
+  checkbox: e("input", "field", "checkbox", "case \xE0 cocher", 'checkbox agree "I agree"'),
+  list: e("ul", "container", "bulleted list", "liste \xE0 puces", "list"),
+  item: e("li", "text", "list item", "ligne d'une liste", 'item "Free delivery"'),
+  icon: e("span", "text", "icon (emoji or character)", "ic\xF4ne (emoji ou caract\xE8re)", 'icon "\u2605"'),
+  divider: e("hr", "special", "separator line", "ligne de s\xE9paration", "divider"),
+  spacer: e("div", "special", "empty space", "espace vide", "spacer 48"),
+  markdown: e("div", "text", "Markdown text rendered as rich text (titles, lists, links)", "texte Markdown affich\xE9 en texte riche (titres, listes, liens)", "markdown post.body"),
+  details: e("details", "container", "a question or title that opens on click to show what is below", "une question ou un titre qui s'ouvre au clic", 'details "Is it free?"'),
+  embed: e("iframe", "media", "another page shown inside this one (map, video, app)", "une autre page affich\xE9e dans celle-ci", 'embed "https://\u2026", "Map of the shop"'),
+  slot: e("div", "special", "inside a component: where the content given between its lines goes", "dans un composant : l\xE0 o\xF9 va le contenu donn\xE9 entre ses lignes", "slot"),
+  scene: e("div", "immersion", "2D or 3D immersive area", "zone immersive 2D ou 3D", "scene"),
+  object: e("div", "immersion", "object .glb, .gltf, .png, .svg, .json (Lottie)", "objet .glb, .gltf, .png, .svg, .json (Lottie)", 'object can "crush.glb"'),
+  character: e("div", "immersion", "animated object with named animations", "objet anim\xE9 avec animations nomm\xE9es", 'character "mascot.glb"'),
+  sound: e("audio", "immersion", "sound or music, with a mute button", "son ou musique, avec bouton muet", 'sound "ambient.mp3", loop')
+};
+var SETTINGS = /* @__PURE__ */ new Set(["style", "mobile", "tablet", "desktop", "seo", "colors", "font", "fonts", "lang", "favicon", "url", "alternate", "head", "wrapper", "base", "light", "camera", "transition"]);
+var EVENTS = /* @__PURE__ */ new Set(["on-click", "on-hover", "on-scroll", "on-load"]);
+var STYLE_ALIASES = /* @__PURE__ */ new Map();
+for (const [name, s] of Object.entries(STYLES)) {
+  STYLE_ALIASES.set(name, name);
+  for (const a of s.aliases ?? []) STYLE_ALIASES.set(a, name);
+}
+function styleOption(word) {
+  return STYLE_ALIASES.get(stripAccents(word));
+}
+function elementOption(head, word) {
+  const w = stripAccents(word);
+  for (const table of [ELEMENT_OPTIONS[head], UNIVERSAL_HEADS.has(head) ? UNIVERSAL_OPTIONS : void 0]) {
+    if (!table) continue;
+    for (const [name, s] of Object.entries(table)) {
+      if (name === w || (s.aliases ?? []).includes(w)) return name;
+    }
+  }
+  return void 0;
+}
+function optionSpec(head, name) {
+  return ELEMENT_OPTIONS[head]?.[name] ?? (UNIVERSAL_HEADS.has(head) ? UNIVERSAL_OPTIONS[name] : void 0) ?? STYLES[name];
+}
+function allOptions(head) {
+  return [...Object.keys(ELEMENT_OPTIONS[head] ?? {}), ...UNIVERSAL_HEADS.has(head) ? Object.keys(UNIVERSAL_OPTIONS) : [], ...Object.keys(STYLES)];
+}
+
 // src/core/parser.ts
+var STYLE_PARTS = ["title", "subtitle", "text", "link", "image", "button", "icon", "code", "block", "list", "item", "table", "cell", "quote", "summary", "emphasis", "logo"];
+var STYLE_STATES = {
+  selected: "selected",
+  selectionne: "selected",
+  current: "current",
+  courant: "current",
+  open: "open",
+  ouvert: "open",
+  focus: "focus",
+  pressed: "pressed",
+  appuye: "pressed",
+  disabled: "disabled",
+  desactive: "disabled",
+  checked: "checked",
+  coche: "checked"
+};
 var UI_HEADS = /* @__PURE__ */ new Set([
   // web
   "section",
@@ -696,6 +1011,8 @@ var UI_HEADS = /* @__PURE__ */ new Set([
   "spacer",
   "slot",
   "markdown",
+  "details",
+  "embed",
   "style",
   "mobile",
   "tablet",
@@ -707,6 +1024,10 @@ var UI_HEADS = /* @__PURE__ */ new Set([
   "lang",
   "favicon",
   "url",
+  "alternate",
+  "head",
+  "wrapper",
+  "base",
   // immersion
   "scene",
   "object",
@@ -825,7 +1146,7 @@ var Parser = class {
     }
     if (t.t === "eof" || t.t === "dedent") return;
     if (t.t === "op" && t.v === "=") {
-      throw this.error(t, msg("\xAB = \xBB cannot be here.", "\xAB = \xBB ne peut pas \xEAtre ici."), msg("to compare two values, write \xAB == \xBB.", "pour comparer deux valeurs, \xE9cris \xAB == \xBB."));
+      throw this.error(t, msg("\u201C=\u201D cannot be here.", "\xAB = \xBB ne peut pas \xEAtre ici."), msg("to compare two values, write \u201C==\u201D.", "pour comparer deux valeurs, \xE9cris \xAB == \xBB."));
     }
     throw this.error(
       t,
@@ -896,8 +1217,8 @@ var Parser = class {
         case "else":
           throw this.error(
             t,
-            msg("\xAB else \xBB without an \xAB if \xBB right above.", "\xAB sinon \xBB sans \xAB si \xBB juste au-dessus."),
-            msg("put \xAB else \xBB at the same level as its \xAB if \xBB, right after the \xAB if \xBB block.", "place \xAB sinon \xBB au m\xEAme niveau que son \xAB si \xBB, juste apr\xE8s le bloc du \xAB si \xBB.")
+            msg("\u201Celse\u201D without an \u201Cif\u201D right above.", "\xAB sinon \xBB sans \xAB si \xBB juste au-dessus."),
+            msg("put \u201Celse\u201D at the same level as its \u201Cif\u201D, right after the \u201Cif\u201D block.", "place \xAB sinon \xBB au m\xEAme niveau que son \xAB si \xBB, juste apr\xE8s le bloc du \xAB si \xBB.")
           );
         case "for":
           return this.forStmt();
@@ -947,13 +1268,27 @@ var Parser = class {
         case "js": {
           this.next();
           const raw = this.peek();
-          if (raw.t !== "raw") throw this.error(t, msg("\xAB js \xBB must be alone on its line, with the JavaScript code indented below.", "\xAB js \xBB doit \xEAtre seul sur sa ligne, avec le code JavaScript indent\xE9 dessous."));
+          if (raw.t !== "raw") throw this.error(t, msg("\u201Cjs\u201D must be alone on its line, with the JavaScript code indented below.", "\xAB js \xBB doit \xEAtre seul sur sa ligne, avec le code JavaScript indent\xE9 dessous."));
           this.next();
           this.endOfLine();
           return { k: "js", code: raw.v, pos: this.pos(t) };
         }
+        case "css": {
+          this.next();
+          const raw = this.peek();
+          if (raw.t !== "raw") throw this.error(t, msg("\u201Ccss\u201D must be alone on its line, with the CSS indented below.", "\xAB css \xBB doit \xEAtre seul sur sa ligne, avec le CSS indent\xE9 dessous."));
+          this.next();
+          this.endOfLine();
+          return { k: "css", code: raw.v, pos: this.pos(t) };
+        }
         case "component":
           return this.component();
+        case "animation":
+          if (this.peek(1).t === "word") return this.animationDef();
+          break;
+        case "style":
+          if (this.peek(1).t === "word" && this.peek(2).t === "newline" && this.peek(3).t === "indent") return this.styleDef();
+          break;
         case "page":
           if (this.peek(1).t === "text") return this.page();
           break;
@@ -969,8 +1304,8 @@ var Parser = class {
       if (e2.k !== "name" && e2.k !== "member" && e2.k !== "index") {
         throw this.error(
           op,
-          msg("nothing can be stored on the left of this \xAB = \xBB.", "on ne peut rien ranger \xE0 gauche de ce \xAB = \xBB."),
-          msg("the left of \xAB = \xBB must be a name: total = 3.", "\xE0 gauche d'un \xAB = \xBB, il faut un nom : total = 3.")
+          msg("nothing can be stored on the left of this \u201C=\u201D.", "on ne peut rien ranger \xE0 gauche de ce \xAB = \xBB."),
+          msg("the left of \u201C=\u201D must be a name: total = 3.", "\xE0 gauche d'un \xAB = \xBB, il faut un nom : total = 3.")
         );
       }
       this.next();
@@ -981,7 +1316,7 @@ var Parser = class {
     if (op.t === "op" && op.v === "->") {
       throw this.error(
         op,
-        msg("\xAB -> \xBB must follow a UI element or a parameter.", "\xAB -> \xBB doit suivre un \xE9l\xE9ment d'interface ou un param\xE8tre."),
+        msg("\u201C->\u201D must follow a UI element or a parameter.", "\xAB -> \xBB doit suivre un \xE9l\xE9ment d'interface ou un param\xE8tre."),
         msg('examples: button "Ok" -> count += 1   or   sum list, a -> a.price', 'exemples : bouton "Ok" -> compteur += 1   ou   somme liste, a -> a.prix')
       );
     }
@@ -1004,7 +1339,7 @@ var Parser = class {
     this.endOfLine();
     return { k: "expr", e: e2, pos: this.pos(t) };
   }
-  /** Is the next token an assignment (« site = 3 »)? */
+  /** Is the next token an assignment (“site = 3”)? */
   assignmentFollows() {
     const s = this.peek(1);
     return s.t === "op" && (ASSIGN_OPS.has(s.v) || (s.v === "." || s.v === "(" || s.v === "[") && !s.spaceBefore);
@@ -1029,7 +1364,7 @@ var Parser = class {
     const kw = t.v;
     const name = this.expectName(reactive ? msg("this state", "cet \xE9tat") : msg("this variable", "cette variable"), reactive ? "state count = 0" : "let tax = 8.1");
     if (!this.isOp("=")) {
-      throw this.error(this.peek(), msg(`\xAB = \xBB is missing after ${q(name.v)}.`, `il manque \xAB = \xBB apr\xE8s ${q(name.v)}.`), `${kw} ${name.v} = 0`);
+      throw this.error(this.peek(), msg(`\u201C=\u201D is missing after ${q(name.v)}.`, `il manque \xAB = \xBB apr\xE8s ${q(name.v)}.`), `${kw} ${name.v} = 0`);
     }
     this.next();
     const value = this.expression(FREE);
@@ -1073,13 +1408,13 @@ var Parser = class {
       this.next();
       return [this.statement()];
     }
-    this.endOfLine(msg("after the condition, start a new line (or write \xAB then \xBB for an action on the same line).", "apr\xE8s la condition, passe \xE0 la ligne (ou \xE9cris \xAB puis \xBB pour une action sur la m\xEAme ligne)."));
+    this.endOfLine(msg("after the condition, start a new line (or write \u201Cthen\u201D for an action on the same line).", "apr\xE8s la condition, passe \xE0 la ligne (ou \xE9cris \xAB puis \xBB pour une action sur la m\xEAme ligne)."));
     return this.block(what);
   }
   ifStmt() {
     const t = this.next();
     const cond = this.condition();
-    const then = this.ifBody("\xAB if \xBB");
+    const then = this.ifBody("\u201Cif\u201D");
     const elifs = [];
     let otherwise;
     while (this.isWord("else")) {
@@ -1087,9 +1422,9 @@ var Parser = class {
       if (this.isWord("if")) {
         this.next();
         const c = this.condition();
-        elifs.push({ cond: c, body: this.ifBody("\xAB else if \xBB"), pos: this.pos(s) });
+        elifs.push({ cond: c, body: this.ifBody("\u201Celse if\u201D"), pos: this.pos(s) });
       } else {
-        otherwise = this.ifBody("\xAB else \xBB");
+        otherwise = this.ifBody("\u201Celse\u201D");
         break;
       }
     }
@@ -1098,7 +1433,7 @@ var Parser = class {
   condition() {
     const e2 = this.expression(FREE);
     if (this.isOp("=")) {
-      throw this.error(this.peek(), msg("\xAB = \xBB stores a value; it does not compare.", "\xAB = \xBB range une valeur ; il ne compare pas."), msg("to compare, write \xAB == \xBB.", "pour comparer, \xE9cris \xAB == \xBB."));
+      throw this.error(this.peek(), msg("\u201C=\u201D stores a value; it does not compare.", "\xAB = \xBB range une valeur ; il ne compare pas."), msg("to compare, write \u201C==\u201D.", "pour comparer, \xE9cris \xAB == \xBB."));
     }
     return e2;
   }
@@ -1113,7 +1448,7 @@ var Parser = class {
     this.expectWord("in", `for ${v.v} in list`);
     const source = this.expression(FREE);
     this.endOfLine();
-    const body = this.block("\xAB for \xBB");
+    const body = this.block("\u201Cfor\u201D");
     return { k: "for", variable: v.v, index, source, body, pos: this.pos(t) };
   }
   whileStmt() {
@@ -1121,20 +1456,20 @@ var Parser = class {
     if (t.v === "tant") this.expectWord("que", "tant que vies > 0");
     const cond = this.condition();
     this.endOfLine();
-    const body = this.block("\xAB while \xBB");
+    const body = this.block("\u201Cwhile\u201D");
     return { k: "while", cond, body, pos: this.pos(t) };
   }
   tryStmt() {
     const t = this.next();
     this.endOfLine();
-    const body = this.block("\xAB try \xBB");
+    const body = this.block("\u201Ctry\u201D");
     let variable;
     let handler;
     if (this.isWord("catch")) {
       this.next();
       if (this.peek().t === "word") variable = this.next().v;
       this.endOfLine();
-      handler = this.block("\xAB catch \xBB");
+      handler = this.block("\u201Ccatch\u201D");
     }
     return { k: "try", body, variable, handler, pos: this.pos(t) };
   }
@@ -1204,7 +1539,7 @@ var Parser = class {
   page() {
     const t = this.next();
     const c = this.peek();
-    if (!c.v.startsWith("/")) throw this.error(c, msg(`a page address starts with \xAB / \xBB: ${q(c.v)}.`, `l'adresse d'une page commence par \xAB / \xBB : ${q(c.v)}.`), `page "/${c.v}"`);
+    if (!c.v.startsWith("/")) throw this.error(c, msg(`a page address starts with \u201C/\u201D: ${q(c.v)}.`, `l'adresse d'une page commence par \xAB / \xBB : ${q(c.v)}.`), `page "/${c.v}"`);
     const address = this.primary(FREE);
     let each;
     if (this.isWord("for")) {
@@ -1213,7 +1548,7 @@ var Parser = class {
       this.expectWord("in", 'page "/blog/{post.slug}" for post in posts');
       each = { variable: v.v, source: this.expression(FREE) };
     } else if (address.parts.some((p) => typeof p !== "string")) {
-      throw this.error(c, msg("an address with {\u2026} needs \xAB for \u2026 in \u2026 \xBB to know which pages to build.", "une adresse avec {\u2026} a besoin de \xAB for \u2026 in \u2026 \xBB pour savoir quelles pages construire."), 'page "/blog/{post.slug}" for post in posts');
+      throw this.error(c, msg("an address with {\u2026} needs \u201Cfor \u2026 in \u2026\u201D to know which pages to build.", "une adresse avec {\u2026} a besoin de \xAB for \u2026 in \u2026 \xBB pour savoir quelles pages construire."), 'page "/blog/{post.slug}" for post in posts');
     }
     this.endOfLine();
     const body = this.block(msg(`the page ${q(c.v)}`, `la page ${q(c.v)}`));
@@ -1238,9 +1573,84 @@ var Parser = class {
         this.next();
         head = `${head}-${cs}`;
       } else if (head === "on") {
-        throw this.error(s, msg("\xAB on \xBB must be followed by click, hover, scroll or load.", "\xAB au \xBB doit \xEAtre suivi de clic, survol, defilement ou chargement."), "on click -> jump");
+        throw this.error(s, msg("\u201Con\u201D must be followed by click, hover, scroll or load.", "\xAB au \xBB doit \xEAtre suivi de clic, survol, defilement ou chargement."), "on click -> jump");
       }
     }
+    return this.commandRest(t, head);
+  }
+  /**
+   * style promise                     ← a named style, used like an option: column promise
+   *   background paper, radius 24
+   *   hover lift 4
+   *   mobile padding 20
+   */
+  styleDef() {
+    const t = this.next();
+    const name = this.next();
+    this.endOfLine();
+    if (this.peek().t !== "indent") throw this.error(this.peek(), msg(`the style ${q(name.v)} expects its options indented below.`, `le style ${q(name.v)} attend ses options indent\xE9es dessous.`), `style ${name.v}
+  background cream, radius 24`);
+    this.next();
+    const rules = [];
+    while (this.peek().t !== "dedent" && this.peek().t !== "eof") {
+      const lt = this.peek();
+      if (lt.t === "newline") {
+        this.next();
+        continue;
+      }
+      const word = lt.t === "word" ? stripAccents(lt.v).toLowerCase() : "";
+      const screen = ["mobile", "tablet", "desktop"].includes(canon(lt.v) ?? lt.v);
+      const state = STYLE_STATES[word];
+      if (state) this.next();
+      const pw = this.peek();
+      const pword = pw.t === "word" ? canon(pw.v) ?? stripAccents(pw.v) : "";
+      const ownWord = !!pword && !styleOption(pword) && !STYLE_STATES[pword] && !["mobile", "tablet", "desktop", "hover"].includes(pword) && /^[a-z][\w-]*$/.test(pword);
+      const part = (STYLE_PARTS.includes(pword) || ownWord) && this.peek(1).t === "word" ? pword : void 0;
+      if (part) this.next();
+      if (state || part) {
+        const r = this.commandRest(this.peek(), "style");
+        r.state = state;
+        r.part = part;
+        rules.push(r);
+      } else rules.push(screen ? this.command() : this.commandRest(lt, "style"));
+    }
+    if (this.peek().t === "dedent") this.next();
+    return { k: "style-def", name: name.v, rules, pos: this.pos(t) };
+  }
+  /**
+   * animation marquee, 30s, loop, linear      ← a named animation, used like an option: row marquee
+   *   from move 0 0
+   *   to move -50% 0
+   */
+  animationDef() {
+    const t = this.next();
+    const name = this.next();
+    const options = [];
+    while (this.isOp(",")) {
+      this.next();
+      options.push(this.item());
+    }
+    this.endOfLine();
+    if (this.peek().t !== "indent") throw this.error(this.peek(), msg(`the animation ${q(name.v)} expects its steps indented below (from \u2026, to \u2026).`, `l'animation ${q(name.v)} attend ses \xE9tapes indent\xE9es dessous (from \u2026, to \u2026).`), `animation ${name.v}, 2s, loop
+  from opacity 0
+  to opacity 1`);
+    this.next();
+    const frames = [];
+    while (this.peek().t !== "dedent" && this.peek().t !== "eof") {
+      const lt = this.next();
+      if (lt.t === "newline") continue;
+      const w = lt.t === "word" ? canon(lt.v) ?? stripAccents(lt.v) : "";
+      const at = w === "from" || w === "de" ? "0%" : w === "to" || w === "vers" || w === "a" ? "100%" : lt.t === "number" ? `${lt.v}%` : void 0;
+      if (!at) throw this.error(lt, msg("each step of an animation starts with from, to or a percentage (50%).", "chaque \xE9tape d'une animation commence par from, to ou un pourcentage (50%)."), "  50% move 0 -20");
+      const r = this.commandRest(lt, "style");
+      r.state = at;
+      frames.push(r);
+    }
+    if (this.peek().t === "dedent") this.next();
+    return { k: "animation-def", name: name.v, options, frames, pos: this.pos(t) };
+  }
+  /** The rest of a UI line once its head is known: items, action, children. */
+  commandRest(t, head) {
     const items = [];
     let action;
     let children = [];
@@ -1266,9 +1676,9 @@ var Parser = class {
       const arrow = this.next();
       if (this.peek().t === "newline") {
         this.next();
-        action = this.block("\xAB -> \xBB");
+        action = this.block("\u201C->\u201D");
       } else if (this.peek().t === "eof") {
-        throw this.error(arrow, msg("\xAB -> \xBB must be followed by an action.", "\xAB -> \xBB doit \xEAtre suivi d'une action."), `${t.v} -> count += 1`);
+        throw this.error(arrow, msg("\u201C->\u201D must be followed by an action.", "\xAB -> \xBB doit \xEAtre suivi d'une action."), `${t.v} -> count += 1`);
       } else {
         action = [this.statement(true)];
         children = this.optionalBlock();
@@ -1276,6 +1686,10 @@ var Parser = class {
     } else {
       this.endOfLine();
       children = this.optionalBlock();
+      if (head.startsWith("on-") && !items.length && children.length) {
+        action = children;
+        children = [];
+      }
     }
     return { k: "command", head, rawHead: t.v, items, action, children, pos: this.pos(t) };
   }
@@ -1286,7 +1700,7 @@ var Parser = class {
       const v = this.peek();
       if (v.t === "newline" || v.t === "eof" || v.t === "indent" || v.t === "dedent") break;
       if (v.t === "op" && (v.v === "," || v.v === "->")) break;
-      if (v.t === "op" && v.v === ")") throw this.error(v, msg("\xAB ) \xBB without \xAB ( \xBB.", "\xAB ) \xBB sans \xAB ( \xBB."));
+      if (v.t === "op" && v.v === ")") throw this.error(v, msg("\u201C)\u201D without \u201C(\u201D.", "\xAB ) \xBB sans \xAB ( \xBB."));
       atoms.push(this.expression(ITEM));
     }
     return { atoms, pos: this.pos(start) };
@@ -1329,7 +1743,7 @@ var Parser = class {
     if (this.peek().t === "word" && this.isActionAhead()) return [this.statement()];
     return this.expression(FREE);
   }
-  /** In a lambda, an assignment « -> total += 1 » is an action. Also UI motions (-> jump). */
+  /** In a lambda, an assignment “-> total += 1” is an action. Also UI motions (-> jump). */
   isActionAhead() {
     const t = this.peek();
     const c = canon(t.v);
@@ -1478,7 +1892,7 @@ var Parser = class {
         while (!this.isOp(")")) {
           args.push(this.expression(FREE));
           if (this.isOp(",")) this.next();
-          else if (!this.isOp(")")) throw this.error(this.peek(), msg("\xAB , \xBB or \xAB ) \xBB is missing in this call.", "il manque \xAB , \xBB ou \xAB ) \xBB dans cet appel."), "f(a, b)");
+          else if (!this.isOp(")")) throw this.error(this.peek(), msg("\u201C,\u201D or \u201C)\u201D is missing in this call.", "il manque \xAB , \xBB ou \xAB ) \xBB dans cet appel."), "f(a, b)");
         }
         this.next();
         e2 = { k: "call", fn: e2, args, pos: this.pos(t) };
@@ -1555,7 +1969,7 @@ var Parser = class {
           while (!this.isOp("]")) {
             items.push(this.expression(FREE));
             if (this.isOp(",")) this.next();
-            else if (!this.isOp("]")) throw this.error(this.peek(), msg("\xAB , \xBB is missing between two list items.", "il manque \xAB , \xBB entre deux \xE9l\xE9ments de la liste."), "[1, 2, 3]");
+            else if (!this.isOp("]")) throw this.error(this.peek(), msg("\u201C,\u201D is missing between two list items.", "il manque \xAB , \xBB entre deux \xE9l\xE9ments de la liste."), "[1, 2, 3]");
           }
           this.next();
           return { k: "list", items, pos: this.pos(t) };
@@ -1576,15 +1990,15 @@ var Parser = class {
                 props.push({ key: k.v, value: this.expression(FREE) });
               } else if (k.t === "word") {
                 props.push({ key: k.v, value: { k: "name", name: k.v, pos: this.pos(k) } });
-              } else throw this.error(this.peek(), msg(`\xAB : \xBB is missing after the key ${q(k.v)}.`, `il manque \xAB : \xBB apr\xE8s la cl\xE9 ${q(k.v)}.`), '{ name: "Strawberry" }');
+              } else throw this.error(this.peek(), msg(`\u201C:\u201D is missing after the key ${q(k.v)}.`, `il manque \xAB : \xBB apr\xE8s la cl\xE9 ${q(k.v)}.`), '{ name: "Strawberry" }');
             }
             if (this.isOp(",")) this.next();
-            else if (!this.isOp("}")) throw this.error(this.peek(), msg("\xAB , \xBB is missing between two properties.", "il manque \xAB , \xBB entre deux propri\xE9t\xE9s."), '{ name: "Strawberry", price: 4 }');
+            else if (!this.isOp("}")) throw this.error(this.peek(), msg("\u201C,\u201D is missing between two properties.", "il manque \xAB , \xBB entre deux propri\xE9t\xE9s."), '{ name: "Strawberry", price: 4 }');
           }
           this.next();
           return { k: "object", props, pos: this.pos(t) };
         }
-        if (t.v === "->") throw this.error(t, msg("\xAB -> \xBB without a parameter before it.", "\xAB -> \xBB sans param\xE8tre devant."), "x -> x * 2");
+        if (t.v === "->") throw this.error(t, msg("\u201C->\u201D without a parameter before it.", "\xAB -> \xBB sans param\xE8tre devant."), "x -> x * 2");
         break;
       }
     }
@@ -1595,272 +2009,6 @@ var Parser = class {
     );
   }
 };
-
-// src/core/vocabulary.ts
-var vocabulary_exports = {};
-__export(vocabulary_exports, {
-  CAMERAS: () => CAMERAS,
-  COLORS: () => COLORS,
-  ELEMENTS: () => ELEMENTS,
-  ELEMENT_OPTIONS: () => ELEMENT_OPTIONS,
-  EVENTS: () => EVENTS,
-  LIGHTS: () => LIGHTS,
-  MOTIONS: () => MOTIONS,
-  MOTION_WORDS: () => MOTION_WORDS,
-  SETTINGS: () => SETTINGS,
-  STYLES: () => STYLES,
-  TRANSITIONS: () => TRANSITIONS,
-  allOptions: () => allOptions,
-  elementOption: () => elementOption,
-  knownColor: () => knownColor,
-  optionSpec: () => optionSpec,
-  styleOption: () => styleOption
-});
-var COLORS = {
-  red: "#e5484d",
-  orange: "#f76b15",
-  yellow: "#ffc53d",
-  green: "#30a46c",
-  blue: "#0090ff",
-  purple: "#8e4ec6",
-  pink: "#e93d82",
-  black: "#111111",
-  white: "#ffffff",
-  gray: "#8b8d98",
-  cream: "#fff4e8",
-  beige: "#efe3cf",
-  brown: "#8a5a3b",
-  teal: "#12a594",
-  gold: "#d4a72c",
-  silver: "#c0c4cc",
-  navy: "#14213d",
-  coral: "#ff7f61",
-  mint: "#7fe0c0",
-  lavender: "#b9a6ef",
-  sky: "#7cc4fa",
-  sand: "#e9d8b4",
-  slate: "#3c4454",
-  night: "#0b1020",
-  transparent: "transparent"
-};
-var COLOR_ALIASES = {
-  rouge: "red",
-  jaune: "yellow",
-  vert: "green",
-  bleu: "blue",
-  violet: "purple",
-  rose: "pink",
-  noir: "black",
-  blanc: "white",
-  gris: "gray",
-  grey: "gray",
-  creme: "cream",
-  marron: "brown",
-  turquoise: "teal",
-  dore: "gold",
-  argent: "silver",
-  marine: "navy",
-  corail: "coral",
-  menthe: "mint",
-  lavande: "lavender",
-  ciel: "sky",
-  sable: "sand",
-  ardoise: "slate",
-  nuit: "night"
-};
-function knownColor(word) {
-  const w = stripAccents(word).toLowerCase();
-  if (w in COLORS) return w;
-  if (w in COLOR_ALIASES) return COLOR_ALIASES[w];
-  return void 0;
-}
-var o = (args, aliases, help, helpFr, example, words) => ({ args, aliases, help, helpFr, example, words });
-var STYLES = {
-  background: o("e", ["fond", "bg"], "background color, gradient or image", "couleur, d\xE9grad\xE9 ou image de fond", "background cream"),
-  color: o("c", ["couleur"], "text color", "couleur du texte", "color #333"),
-  font: o("t", ["police"], "typeface", "police de caract\xE8res", 'font "Clash Display"'),
-  size: o("n", ["taille"], "text size (or object size)", "taille du texte (ou de l'objet)", "size 24"),
-  bold: o("", ["gras"], "bold text", "texte en gras", "bold"),
-  light: o("", ["leger", "fin"], "thin text", "texte fin", "light"),
-  weight: o("n", ["poids"], "font weight (100 to 900)", "\xE9paisseur du texte (100 \xE0 900)", "weight 600"),
-  italic: o("", ["italique"], "italic text", "texte en italique", "italic"),
-  underline: o("", ["souligne"], "underlined text", "texte soulign\xE9", "underline"),
-  uppercase: o("", ["majuscules", "caps"], "uppercase text", "texte en majuscules", "uppercase"),
-  "line-height": o("n", ["interligne"], "line height (1.5 = one and a half)", "hauteur de ligne (1.5 = une fois et demie)", "line-height 1.6"),
-  tracking: o("n", ["lettres", "letter-spacing"], "space between letters", "espace entre les lettres", "tracking 2"),
-  align: o("m", ["aligne"], "text alignment", "alignement du texte", "align center", ["left", "center", "right", "justify"]),
-  center: o("", ["centre", "centered"], "centers the content", "centre le contenu", "center"),
-  radius: o("n", ["coins", "rounded"], "corner radius", "arrondi des coins", "radius 12"),
-  round: o("", ["rond", "pill"], "fully round corners", "coins compl\xE8tement ronds", "round"),
-  shadow: o("m?", ["ombre"], "drop shadow", "ombre port\xE9e", "shadow soft", ["soft", "medium", "strong", "none", "inner"]),
-  border: o("n?c?", ["bordure"], "border (width, color)", "bordure (\xE9paisseur, couleur)", "border 1 gray"),
-  margin: o("nnnn", ["marge"], "space around (1 to 4 values)", "espace autour (1 \xE0 4 valeurs)", "margin 24"),
-  padding: o("nnnn", ["remplissage", "interieur"], "inner space (1 to 4 values)", "espace int\xE9rieur (1 \xE0 4 valeurs)", "padding 32"),
-  gap: o("n", ["espace", "spacing"], "space between children", "espace entre les enfants", "gap 24"),
-  width: o("n", ["largeur"], "width", "largeur", "width 320"),
-  height: o("n", ["hauteur"], "height", "hauteur", "height 400"),
-  "max-width": o("n", ["max-largeur"], "maximum width", "largeur maximale", "max-width 720"),
-  "min-height": o("n", ["min-hauteur"], "minimum height", "hauteur minimale", "min-height 300"),
-  fullscreen: o("", ["plein-ecran", "full"], "fills the whole screen height", "occupe toute la hauteur de l'\xE9cran", "fullscreen"),
-  "full-width": o("", ["pleine-largeur", "bleed"], "fills the whole width, no margins", "occupe toute la largeur, sans marges", "full-width"),
-  opacity: o("n", ["opacite"], "opacity from 0 to 1", "opacit\xE9 de 0 \xE0 1", "opacity 0.8"),
-  blur: o("n", ["flou"], "blur", "flou", "blur 8"),
-  glass: o("", ["verre"], "frosted glass effect", "effet verre d\xE9poli", "glass"),
-  gradient: o("cc?c?n?", ["degrade"], "gradient background (2 or 3 colors, angle)", "fond en d\xE9grad\xE9 (2 ou 3 couleurs, angle)", "gradient pink orange"),
-  "text-gradient": o("cc?c?", ["texte-degrade"], "gradient text", "texte en d\xE9grad\xE9", "text-gradient pink purple"),
-  columns: o("n", ["colonnes", "colonne", "cols", "column"], "number of columns", "nombre de colonnes", "grid 3 columns"),
-  direction: o("m", [], "direction of the children", "sens des enfants", "direction row", ["row", "column"]),
-  hidden: o("", ["cache", "hide"], "hides the element", "cache l'\xE9l\xE9ment", "mobile hidden"),
-  sticky: o("", ["colle"], "stays at the top while scrolling", "reste coll\xE9 en haut au d\xE9filement", "sticky"),
-  front: o("", ["devant"], "goes in front of other elements", "passe devant les autres \xE9l\xE9ments", "front"),
-  cursor: o("m", ["curseur"], "cursor shape", "forme du curseur", "cursor pointer", ["pointer", "arrow", "text", "none"]),
-  hover: o("*", ["survol"], "style when the mouse is over it", "style quand la souris passe dessus", "hover lift 4"),
-  lift: o("n", ["monte"], "moves up", "d\xE9cale vers le haut", "hover lift 4"),
-  grow: o("n?", ["grossit", "scale"], "enlarges (1.1 = +10 %)", "agrandit (1.1 = +10 %)", "hover grow 1.05"),
-  tilt: o("n", ["penche"], "tilts (degrees)", "incline (degr\xE9s)", "tilt -3"),
-  animate: o("m", ["anime"], "simple entrance", "apparition simple", "animate fade", ["fade", "lift", "zoom", "left", "right"])
-};
-var ELEMENT_OPTIONS = {
-  title: { level: o("n", ["niveau"], "heading level (1 to 6)", "niveau du titre (1 \xE0 6)", "level 2") },
-  image: {
-    alt: o("t", ["texte", "description"], "description for accessibility", "description pour l'accessibilit\xE9", 'alt "A can"'),
-    cover: o("", ["couvre"], "fills the area by cropping", "remplit la zone en recadrant", "cover")
-  },
-  video: {
-    loop: o("", ["boucle"], "plays in a loop", "rejoue en boucle", "loop"),
-    muted: o("", ["muet"], "without sound", "sans le son", "muted"),
-    autoplay: o("", ["auto"], "starts by itself (muted)", "d\xE9marre seule (muette)", "autoplay"),
-    controls: o("", ["controles"], "shows the buttons", "affiche les boutons", "controls"),
-    cover: o("", ["couvre"], "fills the area", "remplit la zone", "cover")
-  },
-  button: {
-    to: o("t", ["vers", "href"], "goes to a page", "emm\xE8ne vers une page", 'to "/shop"'),
-    outline: o("", ["contour"], "outlined button", "bouton avec contour seul", "outline"),
-    ghost: o("", ["discret", "subtle"], "discreet button", "bouton discret", "ghost"),
-    large: o("", ["grand"], "large button", "grand bouton", "large"),
-    small: o("", ["petit"], "small button", "petit bouton", "small"),
-    disabled: o("e?", ["desactive"], "disabled (when the condition is true)", "d\xE9sactiv\xE9 (si la condition est vraie)", "disabled cart.length == 0")
-  },
-  link: { "new-tab": o("", ["nouvel", "blank"], "opens in a new tab", "ouvre dans un nouvel onglet", "new-tab") },
-  field: {
-    type: o("m", [], "kind of field", "genre de champ", "type email", ["text", "email", "number", "password", "date", "tel", "url", "search"]),
-    required: o("", ["requis"], "mandatory", "obligatoire", "required"),
-    label: o("t", ["etiquette"], "text above the field", "texte au-dessus du champ", 'label "Your email"')
-  },
-  textarea: {
-    required: o("", ["requis"], "mandatory", "obligatoire", "required"),
-    label: o("t", ["etiquette"], "text above", "texte au-dessus", 'label "Message"'),
-    rows: o("n", ["lignes"], "height in lines", "hauteur en lignes", "rows 5")
-  },
-  select: { label: o("t", ["etiquette"], "text above", "texte au-dessus", 'label "Size"') },
-  section: {},
-  seo: { image: o("t", [], "share image (1200\xD7630)", "image de partage (1200\xD7630)", 'image "share.jpg"') },
-  // ---- immersion ----
-  object: {
-    position: o("nnn?", [], "position x y (z)", "position x y (z)", "position 0 1 0"),
-    rotation: o("nnn?", [], "rotation in degrees x y z", "rotation en degr\xE9s x y z", "rotation 0 45 0"),
-    size: o("n", ["taille", "scale"], "object size (1 = normal)", "taille de l'objet (1 = normale)", "size 1.5"),
-    height: o("n", ["hauteur"], "area height (single object)", "hauteur de la zone (objet seul)", "height 500"),
-    fallback: o("t", ["secours"], "image when the device cannot show 3D", "image si l'appareil ne peut pas afficher la 3D", 'fallback "can.png"'),
-    shadows: o("", ["ombres"], "the object casts a shadow", "l'objet projette une ombre au sol", "shadows"),
-    alt: o("t", ["texte", "description"], "description for accessibility and Google", "description pour l'accessibilit\xE9 et Google", 'alt "Strawberry can"'),
-    immediate: o("", ["immediat"], "starts the 3D without waiting for a first gesture", "d\xE9marre la 3D sans attendre un premier geste", "immediate")
-  },
-  scene: {
-    height: o("n", ["hauteur"], "scene height", "hauteur de la sc\xE8ne", "height 600"),
-    background: o("e", ["fond"], "scene background", "fond de la sc\xE8ne", "background night"),
-    fog: o("c?", ["brouillard"], "depth fog", "brouillard de profondeur", "fog"),
-    ground: o("c?", ["sol", "floor"], "adds a ground that receives shadows", "ajoute un sol qui re\xE7oit les ombres", "ground"),
-    immediate: o("", ["immediat"], "starts the 3D without waiting for a first gesture", "d\xE9marre la 3D sans attendre un premier geste", "immediate"),
-    particles: o("m?n?", ["particules"], "ambient particles", "particules d'ambiance", "particles stars", ["stars", "snow", "bubbles", "dust", "confetti"])
-  },
-  light: {},
-  camera: { distance: o("n", [], "camera distance", "recul de la cam\xE9ra", "distance 6") },
-  sound: {
-    loop: o("", ["boucle"], "plays in a loop", "joue en boucle", "loop"),
-    volume: o("n", [], "volume from 0 to 1", "volume de 0 \xE0 1", "volume 0.4")
-  }
-};
-ELEMENT_OPTIONS.character = { ...ELEMENT_OPTIONS.object, animation: o("t", ["anime"], "animation played at start", "animation jou\xE9e au d\xE9part", 'animation "idle"') };
-ELEMENT_OPTIONS.subtitle = ELEMENT_OPTIONS.title;
-var MOTIONS = {
-  spin: o("*", [], "spins: spin, spin 90/s, spin on scroll, spin x", "tourne sur lui-m\xEAme : tourne, tourne 90/s, tourne au defilement", "spin on scroll"),
-  float: o("*", [], "floats gently: float, float 0.3", "flotte doucement", "float"),
-  jump: o("*", [], "jumps (once as an action, otherwise regularly)", "saute (une fois en action, sinon r\xE9guli\xE8rement)", "on click -> jump"),
-  pulse: o("*", [], "grows and shrinks rhythmically", "grossit et r\xE9tr\xE9cit en rythme", "pulse"),
-  sway: o("*", [], "sways left and right", "se balance de gauche \xE0 droite", "sway"),
-  "follows-mouse": o("*", [], "reacts to the mouse: follows mouse, smooth", "r\xE9agit \xE0 la souris : suit souris, doux", "follows mouse, smooth"),
-  "enters-from": o("*", [], "entrance: left, right, top, bottom, fade, zoom", "apparition : gauche, droite, haut, bas, fondu, zoom", "enters from left"),
-  parallax: o("*", [], "moves faster or slower than the scroll", "bouge plus ou moins vite que le d\xE9filement", "parallax 0.3"),
-  says: o("*", [], "speech bubble", "bulle de dialogue", 'says "Hi!"'),
-  play: o("*", [], "plays a named animation", "joue une animation nomm\xE9e", 'play "dance"')
-};
-var MOTION_WORDS = /* @__PURE__ */ new Set(["smooth", "fast", "slow", "x", "y", "z", "on", "scroll", "left", "right", "top", "bottom", "fade", "zoom", "reverse", "loop", "once"]);
-var LIGHTS = ["studio", "soft", "sunset", "night", "neon", "day", "dramatic"];
-var CAMERAS = ["fixed", "follows-mouse", "fly", "free", "orbit"];
-var TRANSITIONS = ["fade", "slide", "zoom", "curtain", "none"];
-var e = (tag, kind, help, helpFr, example) => ({ tag, kind, help, helpFr, example });
-var ELEMENTS = {
-  section: e("section", "container", "a part of the page", "une partie de la page", "section flavors"),
-  header: e("header", "container", "site header", "en-t\xEAte du site", "header"),
-  footer: e("footer", "container", "page footer", "pied de page", "footer"),
-  nav: e("nav", "container", "navigation", "navigation", "nav"),
-  grid: e("div", "container", "grid of columns", "grille de colonnes", "grid 3 columns, gap 24"),
-  column: e("div", "container", "stacks its children vertically", "empile ses enfants verticalement", "column gap 12"),
-  row: e("div", "container", "puts its children side by side", "aligne ses enfants c\xF4te \xE0 c\xF4te", "row gap 12"),
-  box: e("div", "container", "simple container", "conteneur simple", "box padding 24"),
-  card: e("article", "container", "card (image + text)", "carte (image + texte)", 'card "Strawberry" "strawberry.png"'),
-  title: e("h1", "text", "main heading", "titre principal", 'title "Hello", size 64'),
-  subtitle: e("h2", "text", "secondary heading", "titre secondaire", 'subtitle "Our flavors"'),
-  text: e("p", "text", "paragraph", "paragraphe", 'text "Welcome {name}"'),
-  image: e("img", "media", "image", "image", 'image "photo.jpg", radius 16'),
-  video: e("video", "media", "video", "vid\xE9o", 'video "film.mp4", autoplay, loop'),
-  link: e("a", "text", "link", "lien", 'link "Contact" "/contact"'),
-  links: e("nav", "special", "menu of links", "menu de liens", "links Home, Flavors, Shop"),
-  logo: e("a", "special", "logo linking to the home page", "logo cliquable vers l'accueil", 'logo "crush.svg"'),
-  button: e("button", "text", "button", "bouton", 'button "Buy" -> cart.add can'),
-  form: e("form", "container", "form (-> action on submit)", "formulaire (-> action \xE0 l'envoi)", 'form -> send "/api", { email }'),
-  field: e("input", "field", "input bound to a state", "champ de saisie li\xE9 \xE0 un \xE9tat", 'field email "Your email", type email'),
-  textarea: e("textarea", "field", "multi-line text area", "zone de texte", 'textarea message "Your message"'),
-  select: e("select", "field", "dropdown list", "liste d\xE9roulante", 'select size "S", "M", "L"'),
-  checkbox: e("input", "field", "checkbox", "case \xE0 cocher", 'checkbox agree "I agree"'),
-  list: e("ul", "container", "bulleted list", "liste \xE0 puces", "list"),
-  item: e("li", "text", "list item", "ligne d'une liste", 'item "Free delivery"'),
-  icon: e("span", "text", "icon (emoji or character)", "ic\xF4ne (emoji ou caract\xE8re)", 'icon "\u2605"'),
-  divider: e("hr", "special", "separator line", "ligne de s\xE9paration", "divider"),
-  spacer: e("div", "special", "empty space", "espace vide", "spacer 48"),
-  markdown: e("div", "text", "Markdown text rendered as rich text (titles, lists, links)", "texte Markdown affich\xE9 en texte riche (titres, listes, liens)", "markdown post.body"),
-  slot: e("div", "special", "inside a component: where the content given between its lines goes", "dans un composant : l\xE0 o\xF9 va le contenu donn\xE9 entre ses lignes", "slot"),
-  scene: e("div", "immersion", "2D or 3D immersive area", "zone immersive 2D ou 3D", "scene"),
-  object: e("div", "immersion", "object .glb, .gltf, .png, .svg, .json (Lottie)", "objet .glb, .gltf, .png, .svg, .json (Lottie)", 'object can "crush.glb"'),
-  character: e("div", "immersion", "animated object with named animations", "objet anim\xE9 avec animations nomm\xE9es", 'character "mascot.glb"'),
-  sound: e("audio", "immersion", "sound or music, with a mute button", "son ou musique, avec bouton muet", 'sound "ambient.mp3", loop')
-};
-var SETTINGS = /* @__PURE__ */ new Set(["style", "mobile", "tablet", "desktop", "seo", "colors", "font", "fonts", "lang", "favicon", "url", "light", "camera", "transition"]);
-var EVENTS = /* @__PURE__ */ new Set(["on-click", "on-hover", "on-scroll", "on-load"]);
-var STYLE_ALIASES = /* @__PURE__ */ new Map();
-for (const [name, s] of Object.entries(STYLES)) {
-  STYLE_ALIASES.set(name, name);
-  for (const a of s.aliases ?? []) STYLE_ALIASES.set(a, name);
-}
-function styleOption(word) {
-  return STYLE_ALIASES.get(stripAccents(word));
-}
-function elementOption(head, word) {
-  const table = ELEMENT_OPTIONS[head];
-  if (!table) return void 0;
-  const w = stripAccents(word);
-  for (const [name, s] of Object.entries(table)) {
-    if (name === w || (s.aliases ?? []).includes(w)) return name;
-  }
-  return void 0;
-}
-function optionSpec(head, name) {
-  return ELEMENT_OPTIONS[head]?.[name] ?? STYLES[name];
-}
-function allOptions(head) {
-  return [...Object.keys(ELEMENT_OPTIONS[head] ?? {}), ...Object.keys(STYLES)];
-}
 
 // src/core/globals.ts
 var globals_exports = {};
@@ -1898,6 +2046,7 @@ var KAURY_FUNCTIONS = {
   price: g("price", 'formats a price: price 12.5 \u2192 "CHF 12.50"', ["prix", "money"]),
   "format-date": g("formatDate", "formats a date: format-date now()", []),
   shuffle: g("shuffle", "shuffles a list", ["melange"]),
+  "image-size": g("imageSize", 'real size of an image of the site: image-size "photo.jpg" \u2192 { width, height }', ["taille-image"]),
   range: g("range", "list of numbers: range 1, 5", ["intervalle"]),
   every: g("every", "repeats an action: every 2s, -> count += 1", ["repete", "repeat"]),
   later: g("later", "delayed action: later 1s, -> close menu", ["plus-tard"]),
@@ -1906,7 +2055,9 @@ var KAURY_FUNCTIONS = {
   confetti: g("confetti", "throws confetti on the screen", ["confettis"]),
   vibrate: g("vibrate", "makes the phone vibrate", ["vibre"]),
   "scroll-to": g("scrollTo", 'scrolls to a section: scroll-to "flavors"', ["defile"]),
-  share: g("share", "opens the phone share sheet", ["partage"])
+  share: g("share", "opens the phone share sheet", ["partage"]),
+  "json-ld": g("jsonLd", 'structured data for Google and AIs, given to head: head json-ld { "@type": "FAQPage" }', ["donnees-structurees"]),
+  slug: g("slug", 'text \u2192 address-friendly form: slug "Hello world" \u2192 "hello-world"', [])
 };
 var KAURY_VALUES = {
   mouse: g("mouse", "mouse position: mouse.x, mouse.y (from -1 to 1)", ["souris"]),
@@ -2066,7 +2217,7 @@ var Scope = class {
   find(name) {
     return this.names.get(name) ?? this.parent?.find(name);
   }
-  /** Scope that receives implicit declarations (« x = 3 » without let/state). */
+  /** Scope that receives implicit declarations (“x = 3” without let/state). */
   host() {
     let s = this;
     while (s.kind === "block" && s.parent) s = s.parent;
@@ -2091,14 +2242,18 @@ function check(program, options = {}) {
   return { errors: c.errors, warnings: c.warnings, info: c.info };
 }
 var NAMED_CONTAINERS = ["section", "box", "grid", "row", "column", "scene", "card", "form", "list", "header", "footer", "nav"];
+var ALWAYS_NAMED = ["section", "scene", "header", "footer", "nav"];
 var FIELD_HEADS = ["field", "textarea", "select", "checkbox"];
-var CONTENT_HEADS = /* @__PURE__ */ new Set(["title", "subtitle", "text", "item", "icon", "button", "link", "image", "video", "card", "logo", "markdown"]);
-var SITE_SETTINGS = ["colors", "font", "fonts", "lang", "favicon", "url", "seo", "style", "transition", "mobile", "tablet", "desktop", "sound"];
+var CONTENT_HEADS = /* @__PURE__ */ new Set(["title", "subtitle", "text", "item", "icon", "button", "link", "image", "video", "card", "logo", "markdown", "details", "embed"]);
+var SITE_SETTINGS = ["colors", "font", "fonts", "lang", "favicon", "url", "seo", "style", "transition", "head", "base", "mobile", "tablet", "desktop", "sound"];
 var Checker = class {
   errors = [];
   warnings = [];
   info = { pages: [], components: [], immersion: false, threeD: false, lottie: false, colors: {}, exports: [] };
   components = /* @__PURE__ */ new Set();
+  /** named styles: style promise (indented options) → used as “column promise” */
+  namedStyles = /* @__PURE__ */ new Set();
+  namedAnimations = /* @__PURE__ */ new Set();
   err(pos, what, fix) {
     this.errors.push(new KauryError(pos, what, fix));
   }
@@ -2132,10 +2287,11 @@ var Checker = class {
     for (const i of body) {
       if (i.k === "command" && i.head === "colors") {
         for (const it of i.items) {
-          const [n, c] = it.atoms;
+          let [n, c] = it.atoms;
+          if (n?.k === "binary" && n.op === "-" && n.l.k === "name" && n.r.k === "number") n = { k: "name", name: `${n.l.name}-${n.r.v}`, pos: n.pos };
           if (n?.k === "name" && c?.k === "color") this.info.colors[n.name] = c.v;
           else if (n?.k === "name" && c?.k === "name" && knownColor(c.name)) this.info.colors[n.name] = `var(--k-${knownColor(c.name)})`;
-          else this.err(it.pos, msg("each color is written \xAB name #code \xBB.", "chaque couleur s'\xE9crit \xAB nom #code \xBB."), "colors pink #FF4F8B, cream #FFF4E8");
+          else this.err(it.pos, msg("each color is written \u201Cname #code\u201D.", "chaque couleur s'\xE9crit \xAB nom #code \xBB."), "colors pink #FF4F8B, cream #FFF4E8");
         }
       }
     }
@@ -2148,6 +2304,12 @@ var Checker = class {
           this.declare(s, i.name, "function", i.pos);
           if (i.exported) this.info.exports.push(i.name);
           break;
+        case "style-def":
+          if (!(i.name in ELEMENTS) && i.name !== "emphasis") this.namedStyles.add(i.name);
+          break;
+        case "animation-def":
+          this.namedAnimations.add(i.name);
+          break;
         case "component":
           this.declare(s, i.name, "component", i.pos);
           this.components.add(i.name);
@@ -2157,7 +2319,8 @@ var Checker = class {
         case "import":
           for (const n of [i.default, i.all, ...(i.names ?? []).map((x) => x.alias ?? x.name)]) {
             if (n) {
-              this.declare(s, n, new RegExp("^\\p{Lu}", "u").test(n) && i.source.endsWith(".kaury") ? "component" : "import", i.pos);
+              const b = this.declare(s, n, new RegExp("^\\p{Lu}", "u").test(n) && i.source.endsWith(".kaury") ? "component" : "import", i.pos);
+              if (/(\*|\.(md|mdx|mdoc|markdown|ya?ml)$)/i.test(i.source)) b.collection = true;
               if (new RegExp("^\\p{Lu}", "u").test(n)) this.components.add(n);
             }
           }
@@ -2178,7 +2341,7 @@ var Checker = class {
       this.err(
         pos,
         msg(`${q(name)} is already declared on line ${prev.pos.line}.`, `${q(name)} est d\xE9j\xE0 d\xE9clar\xE9 ligne ${prev.pos.line}.`),
-        msg(`to change its value, just write \xAB ${name} = \u2026 \xBB.`, `pour changer sa valeur, \xE9cris simplement \xAB ${name} = \u2026 \xBB.`)
+        msg(`to change its value, just write \u201C${name} = \u2026\u201D.`, `pour changer sa valeur, \xE9cris simplement \xAB ${name} = \u2026 \xBB.`)
       );
     }
     const b = { kind, name, pos };
@@ -2218,6 +2381,11 @@ var Checker = class {
             i.declares = b;
           }
         }
+        if (i.k === "toggle" && i.target.k === "name" && !s.find(i.target.name) && !explicit.has(i.target.name) && host.isView()) {
+          const b = this.declare(host, i.target.name, "state", i.pos);
+          b.mutated = true;
+          i.declares = b;
+        }
         if (i.k === "if") {
           walk(i.then);
           i.elifs.forEach((x) => walk(x.body));
@@ -2256,8 +2424,8 @@ var Checker = class {
             if (b.kind === "const" || b.kind === "derived") {
               this.err(
                 i.pos,
-                msg(`${q(i.target.name)} is declared with \xAB let \xBB: its value is fixed.`, `${q(i.target.name)} est d\xE9clar\xE9 avec \xAB soit \xBB : sa valeur est fixe.`),
-                msg(`declare it with \xAB state ${i.target.name} = \u2026 \xBB to be able to change it.`, `d\xE9clare-le avec \xAB etat ${i.target.name} = \u2026 \xBB pour pouvoir le changer.`)
+                msg(`${q(i.target.name)} is declared with \u201Clet\u201D: its value is fixed.`, `${q(i.target.name)} est d\xE9clar\xE9 avec \xAB soit \xBB : sa valeur est fixe.`),
+                msg(`declare it with \u201Cstate ${i.target.name} = \u2026\u201D to be able to change it.`, `d\xE9clare-le avec \xAB etat ${i.target.name} = \u2026 \xBB pour pouvoir le changer.`)
               );
             } else if (b.kind === "function" || b.kind === "component") {
               this.err(
@@ -2320,6 +2488,13 @@ var Checker = class {
       case "break":
       case "continue":
       case "js":
+      case "css":
+        break;
+      case "style-def":
+        for (const r of i.rules) this.command(r, s, r.part && r.part in ELEMENTS ? r.part : i.name in ELEMENTS ? i.name : "box");
+        break;
+      case "animation-def":
+        for (const r of i.frames) this.command(r, s, "box");
         break;
       case "return":
         if (i.value) this.expr(i.value, s);
@@ -2328,6 +2503,10 @@ var Checker = class {
         this.expr(i.e, s);
         break;
       case "toggle":
+        if (i.declares && i.target.k === "name") {
+          i.target.binding = i.declares;
+          break;
+        }
         this.expr(i.target, s);
         if (i.target.k === "name" && i.target.binding) i.target.binding.mutated = true;
         break;
@@ -2363,7 +2542,7 @@ var Checker = class {
           if (c.k !== "command" || !SITE_SETTINGS.includes(c.head)) {
             this.err(
               c.pos,
-              msg("\xAB site \xBB only holds settings: colors, font, lang, favicon, url, seo, style, transition.", "dans \xAB site \xBB, on ne met que des r\xE9glages : couleurs, police, langue, favicon, adresse, seo, style, transition."),
+              msg("\u201Csite\u201D only holds settings: colors, font, lang, favicon, url, seo, style, transition, head, base.", "dans \xAB site \xBB, on ne met que des r\xE9glages : couleurs, police, langue, favicon, adresse, seo, style, transition, head, base."),
               msg('move this element into a page "/".', 'd\xE9place cet \xE9l\xE9ment dans une page "/".')
             );
             continue;
@@ -2390,7 +2569,7 @@ var Checker = class {
       switch (x.k) {
         case "name": {
           const b = x.binding ?? s.find(x.name);
-          if (b && (b.kind === "state" || b.kind === "derived" || b.kind === "prop")) yes = true;
+          if (b && (b.kind === "state" || b.kind === "derived" || b.kind === "prop" || b.collection)) yes = true;
           if (!b && ["mouse", "scroll", "screen", "route"].includes(kauryGlobal(x.name) ?? "")) yes = true;
           break;
         }
@@ -2580,7 +2759,7 @@ var Checker = class {
         this.err(
           { ...c.pos, length: head.length },
           msg(`the component ${q(head)} does not exist.`, `le composant ${q(head)} n'existe pas.`),
-          sug ? msg(`did you mean ${q(sug)}?`, `tu voulais dire ${q(sug)} ?`) : msg(`create it with \xAB component ${head} \u2026 \xBB or import it: import ${head} from "./${head.toLowerCase()}.kaury"`, `cr\xE9e-le avec \xAB composant ${head} \u2026 \xBB ou importe-le : importe ${head} de "./${head.toLowerCase()}.kaury"`)
+          sug ? msg(`did you mean ${q(sug)}?`, `tu voulais dire ${q(sug)} ?`) : msg(`create it with \u201Ccomponent ${head} \u2026\u201D or import it: import ${head} from "./${head.toLowerCase()}.kaury"`, `cr\xE9e-le avec \xAB composant ${head} \u2026 \xBB ou importe-le : importe ${head} de "./${head.toLowerCase()}.kaury"`)
         );
       } else b.used = true;
       const positional2 = [];
@@ -2590,6 +2769,10 @@ var Checker = class {
       }
       c.meaning = { kind: "component", positional: positional2, options: [] };
       this.children(c, s);
+      return;
+    }
+    if (head === "colors") {
+      c.meaning = { kind: "setting", positional: [], options: [] };
       return;
     }
     const isMotion = !!MOTIONS[head];
@@ -2617,6 +2800,15 @@ var Checker = class {
         continue;
       }
       let opt = word ? elementOption(optionHead, word) ?? (kind !== "motion" && kind !== "event" && kind !== "setting" ? styleOption(word) : void 0) : void 0;
+      const sectionName = ALWAYS_NAMED.includes(head) && it === c.items[0];
+      if (word && a.length === 1 && this.namedStyles.has(word) && !s.find(word) && kind !== "setting" && !sectionName) {
+        options.push({ name: "look", values: [{ k: "text", parts: ["ks-" + word], pos: it.pos }], pos: it.pos });
+        continue;
+      }
+      if (word && a.length === 1 && this.namedAnimations.has(word) && !s.find(word) && kind !== "setting" && !sectionName) {
+        options.push({ name: "look", values: [{ k: "text", parts: ["ka-" + word], pos: it.pos }], pos: it.pos });
+        continue;
+      }
       const firstContent = it === c.items[0] && CONTENT_HEADS.has(head);
       if (opt && word && a.length === 1 && s.find(word) && (firstContent || (optionSpec(optionHead, opt)?.args ?? "").replace(/\?/g, "").length > 0)) opt = void 0;
       if (opt) {
@@ -2627,7 +2819,7 @@ var Checker = class {
         if (opt === "hover" && values.length) {
           const v0 = values[0];
           const sub = v0.k === "name" ? styleOption(v0.name) : void 0;
-          if (!sub) this.err(it.pos, msg("\xAB hover \xBB must be followed by a style.", "\xAB survol \xBB doit \xEAtre suivi d'un style."), "hover lift 4   /   hover background pink");
+          if (!sub) this.err(it.pos, msg("\u201Chover\u201D must be followed by a style.", "\xAB survol \xBB doit \xEAtre suivi d'un style."), "hover lift 4   /   hover background pink");
           else {
             options.pop();
             options.push({ name: `hover:${sub}`, values: values.slice(1), pos: it.pos });
@@ -2645,6 +2837,10 @@ var Checker = class {
       }
       if (kind !== "setting" && kind !== "motion" && a.length === 1 && (a0.k === "color" || word && !s.find(word) && (this.info.colors[word] || knownColor(word)))) {
         options.push({ name: inHover ? "hover:tint" : "tint", values: [a0], pos: it.pos });
+        continue;
+      }
+      if (word && ALWAYS_NAMED.includes(head) && it === c.items[0] && a.length === 1 && !objectName) {
+        objectName = word;
         continue;
       }
       if (word && !s.find(word) && !kauryGlobal(word) && !JS_GLOBALS.has(word)) {
@@ -2709,6 +2905,7 @@ var Checker = class {
   }
   checkValue(x, s) {
     if (x.k === "name" && !s.find(x.name) && !kauryGlobal(x.name) && !JS_GLOBALS.has(x.name)) return;
+    if (x.k === "binary" && x.op === "-" && x.l.k === "name" && x.r.k === "number" && !s.find(x.l.name) && this.info.colors[`${x.l.name}-${x.r.v}`]) return;
     this.expr(x, s);
   }
   checkOption(head, opt, values, pos) {
@@ -2735,7 +2932,7 @@ var Checker = class {
       this.err(
         pos,
         msg(`${q(opt)} does not accept ${q(v0.name)}.`, `${q(opt)} n'accepte pas ${q(v0.name)}.`),
-        sug ? msg(`did you mean \xAB ${opt} ${sug} \xBB?`, `tu voulais dire \xAB ${opt} ${sug} \xBB ?`) : msg(`possible values: ${spec.words.join(", ")}`, `valeurs possibles : ${spec.words.join(", ")}`)
+        sug ? msg(`did you mean \u201C${opt} ${sug}\u201D?`, `tu voulais dire \xAB ${opt} ${sug} \xBB ?`) : msg(`possible values: ${spec.words.join(", ")}`, `valeurs possibles : ${spec.words.join(", ")}`)
       );
     }
   }
@@ -2749,7 +2946,7 @@ var Checker = class {
         if (!n) this.err(c.pos, msg(`${q(c.rawHead)} needs its file.`, `${q(c.rawHead)} a besoin de son fichier.`), `${c.rawHead} "photo.jpg"`);
         break;
       case "link":
-        if (!n) this.err(c.pos, msg("\xAB link \xBB needs a text and an address.", "\xAB lien \xBB a besoin d'un texte et d'une adresse."), 'link "Contact" "/contact"');
+        if (!n) this.err(c.pos, msg("\u201Clink\u201D needs a text and an address.", "\xAB lien \xBB a besoin d'un texte et d'une adresse."), 'link "Contact" "/contact"');
         break;
       case "object":
       case "character": {
@@ -2757,13 +2954,13 @@ var Checker = class {
         const src = m.positional[0];
         if (src?.k === "text" && src.parts.length === 1 && typeof src.parts[0] === "string") {
           const f = src.parts[0].toLowerCase();
-          if (/\.(glb|gltf)(\?|$)/.test(f)) this.info.threeD = true;
+          if (/\.(glb|gltf)(\?|$)/.test(f) || /^(sphere|cube|torus|knot|cone|cylinder|capsule|gem|pyramid|tore|noeud|cylindre|gemme|pyramide)$/.test(f)) this.info.threeD = true;
           else if (/\.(json|lottie)(\?|$)/.test(f)) this.info.lottie = true;
           else if (!/\.(png|jpe?g|webp|avif|gif|svg)(\?|$)/.test(f)) {
             this.err(
               src.pos,
               msg(`unknown file format for ${q(c.rawHead)}.`, `format de fichier non reconnu pour ${q(c.rawHead)}.`),
-              msg("accepted formats: .glb, .gltf (3D), .png, .jpg, .webp, .svg (2D), .json (Lottie).", "formats accept\xE9s : .glb, .gltf (3D), .png, .jpg, .webp, .svg (2D), .json (Lottie).")
+              msg("accepted: a shape (sphere, cube, torus, knot, cone, cylinder, capsule, gem, pyramid), .glb, .gltf (3D), .png, .jpg, .webp, .svg (2D), .json (Lottie).", "accept\xE9s : une forme (sphere, cube, tore, noeud, cone, cylindre, capsule, gemme, pyramide), .glb, .gltf (3D), .png, .jpg, .webp, .svg (2D), .json (Lottie).")
             );
           }
         } else if (src) this.info.threeD = true;
@@ -2776,7 +2973,7 @@ var Checker = class {
           this.err(
             c.pos,
             msg(`unknown light${w ? ` ${q(w)}` : ""}.`, `lumi\xE8re inconnue${w ? ` ${q(w)}` : ""}.`),
-            sug ? msg(`did you mean \xAB light ${sug} \xBB?`, `tu voulais dire \xAB lumiere ${sug} \xBB ?`) : msg(`moods: ${LIGHTS.join(", ")}`, `ambiances : ${LIGHTS.join(", ")}`)
+            sug ? msg(`did you mean \u201Clight ${sug}\u201D?`, `tu voulais dire \xAB lumiere ${sug} \xBB ?`) : msg(`moods: ${LIGHTS.join(", ")}`, `ambiances : ${LIGHTS.join(", ")}`)
           );
         }
         break;
@@ -2792,16 +2989,16 @@ var Checker = class {
         break;
       }
       case "enters-from":
-        if (!m.options.length && !m.positional.length) this.err(c.pos, msg("\xAB enters from \xBB expects a direction.", "\xAB entre depuis \xBB attend une direction."), "enters from left   (left, right, top, bottom, fade, zoom)");
+        if (!m.options.length && !m.positional.length) this.err(c.pos, msg("\u201Centers from\u201D expects a direction.", "\xAB entre depuis \xBB attend une direction."), "enters from left   (left, right, top, bottom, fade, zoom)");
         break;
       case "spin": {
         const v = m.positional[0];
-        if (v && v.k === "name" && !v.binding) this.err(v.pos, msg("\xAB spin \xBB expects a speed.", "\xAB tourne \xBB attend une vitesse."), "spin 20/s  /  spin on scroll");
+        if (v && v.k === "name" && !v.binding) this.err(v.pos, msg("\u201Cspin\u201D expects a speed.", "\xAB tourne \xBB attend une vitesse."), "spin 20/s  /  spin on scroll");
         break;
       }
     }
     if (m.kind === "event" && !c.action) {
-      this.err(c.pos, msg(`${q(c.head.replace("-", " "))} must be followed by an action with \xAB -> \xBB.`, `${q(c.rawHead)} doit \xEAtre suivi d'une action avec \xAB -> \xBB.`), "on click -> jump");
+      this.err(c.pos, msg(`${q(c.head.replace("-", " "))} must be followed by an action with \u201C->\u201D.`, `${q(c.rawHead)} doit \xEAtre suivi d'une action avec \xAB -> \xBB.`), "on click -> jump");
     }
     if ((m.kind === "style" || m.kind === "screen") && !parent && c.children.length === 0 && m.options.length === 0) {
       this.err(c.pos, msg(`empty ${q(c.rawHead)}.`, `${q(c.rawHead)} vide.`), "style background cream, radius 12");
@@ -2843,10 +3040,13 @@ function literal(e2, siteColors) {
       return canon(e2.name) ?? canonValue(e2.name);
     }
     case "unary":
-      if (e2.op === "-" && e2.e.k === "number") return -e2.e.v;
+      if (e2.op === "-" && e2.e.k === "number") return e2.e.unit && e2.e.unit !== "px" ? `-${e2.e.v}${e2.e.unit}` : -e2.e.v;
       return void 0;
     case "bool":
       return e2.v ? "true" : "false";
+    case "binary":
+      if (e2.op === "-" && e2.l.k === "name" && e2.r.k === "number" && siteColors[`${e2.l.name}-${e2.r.v}`]) return `var(--k-${e2.l.name}-${e2.r.v})`;
+      return void 0;
   }
   return void 0;
 }
@@ -2877,6 +3077,7 @@ var SHADOWS = {
   soft: "0 10px 30px -12px rgba(0,0,0,.18), 0 2px 6px rgba(0,0,0,.06)",
   medium: "0 18px 40px -14px rgba(0,0,0,.28), 0 4px 10px rgba(0,0,0,.08)",
   strong: "0 30px 60px -20px rgba(0,0,0,.45), 0 8px 18px rgba(0,0,0,.12)",
+  hard: "6px 6px 0 var(--k-text)",
   none: "none",
   inner: "inset 0 2px 8px rgba(0,0,0,.15)"
 };
@@ -2900,9 +3101,9 @@ function declarations(head, opt, vals, siteColors) {
     case "color":
       return { decl: [["color", v0 === void 0 ? "inherit" : String(v0)]] };
     case "font":
-      return { decl: [["font-family", `"${v0}", var(--k-font-fallback)`]] };
+      return { decl: [["font-family", fontFamily(String(v0))]] };
     case "size": {
-      if (typeof v0 === "number" && (head === "title" || head === "subtitle") && v0 > 36) {
+      if (typeof v0 === "number" && v0 > 36) {
         return { decl: [["font-size", `clamp(${Math.round(v0 * 0.48)}px, ${(v0 / 13).toFixed(2)}vw, ${v0}px)`]] };
       }
       return { decl: [["font-size", px(v0)]] };
@@ -2917,6 +3118,8 @@ function declarations(head, opt, vals, siteColors) {
       return { decl: [["font-style", "italic"]] };
     case "underline":
       return { decl: [["text-decoration", "underline"]] };
+    case "plain":
+      return { decl: [["text-decoration", "none"]] };
     case "uppercase":
       return { decl: [["text-transform", "uppercase"], ["letter-spacing", ".06em"]] };
     case "line-height":
@@ -2933,6 +3136,30 @@ function declarations(head, opt, vals, siteColors) {
       return { decl: [["border-radius", "999px"]] };
     case "shadow":
       return { decl: [["box-shadow", SHADOWS[String(v0 ?? "soft")] ?? (typeof v0 === "number" ? `0 ${v0}px ${v0 * 3}px -${v0}px rgba(0,0,0,.25)` : SHADOWS.soft)]] };
+    case "border-top":
+    case "border-bottom": {
+      const w = typeof v0 === "number" ? v0 : 1;
+      const c = vals.find((x) => typeof x === "string") ?? "currentColor";
+      return { decl: [[opt, `${w}px solid ${c}`]] };
+    }
+    case "pin": {
+      const d = [["position", "absolute"]];
+      for (let i = 0; i < vals.length; i++) {
+        const side = vals[i];
+        if (typeof side === "string" && ["top", "bottom", "left", "right"].includes(side)) {
+          const nx = vals[i + 1];
+          const off = typeof nx === "number" || typeof nx === "string" && /^-?[\d.]/.test(nx) ? (i++, nx) : 0;
+          d.push([side, px(off)]);
+        }
+      }
+      return { decl: d };
+    }
+    case "clip":
+      return { decl: [["overflow", "hidden"]] };
+    case "no-wrap":
+      return { decl: [["flex-wrap", "nowrap"], ["white-space", "nowrap"], ["width", "max-content!important"], ["max-width", "none!important"]] };
+    case "grain":
+      return { decl: [] };
     case "border": {
       const w = typeof v0 === "number" ? v0 : 1;
       const c = vals.find((x) => typeof x === "string") ?? "currentColor";
@@ -2943,7 +3170,7 @@ function declarations(head, opt, vals, siteColors) {
     case "padding":
       return { decl: [["padding", vals.map((x) => px(x)).join(" ")]] };
     case "gap":
-      return { decl: [["gap", px(v0)]] };
+      return { decl: [["gap", vals.map((x) => px(x)).join(" ")]] };
     case "width":
       return { decl: [["width", px(v0)], ["max-width", "100%"]] };
     case "height":
@@ -2972,13 +3199,14 @@ function declarations(head, opt, vals, siteColors) {
       return { decl: [["background", `linear-gradient(90deg, ${cols.join(", ")})`], ["-webkit-background-clip", "text"], ["background-clip", "text"], ["color", "transparent"]] };
     }
     case "columns":
+      if (vals.length > 1) return { decl: [["--k-columns", String(vals.length)], ["grid-template-columns", vals.map((v) => `minmax(0, ${v}fr)`).join(" ")]] };
       return { decl: [["--k-columns", String(v0)], ["grid-template-columns", `repeat(${v0}, minmax(0, 1fr))`]] };
     case "direction":
       return { decl: [["display", "flex"], ["flex-direction", v0 === "row" ? "row" : "column"]] };
     case "hidden":
       return { decl: [["display", "none"]] };
     case "sticky":
-      return { decl: [["position", "sticky"], ["top", "0"], ["z-index", "50"]] };
+      return { decl: [["position", "sticky"], ["top", px(v0 ?? 0)], ["z-index", "50"]] };
     case "front":
       return { decl: [["position", "relative"], ["z-index", "10"]] };
     case "cursor": {
@@ -2991,6 +3219,12 @@ function declarations(head, opt, vals, siteColors) {
       return { decl: [], transform: `scale(${v0 ?? 1.05})` };
     case "tilt":
       return { decl: [], transform: `rotate(${v0 ?? 2}deg)` };
+    case "move":
+      return { decl: [], transform: `translate(${px(v0)}, ${px(vals[1])})` };
+    case "reveal": {
+      const p = typeof v0 === "number" ? v0 : parseFloat(String(v0 ?? 100));
+      return { decl: [["clip-path", `inset(0 0 ${100 - p}% 0)`]] };
+    }
     case "animate":
       return { decl: [["animation", `k-${v0} .8s cubic-bezier(.2,.7,.2,1) both`]] };
   }
@@ -3035,10 +3269,22 @@ var FONTSHARE = /* @__PURE__ */ new Set([
   "Nippo",
   "Hoover"
 ]);
-var SYSTEM_FONTS = /* @__PURE__ */ new Set(["system-ui", "serif", "sans-serif", "monospace", "Arial", "Helvetica", "Georgia", "Times New Roman"]);
+var SYSTEM_FONTS = /* @__PURE__ */ new Set(["system-ui", "serif", "sans-serif", "monospace", "mono", "sans", "system", "Arial", "Helvetica", "Georgia", "Times New Roman"]);
+var SYSTEM_STACKS = {
+  mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
+  monospace: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
+  serif: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
+  sans: "var(--k-font-fallback)",
+  "sans-serif": "var(--k-font-fallback)",
+  system: "var(--k-font-fallback)",
+  "system-ui": "var(--k-font-fallback)"
+};
+function fontFamily(name) {
+  return SYSTEM_STACKS[name.toLowerCase()] ?? `"${name}", var(--k-font-fallback)`;
+}
 function fontUrl(name) {
   if (SYSTEM_FONTS.has(name)) return void 0;
-  if (FONTSHARE.has(name)) return `https://api.fontshare.com/v2/css?f[]=${name.toLowerCase().replace(/ /g, "-")}@300,400,500,600,700&display=swap`;
+  if (FONTSHARE.has(name)) return `https://api.fontshare.com/v2/css?f[]=${name.toLowerCase().replace(/ /g, "-")}@300,400,500,600,700,800,900&display=swap`;
   return `https://fonts.googleapis.com/css2?family=${name.replace(/ /g, "+")}:wght@300;400;500;600;700;800&display=swap`;
 }
 
@@ -3136,7 +3382,16 @@ var NON_STYLE = /* @__PURE__ */ new Set([
   "distance",
   "volume",
   "animation",
-  "immediate"
+  "immediate",
+  "class",
+  "look",
+  "tag",
+  "attr",
+  "id",
+  "html",
+  "selected",
+  "current",
+  "open"
 ]);
 var DYNAMIC_PROP = {
   background: "background",
@@ -3153,6 +3408,40 @@ var DYNAMIC_PROP = {
 };
 var PX_UNIT = /* @__PURE__ */ new Set(["size", "width", "height", "radius", "margin", "padding", "gap"]);
 var TEXT_HEADS2 = /* @__PURE__ */ new Set(["title", "subtitle", "text", "link", "icon", "item"]);
+var ELEMENT_SELECTOR = {
+  header: ".k-section-header,.k-header",
+  emphasis: "em",
+  links: ".k-links",
+  link: ".k-link"
+};
+var PART_SELECTOR = {
+  title: ".k-title,h1,h2,h3,h4",
+  subtitle: ".k-subtitle",
+  text: ".k-text,p",
+  link: "a",
+  image: "img",
+  button: ".k-button",
+  icon: ".k-icon",
+  code: ":not(pre)>code",
+  block: "pre",
+  list: "ul,ol",
+  item: "li",
+  table: "table",
+  cell: "th,td",
+  quote: "blockquote",
+  summary: "summary",
+  emphasis: "em",
+  logo: ".k-logo"
+};
+var STATE_SELECTOR = {
+  selected: '[aria-selected="true"]',
+  current: '[aria-current="page"]',
+  open: "[open]",
+  focus: ":focus-visible",
+  pressed: ":active",
+  disabled: ":disabled",
+  checked: ":checked"
+};
 var MEDIA = {
   mobile: "@media (max-width: 640px)",
   tablet: "@media (min-width: 641px) and (max-width: 1024px)",
@@ -3175,6 +3464,7 @@ var Generator = class {
   classes = 0;
   css = [];
   fonts = /* @__PURE__ */ new Set();
+  assets = [];
   site = {};
   prefix;
   declared = /* @__PURE__ */ new Set();
@@ -3229,7 +3519,8 @@ var Generator = class {
       css,
       map: this.sources.map((s, g2) => ({ generated: g2 + 1, source: s })),
       fonts: [...this.fonts],
-      site: this.site
+      site: this.site,
+      assets: this.assets
     };
   }
   importStmt(i) {
@@ -3237,6 +3528,10 @@ var Generator = class {
     if (i.default) parts.push(jsName(i.default));
     if (i.names) parts.push(`{ ${i.names.map((n) => n.alias ? `${jsKey(n.name)} as ${jsName(n.alias)}` : jsName(n.name)).join(", ")} }`);
     if (i.all) parts.push(`* as ${jsName(i.all)}`);
+    if (!parts.length && /\.(css|js|mjs|ts)$/.test(i.source)) {
+      this.assets.push(i.source);
+      return;
+    }
     if (i.source.endsWith(".kaury") && i.default && new RegExp("^\\p{Lu}", "u").test(i.default) && !i.names) {
       this.emit(`import { ${jsName(i.default)} } from ${JSON.stringify(i.source)}`, i.pos);
       return;
@@ -3260,8 +3555,8 @@ var Generator = class {
         case "fonts": {
           const names = p0.map((x) => literal(x, {})).filter((x) => typeof x === "string");
           names.forEach((n) => this.fonts.add(n));
-          if (names[0]) this.css.push(`:root{--k-font:"${names[0]}", var(--k-font-fallback)}`);
-          if (names[1]) this.css.push(`:root{--k-font-titles:"${names[1]}", var(--k-font-fallback)}`);
+          if (names[0]) this.css.push(`:root{--k-font:${fontFamily(names[0])}}`);
+          if (names[1]) this.css.push(`:root{--k-font-titles:${fontFamily(names[1])}}`);
           break;
         }
         case "lang":
@@ -3273,6 +3568,14 @@ var Generator = class {
           break;
         case "favicon":
           props.push(`favicon: ${this.exPath(p0[0])}`);
+          break;
+        case "base": {
+          const v = p0[0];
+          this.site.base = v?.k === "none" ? "none" : String(v?.k === "name" ? v.name : literal(v, {}) ?? "default");
+          break;
+        }
+        case "head":
+          props.push(`head: [${p0.map((x) => this.ex(x)).join(", ")}].join("")`);
           break;
         case "seo":
           props.push(`seo: ${this.seo(c)}`);
@@ -3289,6 +3592,16 @@ var Generator = class {
       }
     }
     if (rules.length) {
+      const THEME = { radius: "--k-radius", "max-width": "--k-width", gap: "--k-gap" };
+      for (const r of rules) {
+        if (!r.meaning) continue;
+        r.meaning.options = r.meaning.options.filter((o2) => {
+          const v = THEME[o2.name] ? literal(o2.values[0], this.info.colors) : void 0;
+          if (v === void 0) return true;
+          this.css.push(`:root{${THEME[o2.name]}:${typeof v === "number" ? v + "px" : v}}`);
+          return false;
+        });
+      }
       this.styleRules("body", "site", rules);
       for (const r of rules) {
         if (r.head !== "style") continue;
@@ -3326,10 +3639,23 @@ var Generator = class {
     for (const p of params) this.emit(`const ${jsName(p)} = $route.params[${JSON.stringify(p)}]`);
     if (item) this.emit(item);
     const root = this.fresh("page");
-    this.emit(`const ${root} = $k.h($root, "main", "k-page")`);
+    let rootTag = "main";
+    let rootClass = "k-page";
+    const wrap = i.body.find((x) => x.k === "command" && x.head === "wrapper");
+    if (wrap) {
+      const [t, c] = wrap.meaning.positional.map((x) => literal(x, {}));
+      if (typeof t === "string" && /^[a-z][a-z0-9-]*$/.test(t)) rootTag = t;
+      const w0 = wrap.meaning.positional[0];
+      if (w0?.k === "none" || w0?.k === "name" && canonValue(w0.name) === "none") rootTag = "";
+      if (typeof c === "string") rootClass = c;
+    }
+    if (rootTag) this.emit(`const ${root} = $k.h($root, ${JSON.stringify(rootTag)}, ${JSON.stringify(rootClass)})`);
+    else this.emit(`const ${root} = $root`);
+    let head = "null";
     let seo = "null";
     let transition = "null";
     let lang = "null";
+    let alternates = "null";
     const body = i.body.filter((x) => {
       if (x.k === "command" && x.head === "seo") {
         seo = this.seo(x);
@@ -3343,6 +3669,16 @@ var Generator = class {
         lang = this.ex(x.meaning.positional[0]);
         return false;
       }
+      if (x.k === "command" && x.head === "wrapper") return false;
+      if (x.k === "command" && x.head === "head") {
+        head = `[${x.meaning.positional.map((a) => this.ex(a)).join(", ")}].join("")`;
+        return false;
+      }
+      if (x.k === "command" && x.head === "alternate") {
+        const pairs = x.items.map((it) => `[${it.atoms.map((a) => this.ex(a)).join(", ")}]`);
+        alternates = `[${pairs.join(", ")}]`;
+        return false;
+      }
       return true;
     });
     this.content(body, { view: true, parent: root, target: root, parentHead: "page" }, "page");
@@ -3351,9 +3687,9 @@ var Generator = class {
     this.emit("}");
     const prelude = [...params.map((p) => `const ${jsName(p)} = $route.params[${JSON.stringify(p)}];`), item ? item + ";" : ""].join(" ");
     const each = i.each ? `, each: () => ${this.ex(i.each.source)}, pathOf: (${jsName(i.each.variable)}) => ${this.ex(i.address)}` : "";
-    return `{ path: ${JSON.stringify(i.path)}${each}, render: ${fn}, seo: ($route) => { ${prelude} return ${seo} }, lang: ($route) => { ${prelude} return ${lang} }, transition: ${transition} }`;
+    return `{ path: ${JSON.stringify(i.path)}${each}, render: ${fn}, seo: ($route) => { ${prelude} return ${seo} }, lang: ($route) => { ${prelude} return ${lang} }, alternates: ($route) => { ${prelude} return ${alternates} }, head: ($route) => { ${prelude} return ${head} }, transition: ${transition} }`;
   }
-  /** Declares at the top of a scope the states/variables created by « x = … » without let/state. */
+  /** Declares at the top of a scope the states/variables created by “x = …” without let/state. */
   implicitDeclarations(body, view) {
     const walk = (list) => {
       for (const i of list) {
@@ -3362,6 +3698,10 @@ var Generator = class {
           const n = jsName(i.declares.name);
           if (i.declares.kind === "state") this.emit(`const ${n} = $k.state(null)`, i.pos);
           else this.emit(`let ${n}`, i.pos);
+        }
+        if (i.k === "toggle" && i.declares && !this.declared.has(i.declares)) {
+          this.declared.add(i.declares);
+          this.emit(`const ${jsName(i.declares.name)} = $k.state(false)`, i.pos);
         }
         if (i.k === "if") {
           walk(i.then);
@@ -3422,7 +3762,7 @@ var Generator = class {
         const ex = i.exported ? "export " : "";
         const kind = i.binding?.kind;
         if (kind === "state") this.emit(`${ex}const ${n} = $k.state(${this.ex(i.value)})`, i.pos);
-        else if (kind === "derived") this.emit(`${ex}const ${n} = $k.derived(() => ${this.ex(i.value)})`, i.pos);
+        else if (kind === "derived") this.emit(`${ex}const ${n} = $k.derived(() => (${this.ex(i.value)}))`, i.pos);
         else this.emit(`${ex}const ${n} = ${this.ex(i.value)}`, i.pos);
         return;
       }
@@ -3523,6 +3863,27 @@ var Generator = class {
       case "js":
         this.emit(i.code, i.pos);
         return;
+      case "css":
+        this.css.push(i.code);
+        return;
+      case "animation-def":
+        this.animationDef(i);
+        return;
+      case "style-def":
+        {
+          const bases = (ELEMENT_SELECTOR[i.name] ?? (i.name in ELEMENTS ? `.k-${i.name}` : `.ks-${i.name}`)).split(",");
+          const head = i.name in ELEMENTS ? i.name : "box";
+          for (const r of i.rules) {
+            const state = r.state ? STATE_SELECTOR[r.state] : "";
+            const parts = r.part ? (PART_SELECTOR[r.part] ?? `.ks-${r.part}`).split(",") : [""];
+            const own = !!r.part && !PART_SELECTOR[r.part];
+            const sel = bases.map((b) => `${b}${state}${r.part ? own ? ` .ks-${r.part}` : ` :where(${parts.map((p) => p.trim()).join(",")})` : ""}`).join(",");
+            const h = r.part ? r.part in ELEMENTS ? r.part : PART_SELECTOR[r.part] ? "text" : "box" : head;
+            if (r.state || r.part) this.optionsToCss(sel, h, r.meaning.options, r.head === "style" ? void 0 : MEDIA[r.head], []);
+            else this.styleRules(sel, h, [r]);
+          }
+        }
+        return;
       case "component":
         return this.component(i);
       case "command":
@@ -3586,6 +3947,37 @@ var Generator = class {
   newClass() {
     return `${this.prefix}-${(++this.classes).toString(36)}`;
   }
+  /** animation name, 2s, loop … + steps → @keyframes and a class .ka-name that plays it. */
+  animationDef(i) {
+    const steps = [];
+    for (const f of i.frames) {
+      const before = this.css.length;
+      this.optionsToCss("@@", "box", f.meaning.options.filter((o2) => !o2.name.startsWith("hover:")), void 0, []);
+      const decls = this.css.splice(before).map((r) => /^@@\{(.*)\}$/.exec(r)?.[1]).filter(Boolean);
+      steps.push(`${f.state}{${decls.join(";")}}`);
+    }
+    let duration = "1s", delay = "", count = "1", ease = "cubic-bezier(.16,1,.3,1)", direction = "", onScroll = false;
+    for (const it of i.options) {
+      const vals = it.atoms.map((a) => literal(a, this.info.colors));
+      const [w, x] = vals;
+      if (typeof w === "string" && /^[\d.]+m?s$/.test(w)) duration = w;
+      else if (w === "loop" || w === "boucle") count = "infinite";
+      else if (w === "delay" || w === "delai") delay = String(x ?? "0s");
+      else if (w === "linear" || w === "lineaire") ease = "linear";
+      else if (w === "smooth" || w === "doux") ease = "ease-in-out";
+      else if (w === "bounce" || w === "rebond") ease = "cubic-bezier(.34,1.56,.64,1)";
+      else if (w === "steps" || w === "etapes") ease = `steps(${x ?? 10},end)`;
+      else if (w === "alternate" || w === "aller-retour") direction = "alternate";
+      else if (w === "times" || w === "fois") count = String(x ?? 1);
+      else if (w === "scroll" || w === "defilement") onScroll = true;
+      else if (typeof w === "number") count = String(w);
+    }
+    const anim = `ks-${i.name}`;
+    this.css.push(`@keyframes ${anim}{${steps.join("")}}`);
+    const rule = onScroll ? `animation:${anim} linear both;animation-timeline:view();animation-range:entry 0% cover 45%` : `animation:${anim} ${duration} ${ease} ${delay || "0s"} ${count} ${direction || "normal"} both`;
+    this.css.push(`.ka-${i.name}{${rule}}`);
+    this.css.push(`@media (prefers-reduced-motion:reduce){.ka-${i.name}{animation:none}}`);
+  }
   /** style/mobile/… lines → CSS rules for a selector; returns the dynamic ones. */
   styleRules(selector, head, rules) {
     const dynamic = [];
@@ -3642,6 +4034,11 @@ var Generator = class {
       const rule = `${s}{${decls.join(";")}}`;
       this.css.push(media ? `${media}{${rule}}` : rule);
     };
+    if (options.some((o2) => o2.name === "grain")) {
+      const page = sel === "body";
+      this.css.push(`${sel}::after{content:"";position:${page ? "fixed" : "absolute"};inset:0;z-index:60;pointer-events:none;opacity:.4;mix-blend-mode:multiply;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.11 0 0 0 0 0.1 0 0 0 0 0.1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}`);
+      if (!page) normal.push("position:relative");
+    }
     add(sel, dedupe(normal));
     if (hover.length) {
       add(sel, ["transition:transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s, background .35s, color .35s, opacity .35s"]);
@@ -3717,7 +4114,7 @@ var Generator = class {
   objectOptions(options) {
     const props = [];
     for (const o2 of options) {
-      const isColor = ["background", "fog", "ground"].includes(o2.name);
+      const isColor = ["background", "fog", "ground", "color", "tint"].includes(o2.name);
       const vals = o2.values.map((v) => isColor ? this.exValue(v) : v.k === "name" && !v.binding ? JSON.stringify(canon(v.name) ?? canonValue(v.name)) : o2.name === "fallback" ? this.exPath(v) : this.exValue(v));
       props.push(`${jsKey(o2.name)}: ${vals.length === 0 ? "true" : vals.length === 1 ? vals[0] : `[${vals.join(", ")}]`}`);
     }
@@ -3795,7 +4192,13 @@ var Generator = class {
       this.emit(`const ${n} = $k.sound(${parent}, ${this.exPath(p[0])}, ${this.objectOptions(m.options)})`, c.pos);
       return;
     }
+    if (head === "slot" && !m.options.length && !c.children.length) {
+      this.emit(`if ($p.$slot) $p.$slot(${parent})`, c.pos);
+      return;
+    }
     let tag = {
+      details: "details",
+      embed: "iframe",
       section: "section",
       header: "header",
       footer: "footer",
@@ -3832,9 +4235,29 @@ var Generator = class {
       if (lvl?.k === "number") tag = `h${Math.min(6, Math.max(1, lvl.v))}`;
     }
     if (head === "button" && opt("to")) tag = "a";
-    const classes = [`k-${head}`];
+    {
+      const t = opt("tag")?.values[0];
+      const tv = t?.k === "name" ? t.name : t?.k === "text" ? literal(t, {}) : void 0;
+      if (typeof tv === "string" && /^[a-z][a-z0-9-]*$/.test(tv)) tag = tv;
+    }
+    let classes = [`k-${head}`];
     if (m.objectName) classes.push(`k-${head}-${m.objectName}`);
     for (const v of ["outline", "ghost", "large", "small"]) if (opt(v)) classes.push(`k-${v}`);
+    const own = opt("class")?.values[0];
+    let dynamicClass;
+    if (own) {
+      const l = own.k === "text" ? literal(own, {}) : void 0;
+      classes = head === "links" ? ["k-links"] : [];
+      if (typeof l === "string") classes.push(...l.split(/\s+/).filter(Boolean));
+      else dynamicClass = own;
+    }
+    let dynamicLook;
+    const look = opt("look")?.values[0];
+    if (look) {
+      const l = look.k === "text" ? literal(look, {}) : void 0;
+      if (typeof l === "string") classes.push(...l.split(/\s+/).filter(Boolean));
+      else dynamicLook = look;
+    }
     let into = parent;
     const isField = ["field", "textarea", "select", "checkbox"].includes(head);
     const label = isField ? opt("label")?.values[0] ?? (head === "checkbox" ? p[1] : void 0) : void 0;
@@ -3855,6 +4278,27 @@ var Generator = class {
       this.text(labelText, label);
     }
     if (m.objectName) this.emit(`${n}.id = ${JSON.stringify(m.objectName)}`);
+    if (dynamicClass) this.emit(`$k.classes(${n}, () => ${this.ex(dynamicClass)})`);
+    if (dynamicLook) this.emit(`$k.classes(${n}, () => ${this.ex(dynamicLook)})`);
+    if (opt("id")) this.attr(n, "id", opt("id").values[0]);
+    for (const [o2, a, on, off] of [["hidden", "hidden", "true", "null"], ["selected", "aria-selected", '"true"', '"false"'], ["current", "aria-current", '"page"', "null"], ["open", "open", "true", "null"]]) {
+      const v = opt(o2)?.values[0];
+      if (v && literal(v, {}) === void 0) this.emit(`$k.attr(${n}, ${JSON.stringify(a)}, () => (${this.ex(v)}) ? ${on} : ${off})`);
+      else if (opt(o2) && o2 !== "hidden") this.emit(`${n}.setAttribute(${JSON.stringify(a)}, ${on === "true" ? '""' : on})`);
+      if (o2 === "selected" && opt(o2) && head === "button") this.emit(`${n}.setAttribute("role", "tab")`);
+    }
+    for (const a of m.options.filter((o2) => o2.name === "attr")) {
+      const nameLit = a.values[0]?.k === "text" ? literal(a.values[0], {}) : a.values[0]?.k === "name" ? a.values[0].name : void 0;
+      if (typeof nameLit !== "string") continue;
+      if (a.values[1]) this.attr(n, nameLit, a.values[1]);
+      else this.emit(`${n}.setAttribute(${JSON.stringify(nameLit)}, "")`);
+    }
+    const html = opt("html");
+    if (html) {
+      const src = html.values[0] ?? p[0];
+      if (src) this.emit(`$k.html(${n}, () => ${this.ex(src)})`);
+    }
+    this.skipText = !!html;
     switch (head) {
       case "title":
       case "subtitle":
@@ -3946,11 +4390,27 @@ var Generator = class {
           this.emit(`const ${i2} = $k.h(${n}, "img", "k-logo-image")`);
           this.emit(`${i2}.alt = ${JSON.stringify(this.site.name ?? "Logo")}`);
           this.image(i2, x, true);
+          if (p[1]) {
+            const t2 = this.fresh();
+            this.emit(`const ${t2} = $k.h(${n}, "span", "k-logo-text")`);
+            this.text(t2, p[1]);
+          }
         } else if (x) this.text(n, x);
         break;
       }
       case "spacer":
         if (p[0]) this.emit(`${n}.style.height = $k.px(${this.ex(p[0])})`);
+        break;
+      case "details": {
+        const s2 = this.fresh();
+        this.emit(`const ${s2} = $k.h(${n}, "summary", "k-summary")`);
+        if (p[0]) this.text(s2, p[0]);
+        break;
+      }
+      case "embed":
+        if (p[0]) this.emit(`$k.frame(${n}, () => ${this.ex(p[0])})`);
+        if (p[1]) this.attr(n, "title", p[1]);
+        this.emit(`${n}.setAttribute("loading", "lazy")`);
         break;
       case "slot":
         this.emit(`$k.slot(${n}, $p.$slot)`);
@@ -3968,6 +4428,7 @@ var Generator = class {
         if (p[0]?.k === "number" && !opt("columns")) m.options.push({ name: "columns", values: [p[0]], pos: p[0].pos });
         break;
     }
+    this.skipText = false;
     this.styleClass(n, head, m.options, []);
     this.childrenOf(c, { ...ctx, parent: n, target: n, parentHead: head });
     if (c.action) {
@@ -4027,10 +4488,14 @@ var Generator = class {
     this.emit(`${n}.classList.add(${JSON.stringify(cls)})`);
     for (const d of dynamic) this.emit(`$k.style(${n}, ${JSON.stringify(d[0])}, () => ${d[1]})`);
   }
+  skipText = false;
   text(n, e2) {
-    if (!e2) return;
+    if (!e2 || this.skipText) return;
     const l = e2.k === "text" || e2.k === "number" ? literal(e2, {}) : void 0;
-    if (l !== void 0) this.emit(`$k.setText(${n}, ${JSON.stringify(String(l))})`);
+    if (typeof l === "string" && /\*[^*\s]([^*\n]*[^*\s])?\*/.test(l)) {
+      const h = l.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\*([^*\s](?:[^*\n]*[^*\s])?)\*/g, "<em>$1</em>").replace(/\n/g, "<br>");
+      this.emit(`$k.html(${n}, () => ${JSON.stringify(h)})`);
+    } else if (l !== void 0) this.emit(`$k.setText(${n}, ${JSON.stringify(String(l))})`);
     else this.emit(`$k.text(${n}, () => ${this.ex(e2)})`);
   }
   attr(n, name, e2) {
@@ -4106,7 +4571,7 @@ var Generator = class {
       case "list":
         return `[${e2.items.map((x) => this.ex(x)).join(", ")}]`;
       case "object":
-        return `{ ${e2.props.map((p) => p.spread ? `...${this.ex(p.value)}` : `${jsKey(p.key)}: ${this.ex(p.value)}`).join(", ")} }`;
+        return `({ ${e2.props.map((p) => p.spread ? `...${this.ex(p.value)}` : `${jsKey(p.key)}: ${this.ex(p.value)}`).join(", ")} })`;
       case "member": {
         const o2 = this.ex(e2.object);
         const m = kauryMethod(e2.prop);
@@ -4251,7 +4716,7 @@ function bodyHasAwait(body) {
 
 // src/core/index.ts
 function compile(source, options = {}) {
-  const empty = { ok: false, js: "", css: "", errors: [], warnings: [], fonts: [], site: {}, map: [] };
+  const empty = { ok: false, js: "", css: "", errors: [], warnings: [], fonts: [], site: {}, assets: [], map: [] };
   let ast;
   try {
     ast = parse(source);
@@ -4265,7 +4730,7 @@ function compile(source, options = {}) {
   const { errors, warnings, info } = check(ast, { file: options.file });
   if (errors.length || options.checkOnly) return { ...empty, ok: !errors.length, errors, warnings, info, ast };
   const out = generate(ast, info, { file: options.file, runtime: options.runtime });
-  return { ok: true, js: out.js, css: out.css, errors: [], warnings, info, ast, fonts: out.fonts, site: out.site, map: out.map };
+  return { ok: true, js: out.js, css: out.css, errors: [], warnings, info, ast, fonts: out.fonts, site: out.site, assets: out.assets, map: out.map };
 }
 function formatErrors(r, source) {
   return [...r.errors, ...r.warnings].map((e2) => e2.format(source)).join("\n\n");

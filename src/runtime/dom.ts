@@ -74,8 +74,39 @@ export function setText(el: any, s: string) {
   if (el.textContent !== s) el.textContent = s
 }
 
+const EMPHASIS = /\*([^*\s](?:[^*\n]*[^*\s])?)\*/g
+
 export function text(el: any, fn: () => unknown) {
-  effect(() => setText(el, t(fn())))
+  effect(() => {
+    const s = t(fn())
+    // "*word*" → emphasis, like in a fixed text (the rest is escaped: never HTML from a value)
+    if (s.includes('*') && new RegExp(EMPHASIS.source).test(s)) {
+      const h = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(EMPHASIS, '<em>$1</em>')
+      if (el.innerHTML !== h) el.innerHTML = h
+    } else setText(el, s)
+  })
+}
+
+/**
+ * embed: the address waits in data-src and becomes src when the frame comes near the screen
+ * (the page inside never competes with the first paint); later changes apply at once.
+ */
+export function frame(el: any, fn: () => unknown) {
+  let near = false
+  effect(() => {
+    const v = String(fn() ?? '')
+    if (near) el.setAttribute('src', v)
+    else el.setAttribute('data-src', v)
+  })
+  if (typeof IntersectionObserver === 'undefined' || !inBrowser()) return
+  const io = new IntersectionObserver((entries) => {
+    if (!entries.some((e) => e.isIntersecting)) return
+    near = true
+    io.disconnect()
+    const v = el.getAttribute('data-src')
+    if (v) el.setAttribute('src', v)
+  }, { rootMargin: '200px' })
+  io.observe(el)
 }
 
 export function attr(el: any, name: string, fn: () => unknown) {
@@ -135,6 +166,12 @@ export function img(el: any, src: string | (() => unknown), priority = 0) {
   }
   if (typeof src === 'function') effect(() => apply(src()))
   else apply(src)
+}
+
+/** Real size of an image of the site (known at build time): { width, height }, 0 when unknown. */
+export function imageSize(src: unknown): { width: number; height: number } {
+  const info = images()[path(src)]
+  return { width: info?.w ?? 0, height: info?.h ?? 0 }
 }
 
 /** Listens to an event. State changes made by the action are grouped. */
@@ -445,7 +482,7 @@ export function html(el: any, fn: () => unknown) {
   })
 }
 
-/** Classes computed from values: « class "card {kind}" ». */
+/** Classes computed from values: “class "card {kind}"”. */
 export function classes(el: any, fn: () => unknown) {
   let prev: string[] = []
   effect(() => {
@@ -479,6 +516,6 @@ function renderMarkdown(el: any, v: string) {
     el.innerHTML = g.__kauryMarkdown(v)
     return
   }
-  markedLoader ??= import('marked').then((m) => (s: string) => m.marked.parse(s, { async: false }) as string)
+  markedLoader ??= import('./markdown.js').then((m) => m.parseMarkdown)
   markedLoader.then((parse) => (el.innerHTML = parse(v)))
 }

@@ -1,6 +1,6 @@
-// Content collections: « import posts from "./content/blog/*/index.mdx" ».
+// Content collections: “import posts from "./content/blog/*/index.mdx"”.
 // Reads YAML, JSON and Markdown/MDX files (front matter + body), copies the images they point to,
-// and gives each entry a « slug » (the file name, or its folder name for index files).
+// and gives each entry a “slug” (the file name, or its folder name for index files).
 
 import { existsSync, readdirSync, readFileSync, statSync, mkdirSync, copyFileSync } from 'node:fs'
 import { join, dirname, basename, extname, resolve, sep } from 'node:path'
@@ -43,7 +43,8 @@ function slugOf(file: string): string {
 }
 
 function readEntry(file: string): any {
-  const text = readFileSync(file, 'utf8').replace(/^﻿/, '')
+  // files saved on Windows (CRLF) read the same as the others
+  const text = readFileSync(file, 'utf8').replace(/^﻿/, '').replace(/\r\n?/g, '\n')
   const ext = extname(file).toLowerCase()
   if (ext === '.json') return JSON.parse(text)
   if (ext === '.yaml' || ext === '.yml') return parseYaml(text) ?? {}
@@ -77,6 +78,16 @@ function images(value: any, fromDir: string, out: string): any {
   return value
 }
 
+/**
+ * When the entry was created and last changed (ISO dates). “created” gives the order entries were
+ * added in (for an index file, its folder's creation), handy to break ties: posts.sort(p -> p.created).
+ */
+function dates(file: string): { created: string; updated: string } {
+  const own = statSync(file)
+  const created = basename(file, extname(file)) === 'index' ? statSync(dirname(file)).birthtimeMs : own.birthtimeMs
+  return { created: new Date(created || own.mtimeMs).toISOString(), updated: new Date(own.mtimeMs).toISOString() }
+}
+
 const cache = new Map<string, LoadedContent>()
 
 export function loadContent(pattern: string, out: string): LoadedContent {
@@ -85,7 +96,7 @@ export function loadContent(pattern: string, out: string): LoadedContent {
   if (hit) return hit
   const list = pattern.includes('*')
   const files = list ? expand(pattern) : [resolve(pattern)]
-  const entries = files.map((f) => ({ slug: slugOf(f), ...images(readEntry(f), dirname(f), out) }))
+  const entries = files.map((f) => ({ slug: slugOf(f), ...dates(f), ...images(readEntry(f), dirname(f), out) }))
   const id = createHash('sha1').update(resolve(pattern)).digest('hex').slice(0, 10)
   const result: LoadedContent = { id, list, data: list ? entries : entries[0] ?? {}, files }
   cache.set(key, result)

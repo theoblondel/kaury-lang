@@ -6,21 +6,30 @@
 <title>Kaury Playground</title>
 <meta name="description" content="Write Kaury on the left, see the site on the right. Nothing to install.">
 <style>
-  :root{--bg:#0f0d14;--panel:#17141f;--line:#2a2535;--text:#f3eef7;--muted:#a9a1b6;--pink:#ff4f8b}
+  /* Kaury Studio identity: beige, black, orange */
+  :root{--beige:#F1E8CB;--beige-2:#E9DDB9;--noir:#1C1A1A;--orange:#F56E2E;--rust:#A83E0D;--line:rgba(28,26,26,.16);--mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Consolas,monospace}
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
-  header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--line)}
-  h1{font-size:18px;letter-spacing:-.02em;margin:0}
-  h1 span{color:var(--pink)}
-  select,button{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:7px 12px;font:inherit;cursor:pointer;min-height:40px}
-  .status{margin-left:auto;color:var(--muted);font-size:13px}
-  main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);height:calc(100% - 61px)}
-  .code{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line)}
-  textarea{flex:1;width:100%;resize:none;border:0;outline:0;padding:18px;background:var(--bg);color:var(--text);font:14px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2;white-space:pre}
-  #problems{max-height:40%;overflow:auto;margin:0;padding:0;font:13px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;color:#ffc6d6;background:#21122a;border-top:1px solid #ff4f8b55}
+  html,body{margin:0;height:100%;background:var(--beige);color:var(--noir);font:15px/1.5 Satoshi,"Helvetica Neue",system-ui,sans-serif}
+  header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;border-bottom:2px solid var(--noir);background:var(--beige)}
+  h1{display:flex;align-items:center;gap:10px;font:800 19px/1 "Cabinet Grotesk","Arial Black",sans-serif;letter-spacing:-.02em;margin:0 8px 0 0}
+  h1:before{content:"";width:28px;height:28px;border-radius:8px;background:var(--orange) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 232 232'%3E%3Cpath transform='translate(16 36)' d='M199.75 142.65L184.57 113.36C183.98 112.21 182.83 111.54 181.64 111.54C181.21 111.54 180.76 111.62 180.33 111.82C167.47 117.53 155.41 120.43 144.5 120.43C130.22 121.08 107.65 116.91 100.07 103.4C93.61 91.88 98.16 72.67 110.11 63.56C121.25 55.06 135.98 53.37 149.31 55.8C150.65 56.04 152.02 56.36 153.12 57.19C156.61 59.86 154.58 67.37 152.39 70.19C150.1 73.14 146.16 75.07 141.58 75.47C140.99 75.53 140.39 75.55 139.79 75.55C138.9 75.55 138.01 75.49 137.12 75.38C134.18 75.01 131.18 74.21 128.2 73.15C128.2 73.15 121.95 105.27 144.43 109.01C182.18 115.29 191.09 78.25 191.25 77.69C191.49 76.6 197.12 50.93 183.28 32.79C174.73 21.59 160.8 15.91 141.87 15.91C141.11 15.91 140.35 15.91 139.56 15.94C90.98 17.09 58.95 53.7 46.2 71.53V3.44C46.2 1.54 44.71 0 42.88 0H3.32C1.49 0 0 1.54 0 3.44V156.98C0 158.87 1.48 160.42 3.32 160.42H41.11C42.57 160.42 43.86 159.43 44.28 157.97C45.57 153.61 45.76 132.1 45.76 119.53C45.76 117.16 48.74 116.24 49.97 118.23C59.67 133.88 87.12 166.81 143.66 160.42C172.89 157.11 197.32 147.91 198.33 147.38C199.14 146.96 199.73 146.22 200 145.34C200.27 144.46 200.19 143.49 199.76 142.67Z' fill='%23F1E8CB'/%3E%3C/svg%3E") center/80% no-repeat}
+  h1 span{color:var(--rust);font-style:italic}
+  select,button{background:transparent;color:var(--noir);border:2px solid var(--noir);border-radius:999px;padding:6px 16px;font:inherit;font-weight:700;cursor:pointer;min-height:40px;transition:background .25s,color .25s}
+  select:hover,button:hover{background:var(--noir);color:var(--beige)}
+  #share{background:var(--orange)}
+  #share:hover{background:var(--noir)}
+  .status{margin-left:auto;color:rgba(28,26,26,.72);font:12.5px var(--mono)}
+  main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);height:calc(100% - 62px)}
+  .code{display:flex;flex-direction:column;min-height:0;border-right:2px solid var(--noir);background:var(--noir)}
+  textarea{flex:1;width:100%;resize:none;border:0;outline:0;padding:20px 22px;background:var(--noir);color:var(--beige);caret-color:var(--orange);font:14px/1.65 var(--mono);tab-size:2;white-space:pre}
+  textarea::selection{background:var(--orange);color:var(--noir)}
+  #problems{max-height:40%;overflow:auto;margin:0;padding:0;font:13px/1.5 var(--mono);white-space:pre-wrap;color:var(--noir);background:var(--orange);border-top:2px solid var(--noir)}
   #problems:not(:empty){padding:14px 18px}
   iframe{width:100%;height:100%;border:0;background:#fff}
-  @media (max-width:800px){main{grid-template-columns:1fr;grid-template-rows:1fr 1fr}.code{border-right:0;border-bottom:1px solid var(--line)}}
+  /* ?embed: only the result, for the examples of kaury.dev */
+  .embed header,.embed .code{display:none}
+  .embed main{grid-template-columns:1fr;grid-template-rows:1fr;height:100%}
+  @media (max-width:800px){main{grid-template-columns:1fr;grid-template-rows:1fr 1fr}.code{border-right:0;border-bottom:2px solid var(--noir)}}
 </style>
 </head>
 <body>
@@ -51,12 +60,12 @@ let double = likes * 2
 
 page "/"
   section fullscreen, center
-    title "Kaury", size 96, text-gradient pink purple
+    title "Kaury", size 96, text-gradient #F56E2E #A83E0D
       enters from bottom
     text "Click: the double computes itself ({double})."
     button "I like it {likes}", large -> likes += 1
     if likes >= 5
-      text "You really like it!", bold, pink
+      text "You really like it!", bold, orange
 `,
   scene: `page "/"
   scene fullscreen, particles stars, background night, immediate
@@ -110,6 +119,7 @@ const problems = document.getElementById('problems')
 const preview = document.getElementById('preview')
 const status = document.getElementById('status')
 const base = new URL('./', location.href).href
+if (new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed')
 
 function fromLink() {
   const h = location.hash.slice(1)

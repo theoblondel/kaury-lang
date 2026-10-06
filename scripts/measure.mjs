@@ -22,7 +22,11 @@ const types = {
 const server = createServer((req, res) => {
   let p = join(dist, decodeURIComponent(new URL(req.url, 'http://x').pathname))
   if (existsSync(p) && statSync(p).isDirectory()) p = join(p, 'index.html')
-  if (!existsSync(p)) p = join(dist, '404.html')
+  let status = 200
+  if (!existsSync(p)) {
+    p = join(dist, '404.html')
+    status = 404
+  }
   let body = readFileSync(p)
   const ext = extname(p)
   const headers = { 'Content-Type': types[ext] ?? 'application/octet-stream' }
@@ -37,7 +41,7 @@ const server = createServer((req, res) => {
       headers['Content-Encoding'] = 'gzip'
     }
   }
-  res.writeHead(200, headers)
+  res.writeHead(status, headers)
   res.end(body)
 })
 await new Promise((ok) => server.listen(0, ok))
@@ -66,8 +70,10 @@ try {
   const failing = Object.values(a).filter((x) => x.score !== null && x.score < 0.9 && !['informative', 'notApplicable', 'manual'].includes(x.scoreDisplayMode))
   for (const f of failing.slice(0, 25)) {
     console.log(`  ✗ ${f.id} — ${f.title}${f.displayValue ? ' (' + f.displayValue + ')' : ''}`)
-    if (['color-contrast', 'target-size', 'link-name', 'button-name', 'image-alt', 'heading-order', 'label'].includes(f.id)) {
-      for (const it of (f.details?.items ?? []).slice(0, 6)) console.log(`      · ${it.node?.snippet?.slice(0, 140)} ${it.node?.explanation ? '— ' + it.node.explanation.split('\n')[1]?.trim() : ''}`)
+    // what exactly fails: the element, the file or the message
+    for (const it of (f.details?.items ?? []).slice(0, 6)) {
+      const what = it.node?.snippet ?? it.url ?? it.issue ?? it.description ?? it.source?.url
+      if (what) console.log(`      · ${String(what).slice(0, 160)} ${it.node?.explanation ? '— ' + it.node.explanation.split('\n')[1]?.trim() : ''}`)
     }
   }
 } finally {

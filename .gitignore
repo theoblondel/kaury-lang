@@ -3,3 +3,19 @@ dist/
 node_modules/
 scratch-test.ts
 tests/.tmp/
+
+# site of the language: build output and files made by scripts/site-prepare.ts
+site/dist/
+site/.kaury-cache/
+site/public/play/
+site/public/docs/
+site/public/blog/
+site/public/blog/
+site/public/kaury-ai.md
+site/public/llms.txt
+site/public/llms-full.txt
+site/public/robots.txt
+site/public/.well-known/
+site/content/reference.yaml
+site/content/examples.yaml
+site/content/release.yaml

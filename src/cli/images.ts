@@ -28,7 +28,8 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 function svgSize(file: string): ImageInfo | undefined {
-  const s = readFileSync(file, 'utf8').slice(0, 2000)
+  // only the root <svg …> tag: a <rect width="300"> further down is not the size of the drawing
+  const s = /<svg\b[^>]*>/i.exec(readFileSync(file, 'utf8'))?.[0] ?? ''
   const w = /\swidth="([\d.]+)(px)?"/.exec(s)
   const h = /\sheight="([\d.]+)(px)?"/.exec(s)
   if (w && h) return { w: Math.round(Number(w[1])), h: Math.round(Number(h[1])) }

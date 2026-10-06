@@ -94,7 +94,7 @@ class SComment extends SNode {
   constructor(public data: string) {
     super()
   }
-  // markers of « if » and « for » blocks: the browser needs them to adopt the HTML
+  // markers of “if” and “for” blocks: the browser needs them to adopt the HTML
   html() {
     return `<!--${this.data}-->`
   }

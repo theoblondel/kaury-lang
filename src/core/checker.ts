@@ -18,7 +18,7 @@ class Scope {
   find(name: string): Binding | undefined {
     return this.names.get(name) ?? this.parent?.find(name)
   }
-  /** Scope that receives implicit declarations (« x = 3 » without let/state). */
+  /** Scope that receives implicit declarations (“x = 3” without let/state). */
   host(): Scope {
     let s: Scope = this
     while (s.kind === 'block' && s.parent) s = s.parent
@@ -60,9 +60,10 @@ export function check(program: Stmt[], options: { file?: string } = {}): {
 }
 
 const NAMED_CONTAINERS = ['section', 'box', 'grid', 'row', 'column', 'scene', 'card', 'form', 'list', 'header', 'footer', 'nav']
+const ALWAYS_NAMED = ['section', 'scene', 'header', 'footer', 'nav']
 const FIELD_HEADS = ['field', 'textarea', 'select', 'checkbox']
 /** Elements whose first item is their content (a text, an image…). */
-const CONTENT_HEADS = new Set(['title', 'subtitle', 'text', 'item', 'icon', 'button', 'link', 'image', 'video', 'card', 'logo', 'markdown'])
+const CONTENT_HEADS = new Set(['title', 'subtitle', 'text', 'item', 'icon', 'button', 'link', 'image', 'video', 'card', 'logo', 'markdown', 'details', 'embed'])
 const SITE_SETTINGS = ['colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'seo', 'style', 'transition', 'head', 'base', 'mobile', 'tablet', 'desktop', 'sound']
 
 class Checker {
@@ -70,6 +71,9 @@ class Checker {
   warnings: KauryError[] = []
   info: ModuleInfo = { pages: [], components: [], immersion: false, threeD: false, lottie: false, colors: {}, exports: [] }
   private components = new Set<string>()
+  /** named styles: style promise (indented options) → used as “column promise” */
+  private namedStyles = new Set<string>()
+  private namedAnimations = new Set<string>()
 
   private err(pos: Pos, what: string, fix?: string) {
     this.errors.push(new KauryError(pos, what, fix))
@@ -105,10 +109,12 @@ class Checker {
     for (const i of body) {
       if (i.k === 'command' && i.head === 'colors') {
         for (const it of i.items) {
-          const [n, c] = it.atoms
+          let [n, c] = it.atoms
+          // « beige-2 » is read as beige - 2 by the lexer; in a colors line it is a name
+          if (n?.k === 'binary' && n.op === '-' && n.l.k === 'name' && n.r.k === 'number') n = { k: 'name', name: `${n.l.name}-${n.r.v}`, pos: n.pos }
           if (n?.k === 'name' && c?.k === 'color') this.info.colors[n.name] = c.v
           else if (n?.k === 'name' && c?.k === 'name' && knownColor(c.name)) this.info.colors[n.name] = `var(--k-${knownColor(c.name)})`
-          else this.err(it.pos, msg('each color is written « name #code ».', 'chaque couleur s\'écrit « nom #code ».'), 'colors pink #FF4F8B, cream #FFF4E8')
+          else this.err(it.pos, msg('each color is written “name #code”.', 'chaque couleur s\'écrit « nom #code ».'), 'colors pink #FF4F8B, cream #FFF4E8')
         }
       }
     }
@@ -122,6 +128,13 @@ class Checker {
           this.declare(s, i.name, 'function', i.pos)
           if (i.exported) this.info.exports.push(i.name)
           break
+        case 'style-def':
+          // “style button” restyles every button; “style promise” is a new word
+          if (!(i.name in ELEMENTS) && i.name !== 'emphasis') this.namedStyles.add(i.name)
+          break
+        case 'animation-def':
+          this.namedAnimations.add(i.name)
+          break
         case 'component':
           this.declare(s, i.name, 'component', i.pos)
           this.components.add(i.name)
@@ -131,7 +144,9 @@ class Checker {
         case 'import':
           for (const n of [i.default, i.all, ...(i.names ?? []).map((x) => x.alias ?? x.name)]) {
             if (n) {
-              this.declare(s, n, /^\p{Lu}/u.test(n) && i.source.endsWith('.kaury') ? 'component' : 'import', i.pos)
+              const b = this.declare(s, n, /^\p{Lu}/u.test(n) && i.source.endsWith('.kaury') ? 'component' : 'import', i.pos)
+              // content collections are reactive: a value computed from them follows them (let articles = posts.sort(…))
+              if (/(\*|\.(md|mdx|mdoc|markdown|ya?ml)$)/i.test(i.source)) b.collection = true
               if (/^\p{Lu}/u.test(n)) this.components.add(n)
             }
           }
@@ -148,7 +163,7 @@ class Checker {
     const prev = s.names.get(name)
     if (prev && prev.kind !== 'function' && kind !== 'variable' && prev.pos && prev.pos !== pos && s.kind !== 'module' && prev.kind === kind) {
       this.err(pos, msg(`${q(name)} is already declared on line ${prev.pos.line}.`, `${q(name)} est déjà déclaré ligne ${prev.pos.line}.`),
-        msg(`to change its value, just write « ${name} = … ».`, `pour changer sa valeur, écris simplement « ${name} = … ».`))
+        msg(`to change its value, just write “${name} = …”.`, `pour changer sa valeur, écris simplement « ${name} = … ».`))
     }
     const b: Binding = { kind, name, pos }
     s.names.set(name, b)
@@ -190,6 +205,12 @@ class Checker {
             i.declares = b
           }
         }
+        // toggle menu / open menu: creates the true/false state « menu » when it does not exist
+        if (i.k === 'toggle' && i.target.k === 'name' && !s.find(i.target.name) && !explicit.has(i.target.name) && host.isView()) {
+          const b = this.declare(host, i.target.name, 'state', i.pos)
+          b.mutated = true
+          i.declares = b
+        }
         if (i.k === 'if') {
           walk(i.then)
           i.elifs.forEach((x) => walk(x.body))
@@ -227,8 +248,8 @@ class Checker {
             b.mutated = true
             if (!i.declares) b.used = true
             if (b.kind === 'const' || b.kind === 'derived') {
-              this.err(i.pos, msg(`${q(i.target.name)} is declared with « let »: its value is fixed.`, `${q(i.target.name)} est déclaré avec « soit » : sa valeur est fixe.`),
-                msg(`declare it with « state ${i.target.name} = … » to be able to change it.`, `déclare-le avec « etat ${i.target.name} = … » pour pouvoir le changer.`))
+              this.err(i.pos, msg(`${q(i.target.name)} is declared with “let”: its value is fixed.`, `${q(i.target.name)} est déclaré avec « soit » : sa valeur est fixe.`),
+                msg(`declare it with “state ${i.target.name} = …” to be able to change it.`, `déclare-le avec « etat ${i.target.name} = … » pour pouvoir le changer.`))
             } else if (b.kind === 'function' || b.kind === 'component') {
               this.err(i.pos, msg(`${q(i.target.name)} is a ${b.kind}; it cannot be given a value.`, `${q(i.target.name)} est une ${b.kind === 'function' ? 'fonction' : 'composant'} : on ne peut pas lui donner une valeur.`),
                 msg('choose another variable name.', 'choisis un autre nom de variable.'))
@@ -286,6 +307,12 @@ class Checker {
       case 'js':
       case 'css':
         break
+      case 'style-def':
+        for (const r of i.rules) this.command(r, s, r.part && r.part in ELEMENTS ? r.part : i.name in ELEMENTS ? i.name : 'box')
+        break
+      case 'animation-def':
+        for (const r of i.frames) this.command(r, s, 'box')
+        break
       case 'return':
         if (i.value) this.expr(i.value, s)
         break
@@ -293,6 +320,10 @@ class Checker {
         this.expr(i.e, s)
         break
       case 'toggle':
+        if (i.declares && i.target.k === 'name') {
+          i.target.binding = i.declares
+          break
+        }
         this.expr(i.target, s)
         if (i.target.k === 'name' && i.target.binding) i.target.binding.mutated = true
         break
@@ -328,7 +359,7 @@ class Checker {
         if (i.name) this.expr(i.name, s)
         for (const c of i.body) {
           if (c.k !== 'command' || !SITE_SETTINGS.includes(c.head)) {
-            this.err(c.pos, msg('« site » only holds settings: colors, font, lang, favicon, url, seo, style, transition, head, base.', 'dans « site », on ne met que des réglages : couleurs, police, langue, favicon, adresse, seo, style, transition, head, base.'),
+            this.err(c.pos, msg('“site” only holds settings: colors, font, lang, favicon, url, seo, style, transition, head, base.', 'dans « site », on ne met que des réglages : couleurs, police, langue, favicon, adresse, seo, style, transition, head, base.'),
               msg('move this element into a page "/".', 'déplace cet élément dans une page "/".'))
             continue
           }
@@ -356,7 +387,7 @@ class Checker {
       switch (x.k) {
         case 'name': {
           const b = x.binding ?? s.find(x.name)
-          if (b && (b.kind === 'state' || b.kind === 'derived' || b.kind === 'prop')) yes = true
+          if (b && (b.kind === 'state' || b.kind === 'derived' || b.kind === 'prop' || b.collection)) yes = true
           if (!b && ['mouse', 'scroll', 'screen', 'route'].includes(kauryGlobal(x.name) ?? '')) yes = true
           break
         }
@@ -427,7 +458,7 @@ class Checker {
           e.binding = { kind: 'js', name: e.name }
           return
         }
-        // « a-b » when « a » and « b » exist but « a-b » does not: it is a subtraction
+        // “a-b” when “a” and “b” exist but “a-b” does not: it is a subtraction
         const parts = e.name.split('-')
         if (parts.length > 1 && parts.every((m) => m && (s.find(m) || kauryGlobal(m)))) {
           this.warn({ ...e.pos, length: e.name.length }, msg(`${q(e.name)} is read as a subtraction.`, `${q(e.name)} est lu comme une soustraction.`),
@@ -482,7 +513,7 @@ class Checker {
         const sug = closest(head, this.components)
         this.err({ ...c.pos, length: head.length }, msg(`the component ${q(head)} does not exist.`, `le composant ${q(head)} n'existe pas.`),
           sug ? msg(`did you mean ${q(sug)}?`, `tu voulais dire ${q(sug)} ?`)
-            : msg(`create it with « component ${head} … » or import it: import ${head} from "./${head.toLowerCase()}.kaury"`, `crée-le avec « composant ${head} … » ou importe-le : importe ${head} de "./${head.toLowerCase()}.kaury"`))
+            : msg(`create it with “component ${head} …” or import it: import ${head} from "./${head.toLowerCase()}.kaury"`, `crée-le avec « composant ${head} … » ou importe-le : importe ${head} de "./${head.toLowerCase()}.kaury"`))
       } else b.used = true
       const positional: Expr[] = []
       for (const it of c.items) for (const a of it.atoms) {
@@ -494,6 +525,11 @@ class Checker {
       return
     }
 
+    if (head === 'colors') {
+      // « colors pink #FF4F8B, …»: names, not values to look up (read by readSiteColors)
+      c.meaning = { kind: 'setting', positional: [], options: [] }
+      return
+    }
     const isMotion = !!MOTIONS[head]
     const kind = ELEMENTS[head] ? 'element' : EVENTS.has(head) ? 'event' : isMotion ? 'motion'
       : head === 'style' ? 'style' : ['mobile', 'tablet', 'desktop'].includes(head) ? 'screen' : 'setting'
@@ -523,8 +559,19 @@ class Checker {
         continue
       }
       let opt = word ? (elementOption(optionHead, word) ?? (kind !== 'motion' && kind !== 'event' && kind !== 'setting' ? styleOption(word) : undefined)) : undefined
+      // a named style (style promise …): adds its class, keeps the default look
+      const sectionName = ALWAYS_NAMED.includes(head) && it === c.items[0]
+      if (word && a.length === 1 && this.namedStyles.has(word) && !s.find(word) && kind !== 'setting' && !sectionName) {
+        options.push({ name: 'look', values: [{ k: 'text', parts: ['ks-' + word], pos: it.pos }], pos: it.pos })
+        continue
+      }
+      // a named animation (animation marquee …): plays on the element
+      if (word && a.length === 1 && this.namedAnimations.has(word) && !s.find(word) && kind !== 'setting' && !sectionName) {
+        options.push({ name: 'look', values: [{ k: 'text', parts: ['ka-' + word], pos: it.pos }], pos: it.pos })
+        continue
+      }
       // a declared variable wins over an option of the same name:
-      // - as the first item of an element that shows content (text size → shows « size »)
+      // - as the first item of an element that shows content (text size → shows “size”)
       // - or alone where the option would need a value
       const firstContent = it === c.items[0] && CONTENT_HEADS.has(head)
       if (opt && word && a.length === 1 && s.find(word) && (firstContent || (optionSpec(optionHead, opt)?.args ?? '').replace(/\?/g, '').length > 0)) opt = undefined
@@ -534,10 +581,10 @@ class Checker {
         if (opt === 'hover') inHover = true
         options.push({ name: inHover && opt !== 'hover' ? `hover:${opt}` : opt, values, pos: it.pos })
         if (opt === 'hover' && values.length) {
-          // « hover lift 4 » → hover:lift 4
+          // “hover lift 4” → hover:lift 4
           const v0 = values[0]
           const sub = v0.k === 'name' ? styleOption(v0.name) : undefined
-          if (!sub) this.err(it.pos, msg('« hover » must be followed by a style.', '« survol » doit être suivi d\'un style.'), 'hover lift 4   /   hover background pink')
+          if (!sub) this.err(it.pos, msg('“hover” must be followed by a style.', '« survol » doit être suivi d\'un style.'), 'hover lift 4   /   hover background pink')
           else {
             options.pop()
             options.push({ name: `hover:${sub}`, values: values.slice(1), pos: it.pos })
@@ -546,7 +593,7 @@ class Checker {
         this.checkOption(head, opt, values, it.pos)
         continue
       }
-      // « 3 columns »
+      // “3 columns”
       if (a0.k === 'number' && a[1]?.k === 'name') {
         const o2 = elementOption(optionHead, a[1].name) ?? styleOption(a[1].name)
         if (o2) {
@@ -554,9 +601,15 @@ class Checker {
           continue
         }
       }
-      // a color alone: « pink », « #FF4F8B »
+      // a color alone: “pink”, “#FF4F8B”
       if (kind !== 'setting' && kind !== 'motion' && a.length === 1 && (a0.k === 'color' || (word && !s.find(word) && (this.info.colors[word] || knownColor(word))))) {
         options.push({ name: inHover ? 'hover:tint' : 'tint', values: [a0], pos: it.pos })
+        continue
+      }
+      // a section or a scene never shows content: its first word is always its name,
+      // even when a variable or a global has the same name (section examples, section performance)
+      if (word && ALWAYS_NAMED.includes(head) && it === c.items[0] && a.length === 1 && !objectName) {
+        objectName = word
         continue
       }
       // section / object name (not a variable)
@@ -625,6 +678,8 @@ class Checker {
   private checkValue(x: Expr, s: Scope) {
     // an option value can be a free word (shadow soft, align center) or a named color
     if (x.k === 'name' && !s.find(x.name) && !kauryGlobal(x.name) && !JS_GLOBALS.has(x.name)) return
+    // a site color with a number in its name (beige-2), read as a subtraction by the lexer
+    if (x.k === 'binary' && x.op === '-' && x.l.k === 'name' && x.r.k === 'number' && !s.find(x.l.name) && this.info.colors[`${x.l.name}-${x.r.v}`]) return
     this.expr(x, s)
   }
 
@@ -644,7 +699,7 @@ class Checker {
     if (spec.words && v0?.k === 'name' && !spec.words.includes(canonValue(v0.name))) {
       const sug = closest(v0.name, spec.words)
       this.err(pos, msg(`${q(opt)} does not accept ${q(v0.name)}.`, `${q(opt)} n'accepte pas ${q(v0.name)}.`),
-        sug ? msg(`did you mean « ${opt} ${sug} »?`, `tu voulais dire « ${opt} ${sug} » ?`) : msg(`possible values: ${spec.words.join(', ')}`, `valeurs possibles : ${spec.words.join(', ')}`))
+        sug ? msg(`did you mean “${opt} ${sug}”?`, `tu voulais dire « ${opt} ${sug} » ?`) : msg(`possible values: ${spec.words.join(', ')}`, `valeurs possibles : ${spec.words.join(', ')}`))
     }
   }
 
@@ -658,7 +713,7 @@ class Checker {
         if (!n) this.err(c.pos, msg(`${q(c.rawHead)} needs its file.`, `${q(c.rawHead)} a besoin de son fichier.`), `${c.rawHead} "photo.jpg"`)
         break
       case 'link':
-        if (!n) this.err(c.pos, msg('« link » needs a text and an address.', '« lien » a besoin d\'un texte et d\'une adresse.'), 'link "Contact" "/contact"')
+        if (!n) this.err(c.pos, msg('“link” needs a text and an address.', '« lien » a besoin d\'un texte et d\'une adresse.'), 'link "Contact" "/contact"')
         break
       case 'object':
       case 'character': {
@@ -666,11 +721,11 @@ class Checker {
         const src = m.positional[0]
         if (src?.k === 'text' && src.parts.length === 1 && typeof src.parts[0] === 'string') {
           const f = (src.parts[0] as string).toLowerCase()
-          if (/\.(glb|gltf)(\?|$)/.test(f)) this.info.threeD = true
+          if (/\.(glb|gltf)(\?|$)/.test(f) || /^(sphere|cube|torus|knot|cone|cylinder|capsule|gem|pyramid|tore|noeud|cylindre|gemme|pyramide)$/.test(f)) this.info.threeD = true
           else if (/\.(json|lottie)(\?|$)/.test(f)) this.info.lottie = true
           else if (!/\.(png|jpe?g|webp|avif|gif|svg)(\?|$)/.test(f)) {
             this.err(src.pos, msg(`unknown file format for ${q(c.rawHead)}.`, `format de fichier non reconnu pour ${q(c.rawHead)}.`),
-              msg('accepted formats: .glb, .gltf (3D), .png, .jpg, .webp, .svg (2D), .json (Lottie).', 'formats acceptés : .glb, .gltf (3D), .png, .jpg, .webp, .svg (2D), .json (Lottie).'))
+              msg('accepted: a shape (sphere, cube, torus, knot, cone, cylinder, capsule, gem, pyramid), .glb, .gltf (3D), .png, .jpg, .webp, .svg (2D), .json (Lottie).', 'acceptés : une forme (sphere, cube, tore, noeud, cone, cylindre, capsule, gemme, pyramide), .glb, .gltf (3D), .png, .jpg, .webp, .svg (2D), .json (Lottie).'))
           }
         } else if (src) this.info.threeD = true
         break
@@ -680,7 +735,7 @@ class Checker {
         if (!w || !LIGHTS.includes(w)) {
           const sug = w ? closest(w, LIGHTS) : undefined
           this.err(c.pos, msg(`unknown light${w ? ` ${q(w)}` : ''}.`, `lumière inconnue${w ? ` ${q(w)}` : ''}.`),
-            sug ? msg(`did you mean « light ${sug} »?`, `tu voulais dire « lumiere ${sug} » ?`) : msg(`moods: ${LIGHTS.join(', ')}`, `ambiances : ${LIGHTS.join(', ')}`))
+            sug ? msg(`did you mean “light ${sug}”?`, `tu voulais dire « lumiere ${sug} » ?`) : msg(`moods: ${LIGHTS.join(', ')}`, `ambiances : ${LIGHTS.join(', ')}`))
         }
         break
       }
@@ -695,16 +750,16 @@ class Checker {
         break
       }
       case 'enters-from':
-        if (!m.options.length && !m.positional.length) this.err(c.pos, msg('« enters from » expects a direction.', '« entre depuis » attend une direction.'), 'enters from left   (left, right, top, bottom, fade, zoom)')
+        if (!m.options.length && !m.positional.length) this.err(c.pos, msg('“enters from” expects a direction.', '« entre depuis » attend une direction.'), 'enters from left   (left, right, top, bottom, fade, zoom)')
         break
       case 'spin': {
         const v = m.positional[0]
-        if (v && v.k === 'name' && !v.binding) this.err(v.pos, msg('« spin » expects a speed.', '« tourne » attend une vitesse.'), 'spin 20/s  /  spin on scroll')
+        if (v && v.k === 'name' && !v.binding) this.err(v.pos, msg('“spin” expects a speed.', '« tourne » attend une vitesse.'), 'spin 20/s  /  spin on scroll')
         break
       }
     }
     if (m.kind === 'event' && !c.action) {
-      this.err(c.pos, msg(`${q(c.head.replace('-', ' '))} must be followed by an action with « -> ».`, `${q(c.rawHead)} doit être suivi d'une action avec « -> ».`), 'on click -> jump')
+      this.err(c.pos, msg(`${q(c.head.replace('-', ' '))} must be followed by an action with “->”.`, `${q(c.rawHead)} doit être suivi d'une action avec « -> ».`), 'on click -> jump')
     }
     if ((m.kind === 'style' || m.kind === 'screen') && !parent && c.children.length === 0 && m.options.length === 0) {
       this.err(c.pos, msg(`empty ${q(c.rawHead)}.`, `${q(c.rawHead)} vide.`), 'style background cream, radius 12')

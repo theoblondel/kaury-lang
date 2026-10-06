@@ -283,7 +283,7 @@ export class Derived<T = any> {
     return this.val
   }
   set v(_: T) {
-    throw new Error('Kaury: a value declared with « let » cannot be changed.')
+    throw new Error('Kaury: a value declared with “let” cannot be changed.')
   }
 }
 

@@ -16,6 +16,7 @@ export interface Binding {
   pos?: Pos
   used?: boolean
   mutated?: boolean
+  collection?: boolean // import posts from "./content/*.md": data that arrives (reactive)
 }
 
 // ---------- Expressions ----------
@@ -53,10 +54,12 @@ export type Stmt =
   | { k: 'break'; pos: Pos }
   | { k: 'continue'; pos: Pos }
   | { k: 'expr'; e: Expr; pos: Pos }
-  | { k: 'toggle'; mode: 'open' | 'close' | 'toggle'; target: Expr; pos: Pos }
+  | { k: 'toggle'; mode: 'open' | 'close' | 'toggle'; target: Expr; pos: Pos; declares?: Binding }
   | { k: 'go'; path: Expr; pos: Pos }
   | { k: 'js'; code: string; pos: Pos }
   | { k: 'css'; code: string; pos: Pos }
+  | { k: 'style-def'; name: string; rules: Command[]; pos: Pos }
+  | { k: 'animation-def'; name: string; options: Item[]; frames: Command[]; pos: Pos }
   | { k: 'component'; name: string; params: Param[]; body: Stmt[]; exported?: boolean; pos: Pos }
   | { k: 'page'; path: string; address?: Expr; each?: { variable: string; source: Expr }; body: Stmt[]; pos: Pos }
   | { k: 'site'; name?: Expr; body: Stmt[]; pos: Pos }
@@ -83,11 +86,13 @@ export interface Command {
   action?: Stmt[]
   children: Stmt[]
   pos: Pos
+  state?: string // inside a named style: “selected background noir” applies only in that state
+  part?: string // inside a named style: “link color rust” styles the links inside
   // filled in by the checker
   meaning?: Meaning
 }
 
-/** One item after the head: several "atoms" side by side (e.g. « size 80 »). */
+/** One item after the head: several "atoms" side by side (e.g. “size 80”). */
 export interface Item {
   atoms: Expr[]
   pos: Pos

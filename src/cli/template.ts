@@ -1,73 +1,94 @@
-// The project created by « kaury new ».
+// The project created by “kaury new”: a small site that teaches the language when you read it,
+// plus what AI assistants need to write Kaury in it (AGENTS.md and the spec).
 
-export function newSiteTemplate(name: string): Record<string, string> {
+export function newSiteTemplate(name: string, spec?: string): Record<string, string> {
   const title = name.replace(/[-_]+/g, ' ').replace(/^\w/, (x) => x.toUpperCase())
-  return {
+  const files: Record<string, string> = {
     'site.kaury': `// ${title} — the whole site is in this file.
-// Edit, save: the page reloads by itself.
+// Run "kaury dev", edit, save: the page reloads by itself.
 
+// 1. Settings of the whole site
 site "${title}"
-  colors accent #FF4F8B, cream #FFF6EE
-  font "Satoshi"
+  colors accent #F56E2E, cream #F6F1E7, ink #1C1A1A
+  fonts "Satoshi", "Cabinet Grotesk"     // text, titles (downloaded at build time)
   lang "en"
+  style background cream, color ink
 
+// 2. Data and state
 state likes = 0
+let ideas = [
+  { name: "Short", text: "One line is one idea." },
+  { name: "Reactive", text: "A state changes, the page follows." },
+  { name: "Immersive", text: "3D is a word, like title." }
+]
 
+// 3. Your own words: a named style, used below as « card-soft »
+style card-soft
+  background white, radius 20, padding 24, gap 8
+  hover lift 6, shadow medium
+
+// 4. Pages
 page "/"
   seo "${title}", "A site made with Kaury."
-  style background cream
 
   section header
     logo "${title}"
-    links Home, Ideas, Contact
+    links Ideas, Contact
 
   section hero, fullscreen, center
-    title "Hello, ${title}", size 88
+    title "Hello, *${title}*.", size 88
       enters from bottom
-    text "Your first Kaury site. One line = one idea."
-    object star "star.svg", size 0.6
-      float
+    text "Your first Kaury site. Click the knot."
+    object "knot", color accent, metal, height 320
+      spin slow
       follows mouse, smooth
-      on click -> jump
+      on click -> likes += 1
     button "I like it ({likes})", large -> likes += 1
 
   section ideas
     subtitle "Three ideas"
     grid 3 columns, gap 24
       for idea in ideas
-        card idea.name, idea.text
+        column card-soft
+          subtitle idea.name, level 3
+          text idea.text
           enters from bottom
-          style hover lift 6, shadow soft
 
   section contact, center
     subtitle "Let's talk?"
     form -> sent = true
-      field email "Your email", type email, required, label "Email"
+      field email "you@example.com", type email, required, label "Email"
       button "Send"
     if sent
       text "Thanks, talk soon!"
 
   footer
     text "Made with Kaury"
-
-let ideas = [
-  { name: "Short", text: "Half the lines of JavaScript." },
-  { name: "Reactive", text: "A state changes, the page follows." },
-  { name: "Immersive", text: "A 3D object is added like a title." }
-]
 `,
-    'public/star.svg': `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF8FB3"/><stop offset="1" stop-color="#FF4F8B"/></linearGradient></defs><path d="M50 4l13.6 29.4L96 37.6 72 60l6.2 32.4L50 76.6 21.8 92.4 28 60 4 37.6l32.4-4.2z" fill="url(#g)"/></svg>`,
     '.gitignore': 'dist/\n.kaury-cache/\nnode_modules/\n',
     'README.md': `# ${title}
 
-A site written in [Kaury](https://kaury.dev).
+A site written in [Kaury](https://kaury.dev): logic, structure, style and 3D in \`site.kaury\`.
 
-\`\`\`
-kaury dev      # live preview
-kaury build    # final site in dist/
+\`\`\`bash
+kaury dev      # live preview on http://localhost:3000
+kaury check    # checks the code without building
+kaury build    # the final, optimized site in dist/
 \`\`\`
 
-Images, 3D models (.glb) and sounds go in \`public/\`.
+Images, 3D models (\`.glb\`) and sounds go in \`public/\`.
+`,
+    'AGENTS.md': `# Instructions for AI assistants
+
+This project is written in **Kaury**, a language for websites (\`.kaury\` files). It is not JavaScript, HTML or CSS.
+
+1. Read \`kaury-ai.md\` (in this folder) before writing any Kaury: it is the complete specification.
+2. The whole site is in \`site.kaury\`. Images and 3D models go in \`public/\`.
+3. After every change, run \`kaury check --json\` and fix every problem it reports (each one has the line, the column and a fix).
+4. Never add CSS, HTML or JavaScript files: named styles (\`style name\`), animations (\`animation name\`) and the elements of the spec cover everything.
+5. Preview with \`kaury dev\`; build with \`kaury build\`.
 `,
   }
+  if (spec) files['kaury-ai.md'] = spec
+  return files
 }

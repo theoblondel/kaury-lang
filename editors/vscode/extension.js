@@ -15,7 +15,7 @@ function activate(context) {
   const check = async (doc) => {
     if (doc.languageId !== 'kaury') return
     const k = await loadCore()
-    const lang = vscode.env.language?.startsWith('fr') ? 'fr' : 'en'
+    const lang = vscode.workspace.getConfiguration('kaury').get('messages', 'en') === 'fr' ? 'fr' : 'en'
     k.setLanguage(lang)
     const r = k.compile(doc.getText(), { file: doc.fileName, checkOnly: true })
     diagnostics.set(doc.uri, [...r.errors, ...r.warnings].map((e) => {
@@ -43,7 +43,7 @@ function activate(context) {
     async provideCompletionItems() {
       const k = await loadCore()
       const v = k.vocabulary
-      const fr = vscode.env.language?.startsWith('fr')
+      const fr = vscode.workspace.getConfiguration('kaury').get('messages', 'en') === 'fr'
       const items = []
       const add = (name, kind, spec) => {
         const it = new vscode.CompletionItem(name, kind)
@@ -73,7 +73,7 @@ function activate(context) {
       const name = k.keywords.canon(word) ?? v.styleOption(word) ?? word
       const s = v.ELEMENTS[name] ?? v.STYLES[name] ?? v.MOTIONS[name]
       if (!s) return
-      const fr = vscode.env.language?.startsWith('fr')
+      const fr = vscode.workspace.getConfiguration('kaury').get('messages', 'en') === 'fr'
       return new vscode.Hover(new vscode.MarkdownString(`**${name}** — ${fr ? s.helpFr : s.help}\n\n\`${s.example}\``))
     },
   }))

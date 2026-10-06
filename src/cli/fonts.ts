@@ -23,13 +23,17 @@ function latinOnly(css: string): string[] {
   return blocks.filter((b) => !/unicode-range/.test(b) || /U\+0000-00FF/i.test(b))
 }
 
-export async function selfHostFonts(names: string[], out: string, cacheDir: string): Promise<SelfHostedFonts> {
+/**
+ * titleWeight: the weight the titles really use (800 for a site with « weight 800 » titles): its file is preloaded
+ * with the text font, so titles never change width after the first paint (no layout shift).
+ */
+export async function selfHostFonts(names: string[], out: string, cacheDir: string, titleWeight = 700): Promise<SelfHostedFonts> {
   const result: SelfHostedFonts = { css: '', preload: [], external: [] }
   const dir = join(out, '_kaury', 'fonts')
   const cache = join(cacheDir, 'fonts')
   mkdirSync(dir, { recursive: true })
   mkdirSync(cache, { recursive: true })
-  for (const name of names) {
+  for (const [index, name] of names.entries()) {
     const url = fontUrl(name)
     if (!url) continue
     try {
@@ -59,9 +63,10 @@ export async function selfHostFonts(names: string[], out: string, cacheDir: stri
         block = block.replace(/src:[^;]+;/, `src:url(/_kaury/fonts/${file}) format("woff2");`)
         if (!/font-display/.test(block)) block = block.replace('{', '{font-display:swap;')
         result.css += block.replace(/\s+/g, ' ') + '\n'
-        // preload the regular weight of the first font (the body text)
+        // preload the regular weight of the text font, and the weight the titles use of the second font
         const weight = /font-weight:\s*(\d+)/.exec(block)?.[1]
-        if (first && result.preload.length < 2 && (!weight || weight === '400' || weight.includes(' '))) {
+        const wanted = index === 0 ? '400' : index === 1 ? String(titleWeight) : ''
+        if (first && result.preload.length < 2 && wanted && (!weight || weight === wanted)) {
           result.preload.push(`/_kaury/fonts/${file}`)
           first = false
         }

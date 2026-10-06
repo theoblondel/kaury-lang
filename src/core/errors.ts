@@ -1,20 +1,12 @@
 // Kaury errors: every message says WHERE, WHAT and HOW TO FIX IT.
 // Written for humans AND for AIs that need to fix their own code.
-// Messages are bilingual: English by default, French when the system language is French.
+// Messages are in English. French is available on request: --lang fr, or KAURY_LANG=fr.
 
 export type Language = 'en' | 'fr'
 
 function detectLanguage(): Language {
-  const g = globalThis as any
-  const env = g.process?.env?.KAURY_LANG
-  if (env === 'fr' || env === 'en') return env
-  try {
-    const loc = g.navigator?.language ?? Intl.DateTimeFormat().resolvedOptions().locale ?? ''
-    if (String(loc).toLowerCase().startsWith('fr')) return 'fr'
-  } catch {
-    /* default */
-  }
-  return 'en'
+  const env = (globalThis as any).process?.env?.KAURY_LANG
+  return env === 'fr' ? 'fr' : 'en'
 }
 
 let language: Language = detectLanguage()
@@ -129,5 +121,5 @@ export function closest(word: string, candidates: Iterable<string>): string | un
   return best
 }
 
-/** « word » in French, "word" in English. */
+/** “word” in French, "word" in English. */
 export const q = (s: string) => msg(`"${s}"`, `« ${s} »`)

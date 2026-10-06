@@ -31,6 +31,7 @@ export const KAURY_FUNCTIONS: Record<string, GlobalSpec> = {
   price: g('price', 'formats a price: price 12.5 → "CHF 12.50"', ['prix', 'money']),
   'format-date': g('formatDate', 'formats a date: format-date now()', []),
   shuffle: g('shuffle', 'shuffles a list', ['melange']),
+  'image-size': g('imageSize', 'real size of an image of the site: image-size "photo.jpg" → { width, height }', ['taille-image']),
   range: g('range', 'list of numbers: range 1, 5', ['intervalle']),
   every: g('every', 'repeats an action: every 2s, -> count += 1', ['repete', 'repeat']),
   later: g('later', 'delayed action: later 1s, -> close menu', ['plus-tard']),
@@ -40,6 +41,8 @@ export const KAURY_FUNCTIONS: Record<string, GlobalSpec> = {
   vibrate: g('vibrate', 'makes the phone vibrate', ['vibre']),
   'scroll-to': g('scrollTo', 'scrolls to a section: scroll-to "flavors"', ['defile']),
   share: g('share', 'opens the phone share sheet', ['partage']),
+  'json-ld': g('jsonLd', 'structured data for Google and AIs, given to head: head json-ld { "@type": "FAQPage" }', ['donnees-structurees']),
+  slug: g('slug', 'text → address-friendly form: slug "Hello world" → "hello-world"', []),
 }
 
 /** Global reactive values. */

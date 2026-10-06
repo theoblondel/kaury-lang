@@ -12,6 +12,44 @@ import { bodyOf, mouse, reducedMotion, writeBubble, motion } from '../runtime/mo
 let OrbitControls: any
 
 const rad = (d: number) => (d * Math.PI) / 180
+
+/** object "knot", color orange, metal: shapes made by Kaury, no file to load. */
+export const SHAPE = /^\/?(sphere|cube|torus|knot|cone|cylinder|capsule|gem|pyramid|tore|noeud|cylindre|gemme|pyramide)$/i
+function shapeModel(name: string, o: Record<string, any>): any {
+  const n = name.replace(/^\//, '').toLowerCase()
+  const geo =
+    n === 'cube' ? new THREE.BoxGeometry(1.4, 1.4, 1.4, 4, 4, 4)
+      : n === 'torus' || n === 'tore' ? new THREE.TorusGeometry(1, 0.38, 48, 160)
+        : n === 'knot' || n === 'noeud' ? new THREE.TorusKnotGeometry(0.9, 0.3, 260, 40)
+          : n === 'cone' ? new THREE.ConeGeometry(1, 1.8, 64)
+            : n === 'cylinder' || n === 'cylindre' ? new THREE.CylinderGeometry(0.9, 0.9, 1.6, 64)
+              : n === 'capsule' ? new THREE.CapsuleGeometry(0.6, 1, 16, 48)
+                : n === 'gem' || n === 'gemme' ? new THREE.IcosahedronGeometry(1.1, 0)
+                  : n === 'pyramid' || n === 'pyramide' ? new THREE.ConeGeometry(1.1, 1.6, 4)
+                    : new THREE.SphereGeometry(1, 96, 64)
+  const css = (v: unknown) => {
+    const s = String(v ?? '')
+    const m = /^var\((--[\w-]+)\)$/.exec(s)
+    return m && typeof document !== 'undefined' ? getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim() || '#f56e2e' : s || '#f56e2e'
+  }
+  const color = new THREE.Color(css(o.color ?? o.tint))
+  const mat = new THREE.MeshPhysicalMaterial({
+    color,
+    metalness: o.metal ? 0.95 : 0.05,
+    roughness: o.metal ? 0.22 : o.matte ? 0.95 : 0.35,
+    clearcoat: o.matte ? 0 : 0.6,
+    clearcoatRoughness: 0.2,
+    transmission: o.glass ? 1 : 0,
+    thickness: o.glass ? 1.2 : 0,
+    ior: 1.4,
+    emissive: o.glow ? color : new THREE.Color(0),
+    emissiveIntensity: o.glow ? 0.6 : 0,
+    flatShading: n === 'gem' || n === 'gemme',
+  })
+  const group = new THREE.Group()
+  group.add(new THREE.Mesh(geo, mat))
+  return { scene: group, animations: [] }
+}
 const lowEnd = () => (navigator.hardwareConcurrency ?? 8) <= 2 || ((navigator as any).deviceMemory ?? 8) <= 2
 const isPhone = () => matchMedia('(max-width: 640px), (pointer: coarse)').matches
 /** Gives the browser a breath between two heavy steps (keeps the page responsive). */
@@ -293,7 +331,7 @@ async function createWorld(host: HTMLElement, settings: Record<string, any>, sin
     async add(el: any, i: number, n: number) {
       const o = el.$kObject?.options ?? {}
       const src = el.getAttribute('data-src')
-      const gltf: any = await new Promise((ok, ko) => loader.load(src, ok, undefined, (e: any) => ko(new Error(`cannot load "${src}" (${e?.message ?? 'file not found'}).`))))
+      const gltf: any = SHAPE.test(src) ? shapeModel(src, o) : await new Promise((ok, ko) => loader.load(src, ok, undefined, (e: any) => ko(new Error(`cannot load "${src}" (${e?.message ?? 'file not found'}).`))))
       await breathe()
       const model = gltf.scene
       // center and scale: any model arrives well framed

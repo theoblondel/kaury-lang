@@ -357,3 +357,17 @@ export function confetti(options: { count?: number; colors?: string[] } = {}) {
   }
   requestAnimationFrame(frame)
 }
+
+/**
+ * Structured data for Google and AI assistants: json-ld { "@type": "FAQPage", … } → a <script type="application/ld+json">,
+ * to give to “head”. Several objects → several scripts. a “</script>” inside a text can never close it early.
+ */
+export function jsonLd(...items: unknown[]): string {
+  return items
+    .filter((x) => x != null)
+    .map((x) => {
+      const data = JSON.stringify(raw(x as object) ?? x).replace(/</g, String.fromCharCode(92) + 'u003c') // a backslash, then u003c
+      return `<script type="application/ld+json">${data}</script>`
+    })
+    .join('')
+}

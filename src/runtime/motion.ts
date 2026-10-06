@@ -314,7 +314,7 @@ export function namedObject(name: string) {
   return named.get(name)
 }
 
-const EXT_3D = /\.(glb|gltf)(\?|#|$)/i
+const EXT_3D = /\.(glb|gltf)(\?|#|$)|^\/?(sphere|cube|torus|knot|cone|cylinder|capsule|gem|pyramid|tore|noeud|cylindre|gemme|pyramide)$/i
 const EXT_LOTTIE = /\.(json|lottie)(\?|#|$)/i
 
 export interface ObjectOptions {
@@ -413,7 +413,7 @@ export function setting(el: any, name: string, value: string, options: Record<st
 /**
  * Waits until the page is loaded and the visitor has done something (moved the mouse, scrolled,
  * touched, typed): the heavy 3D never competes with the first display ("facade" pattern).
- * A scene marked « immediate » starts as soon as the page is loaded and the browser is idle.
+ * A scene marked “immediate” starts as soon as the page is loaded and the browser is idle.
  */
 let interacted = false
 let waiters: (() => void)[] = []

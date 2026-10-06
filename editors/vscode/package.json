@@ -43,7 +43,21 @@
         "language": "kaury",
         "path": "./snippets.json"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Kaury",
+      "properties": {
+        "kaury.messages": {
+          "type": "string",
+          "enum": [
+            "en",
+            "fr"
+          ],
+          "default": "en",
+          "description": "Language of the error messages and help (English by default)."
+        }
+      }
+    }
   },
   "scripts": {
     "prepare": "node ../../scripts/build.mjs && node -e \"require('fs').copyFileSync('../../dist/core.js','core.js')\""

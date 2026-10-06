@@ -56,7 +56,7 @@ js                                        // raw JavaScript, only if really need
   console.log("hello")
 ```
 
-**Built-in functions**: `print`, `load url` (JSON/text), `send url, data`, `sum list[, fn]`, `average`, `min`, `max`, `round x, decimals`, `floor`, `ceil`, `abs`, `sqrt`, `random a, b`, `pick list`, `length x`, `now()`, `to-text`, `to-number`, `price 12.5` (formatted currency, CHF by default: `price 12.5, "EUR"`), `format-date d`, `shuffle`, `range a, b`, `every 2s, -> …`, `later 1s, -> …`, `persist "key", state` (keeps a state in the browser), `copy text`, `confetti()`, `vibrate`, `scroll-to "section-id"`, `share {…}`, `await 2s`.
+**Built-in functions**: `print`, `load url` (JSON/text), `send url, data`, `sum list[, fn]`, `average`, `min`, `max`, `round x, decimals`, `floor`, `ceil`, `abs`, `sqrt`, `random a, b`, `pick list`, `length x`, `now()`, `to-text`, `to-number`, `price 12.5` (formatted currency, CHF by default: `price 12.5, "EUR"`), `format-date d`, `shuffle`, `range a, b`, `every 2s, -> …`, `later 1s, -> …`, `persist "key", state` (keeps a state in the browser), `copy text`, `confetti()`, `vibrate`, `scroll-to "section-id"`, `share {…}`, `json-ld {…}` (structured data for Google and AIs, given to `head`: `head json-ld(faq)`), `slug "Hello world"`, `await 2s`.
 
 **Methods** (lists, texts, objects): `.add x`, `.remove x` (or a function), `.clear()`, `.filter fn`, `.map fn`, `.sort fn`, `.reverse()`, `.find fn`, `.contains x`, `.join ", "`, `.each fn`, `.count fn`, `.unique()`, `.take n`, `.sum fn`, `.upper()`, `.lower()`, `.replace a, b`, `.split sep`, `.starts-with x`, `.ends-with x`, `.trim()`, `.insert i, x`, `.update {…}`. Properties: `.length`, `.first`, `.last`, `.keys`, `.values`.
 
@@ -104,7 +104,27 @@ page "/"                                       // one page = one address; "/prod
 | `slot` | inside a component: where the content given between its lines goes | |
 
 **Style options** (on the element line or in `style …`): `background c`, `color c`, `font "X"`, `size n`, `bold`, `light`, `weight n`, `italic`, `underline`, `uppercase`, `line-height n`, `tracking n`, `align left|center|right`, `center`, `radius n`, `round`, `shadow soft|medium|strong|none`, `border n c`, `margin n…`, `padding n…`, `gap n`, `width n`, `height n`, `max-width n`, `min-height n`, `fullscreen`, `full-width`, `opacity n`, `blur n`, `glass`, `gradient c1 c2 [angle]`, `text-gradient c1 c2`, `columns n` (or `3 columns`), `direction row|column`, `hidden`, `sticky`, `front`, `cursor pointer`, `hover …` (everything after it on the line applies on hover: `hover lift 4, shadow strong`), `lift n`, `grow n`, `tilt n`, `animate fade|lift|zoom`.
+Existing stylesheets: `class "x"` replaces the default look, `look "x"` adds a class and keeps it (prefer named styles, below). `markdown text` renders Markdown; its code blocks (```kaury, ```bash, ```js) are colored at build time.
 Numbers without unit = pixels. Screens: `mobile …`, `tablet …`, `desktop …` (options for that size; with a block below = content shown only there).
+
+**Your own styles and animations** (never write CSS: everything has a Kaury form):
+```
+style card-dark                       // a new word: use it on any element line → box card-dark
+  background #1C1A1A, padding 24, radius 24, shadow hard
+  hover lift 4                         // states: hover, selected, current, open, focus, pressed, disabled, checked
+  selected background orange
+  link color orange                    // parts inside: title, subtitle, text, link, image, button, icon, code, block, list, item, table, cell, quote, summary, emphasis, logo
+  mobile padding 12                    // screens: mobile, tablet, desktop
+
+style button                           // the name of an element restyles all of them (button, title, header, footer, markdown, logo, emphasis…)
+  border 2 black, radius 999
+
+animation slide, 30s, loop, linear     // options: duration, loop, times n, delay 1s, linear | smooth | bounce, steps n, alternate, scroll (plays while scrolling)
+  from move 0 0                        // steps: from, to, or a percentage (50%), with style options: move x y, grow, tilt, opacity, reveal 0%…100%, colors…
+  to move -50% 0
+// usage: row no-wrap, slide
+```
+Text: `"An *immersive* site"` → emphasis; `"\n"` → a new line. States from a condition: `selected (tab == 1)`, `current (route.path == "/docs/")`, `hidden (tab != 1)`, `open`. Layout: `grid columns 2 1` (unequal), `gap 24 56`, `pin bottom 0 right 20` (over the parent, which needs `front`), `sticky 96`, `border-top 2 black`, `clip`, `no-wrap`, `plain` (no underline), `grain` (paper texture; on the site style: the whole page). Site style: `radius 24, max-width 1400` set the radius and the width of the whole site. Elements: `details "Question?"` (opens on click, content below), `embed "url", "title"` (another page inside), `logo "mark.svg" "Name"`.
 
 **Interactions**: `-> action` on the line (click; submit for a form; input for a field), or a child line `on click -> …`, `on hover -> …`, `on load -> …`, `on scroll -> …`. An action is one line or an indented block after `->`. `open menu` / `close menu` / `toggle menu` set a true/false state. `go "/page"` changes page.
 

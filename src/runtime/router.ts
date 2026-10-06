@@ -31,7 +31,7 @@ let releaseCurrent: (() => void) | null = null
 
 const clean = (p: string) => p.replace(/\/index\.html$/, '/').replace(/(.)\/$/, '$1') || '/'
 
-/** Every address a module can build (pages with « for » are expanded). */
+/** Every address a module can build (pages with “for” are expanded). */
 export function allPaths(m: KauryModule): string[] {
   const out: string[] = []
   for (const p of m.$pages) {

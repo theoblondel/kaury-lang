@@ -1,5 +1,5 @@
 // Base stylesheet: good defaults, mobile included.
-// Everything is driven by variables (--k-…) that « style » options override.
+// Everything is driven by variables (--k-…) that “style” options override.
 
 export const BASE_STYLE = `
 :root{
@@ -36,7 +36,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .k-row{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:var(--k-gap)}
 .k-grid{display:grid;gap:var(--k-gap);grid-template-columns:repeat(var(--k-columns,3),minmax(0,1fr))}
 @media (max-width:1024px){.k-grid[class]{grid-template-columns:repeat(min(var(--k-columns,3),2),minmax(0,1fr))}}
-@media (max-width:640px){.k-grid[class]{grid-template-columns:1fr}}
+@media (max-width:640px){.k-grid[class]{grid-template-columns:minmax(0,1fr)}}
+.k-grid>*{min-width:0}.k-markdown{min-width:0}
 
 /* ---- texts ---- */
 .k-title,.k-subtitle,h1,h2,h3{font-family:var(--k-font-titles);line-height:1.05;letter-spacing:-.02em;margin:0;text-wrap:balance}
@@ -62,6 +63,24 @@ h3.k-title{font-size:clamp(22px,2.2vw,30px)}
 .k-markdown table{border-collapse:collapse;width:100%;font-size:.95em}
 .k-markdown th,.k-markdown td{border-bottom:1px solid var(--k-line);padding:.5em .6em;text-align:left}
 .k-markdown code{font-family:ui-monospace,Consolas,monospace;font-size:.9em;background:color-mix(in srgb,var(--k-text) 8%,transparent);padding:.1em .35em;border-radius:6px}
+[hidden]{display:none!important}
+.k-title,.k-subtitle,.k-text{white-space:pre-line}
+.k-logo-text{font-weight:inherit}
+.k-details{display:block;border-bottom:1px solid var(--k-line)}
+.k-summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 0;font-weight:700;font-size:1.1em}
+.k-summary::-webkit-details-marker{display:none}
+.k-summary:after{content:"+";flex:none;width:32px;height:32px;border-radius:50%;border:2px solid currentColor;display:grid;place-items:center;font-weight:400;line-height:1;transition:transform .35s var(--k-ease)}
+.k-details[open]>.k-summary:after{transform:rotate(45deg)}
+.k-details>:not(summary){margin:0 0 18px}
+.k-embed{display:block;width:100%;min-height:420px;border:0;border-radius:var(--k-radius);background:#fff}
+.k-markdown h2,.k-markdown h3{position:relative;scroll-margin-top:96px}
+.k-anchor{position:absolute;right:100%;padding-right:.3em;opacity:0;text-decoration:none!important;color:var(--k-muted)}
+.k-markdown h2:hover .k-anchor,.k-markdown h3:hover .k-anchor{opacity:1}
+.k-code{margin:0;overflow-x:auto;padding:1.1em 1.3em;border-radius:var(--k-radius);background:var(--k-code-bg,#0d0b14);color:var(--k-code-text,#ece7f5);font:14px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2}
+.k-markdown .k-code code{background:none;color:inherit;padding:0;font-size:inherit;border-radius:0}
+.k-c{color:var(--k-code-comment,#7d7590);font-style:italic}.k-s{color:var(--k-code-string,#a5e8a0)}.k-i{color:var(--k-code-interp,#ffd479)}
+.k-n,.k-v{color:var(--k-code-number,#ffb38a)}.k-k{color:var(--k-code-keyword,#ff7ab0)}.k-e{color:var(--k-code-element,#8fc7ff)}
+.k-o{color:var(--k-code-option,#c9b3ff)}.k-f{color:var(--k-code-component,#7ff0d8)}.k-p{color:var(--k-code-keyword,#ff7ab0)}
 
 /* ---- links and menu ---- */
 .k-link{text-decoration:underline;text-underline-offset:.2em;text-decoration-thickness:1px}

@@ -1,14 +1,14 @@
-// Kaury runtime: everything the generated code calls through « $k. ».
+// Kaury runtime: everything the generated code calls through “$k.”.
 
 export { state, derived, effect, batch, root, untracked, reactive, raw, onCleanup, Cell, Derived } from './reactive.js'
 export {
   t, print, load, send, sum, average, min, max, round, floor, ceil, abs, sqrt, random, pick, length, now, toText, toNumber,
   price, formatDate, shuffle, range, toList, delay, every, later, persist, copy, vibrate, scrollTo, share, equal, has, prop, m,
-  confetti, NetworkError, setLocale,
+  confetti, NetworkError, setLocale, jsonLd,
 } from './utils.js'
 export {
   h, setText, text, attr, style, px, path, img, on, when, each, component, mark, rootNodes, rootClass, slot, bind, bindCheck,
-  options, form, card, autoLink, resolveLinks, mobileMenu, installMenus, markdown, html, classes, inBrowser, slug,
+  options, form, card, frame, autoLink, resolveLinks, mobileMenu, installMenus, markdown, html, classes, imageSize, inBrowser, slug,
 } from './dom.js'
 export { serverCollection, clientCollection, rawItems } from './content.js'
 export {

@@ -73,7 +73,7 @@ export function tokenize(source: string): Token[] {
             msg('align it exactly under the line it belongs to (2 spaces per level).', 'aligne-la exactement sous la ligne dont elle fait partie (2 espaces par niveau).'))
         }
       }
-      // Raw block: « js » or « css » alone on its line, then indented code copied as is.
+      // Raw block: “js” or “css” alone on its line, then indented code copied as is.
       const rawKind = /^(js|javascript|css)\s*(\/\/.*)?$/.exec(rest)?.[1]
       if (rawKind) {
         const word = rawKind === 'css' ? 'css' : 'js'
@@ -136,7 +136,7 @@ export function tokenize(source: string): Token[] {
         continue
       }
 
-      // Number (with a glued minus: « margin -10 »)
+      // Number (with a glued minus: “margin -10”)
       const gluedMinus = c === '-' && space && isDigit(line[i + 1] ?? '') && previousAllowsUnary(tokens, hadToken)
       if (isDigit(c) || gluedMinus) {
         let j = i + (gluedMinus ? 1 : 0)
@@ -239,7 +239,7 @@ function previousAllowsUnary(tokens: Token[], hadToken: boolean): boolean {
   if (!hadToken) return true
   const d = tokens[tokens.length - 1]
   if (!d) return true
-  // « a -1 » in an option list: -1 is a number. « a - 1 » stays a subtraction.
+  // “a -1” in an option list: -1 is a number. “a - 1” stays a subtraction.
   return d.t === 'word' || d.t === 'op' || d.t === 'number' || d.t === 'text'
 }
 
@@ -286,12 +286,12 @@ function readText(line: string, start: number, lineNo: number): { token: Token; 
         if (p > 0) j++
       }
       if (p > 0) {
-        throw new KauryError({ line: lineNo, column: i + 1 }, msg('interpolation « { » never closed in this text.', 'insertion « { » jamais refermée dans ce texte.'),
-          msg('close it with « } », or write \\{ for a real brace.', 'ferme-la avec « } », ou écris \\{ pour une vraie accolade.'))
+        throw new KauryError({ line: lineNo, column: i + 1 }, msg('interpolation “{” never closed in this text.', 'insertion « { » jamais refermée dans ce texte.'),
+          msg('close it with “}”, or write \\{ for a real brace.', 'ferme-la avec « } », ou écris \\{ pour une vraie accolade.'))
       }
       const code = line.slice(i + 1, j)
       if (!code.trim()) {
-        throw new KauryError({ line: lineNo, column: i + 1, length: 2 }, msg('empty interpolation « {} » in a text.', 'insertion vide « {} » dans un texte.'),
+        throw new KauryError({ line: lineNo, column: i + 1, length: 2 }, msg('empty interpolation “{}” in a text.', 'insertion vide « {} » dans un texte.'),
           msg('put a name between the braces: "Hello {name}".', 'mets un nom entre les accolades : "Bonjour {nom}".'))
       }
       parts.push({ code, line: lineNo, column: i + 2 })

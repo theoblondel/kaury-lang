@@ -1,5 +1,5 @@
 // Kaury keywords. English is the canonical form; every word also has a French alias.
-// Accents are always accepted: « état » = « etat » = state.
+// Accents are always accepted: “état” = “etat” = state.
 
 export function stripAccents(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -16,7 +16,7 @@ const TABLE: Record<string, string[]> = {
   else: ['sinon'],
   for: ['pour'],
   in: ['dans'],
-  while: ['tant'], // « tant que »
+  while: ['tant'], // “tant que”
   que: [],
   await: ['attends', 'wait'],
   try: ['essaie'],
@@ -40,6 +40,7 @@ const TABLE: Record<string, string[]> = {
   go: ['aller', 'goto'],
   js: ['javascript'],
   css: [],
+  animation: [],
   // ---- web ----
   site: [],
   page: [],
@@ -72,6 +73,8 @@ const TABLE: Record<string, string[]> = {
   icon: ['icone'],
   divider: ['separateur'],
   spacer: ['espaceur'],
+  details: ['deplie'],
+  embed: ['integre', 'iframe'],
   slot: ['contenu', 'children'],
   markdown: ['md'],
   style: [],

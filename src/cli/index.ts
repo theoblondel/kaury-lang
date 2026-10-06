@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The « kaury » command: new, dev, build, check, run, compile, deploy.
+// The “kaury” command: new, dev, build, check, run, compile, deploy.
 // French aliases work too: nouveau, verifie, lance, traduit, publie.
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, watch } from 'node:fs'
@@ -101,7 +101,9 @@ function newProject(name: string) {
     process.exitCode = 1
     return
   }
-  for (const [path, content] of Object.entries(newSiteTemplate(name))) {
+  const specFile = join(packageRoot(), 'docs', 'kaury-ai.md')
+  const spec = existsSync(specFile) ? readFileSync(specFile, 'utf8') : undefined
+  for (const [path, content] of Object.entries(newSiteTemplate(name, spec))) {
     const p = join(dir, path)
     mkdirSync(dirname(p), { recursive: true })
     writeFileSync(p, content)
@@ -116,7 +118,7 @@ async function buildCmd(here: string, file?: string, out?: string) {
     console.log(c.gray(msg(`Building ${relative(here, entry)}…`, `Construction de ${relative(here, entry)}…`)))
     const r = await build(entry, { out })
     for (const { e, source } of r.collected.warnings) console.log(c.yellow(e.format(source)))
-    console.log(`${c.green('✓')} ${r.pages.length} page${r.pages.length > 1 ? 's' : ''} (${r.pages.join(', ')}), ${r.images} image${r.images > 1 ? 's' : ''} ${msg('optimized', 'optimisée' + (r.images > 1 ? 's' : ''))}, ${r.duration} ms → ${relative(here, r.dir) || '.'}`)
+    console.log(`${c.green('✓')} ${r.pages.length} page${r.pages.length > 1 ? 's' : ''} (${r.pages.join(', ')}), ${r.images} image${r.images === 1 ? '' : 's'} ${msg('optimized', 'optimisée' + (r.images > 1 ? 's' : ''))}, ${r.duration} ms → ${relative(here, r.dir) || '.'}`)
     if (r.collected.immersion) console.log(c.gray(msg('  immersion: the 3D library loads only on pages that need it, after the page is displayed.', '  immersion : la 3D se charge seulement sur les pages qui en ont besoin, après l\'affichage.')))
   } catch (e) {
     showFailure(e)

@@ -46,7 +46,7 @@
     },
     {
       "name": "keyword.control.kaury",
-      "match": "(?<![\\w-])(fonction|function|continue|retourne|bascule|attends|importe|exporte|import|erreur|arrete|toggle|export|return|essaie|aller|comme|ouvre|sinon|alors|close|state|await|while|catch|ferme|break|pour|dans|tant|open|etat|soit|état|puis|else|then|from|let|try|for|que|de|in|go|if|js|as|si)(?![\\w-])"
+      "match": "(?<![\\w-])(javascript|continue|fonction|function|retourne|attends|bascule|exporte|importe|arrete|depuis|erreur|essaie|export|import|return|toggle|aller|alors|await|break|catch|close|comme|const|ferme|ouvre|sinon|state|while|dans|else|etat|from|goto|open|pour|puis|soit|tant|then|wait|css|for|let|try|as|de|fn|go|if|in|js|si)(?![\\w-])"
     },
     {
       "name": "storage.type.kaury",
@@ -54,11 +54,11 @@
     },
     {
       "name": "entity.name.tag.kaury",
-      "match": "^\\s*(sous-titre|formulaire|separateur|transition|ordinateur|checkbox|textarea|tablette|subtitle|espaceur|couleurs|colonne|desktop|polices|favicon|divider|section|adresse|contenu|element|select|bouton|grille|langue|entete|spacer|header|colors|police|column|tablet|footer|mobile|button|field|boite|links|carte|icone|liste|texte|video|ligne|titre|liens|choix|style|fonts|champ|image|title|item|grid|text|lang|icon|lien|form|zone|list|slot|case|link|font|card|pied|logo|nav|url|box|row|seo)(?![\\w-])"
+      "match": "^\\s*(alternates|formulaire|ordinateur|personnage|separateur|sous-titre|traduction|transition|alternate|animation|character|enveloppe|checkbox|children|couleurs|espaceur|hreflang|language|lighting|markdown|subtitle|tablette|textarea|adresse|colonne|contenu|desktop|details|divider|element|favicon|integre|lumiere|polices|section|wrapper|bouton|button|camera|colors|column|deplie|entete|footer|grille|header|iframe|langue|mobile|object|police|select|spacer|tablet|audio|boite|carte|champ|choix|embed|field|fonts|icone|image|input|liens|light|ligne|links|liste|model|objet|scene|sound|style|texte|title|titre|video|base|card|case|font|form|grid|head|icon|item|lang|lien|link|list|logo|menu|pied|slot|tete|text|zone|box|nav|row|seo|son|url|md)(?![\\w-])"
     },
     {
       "name": "support.function.immersion.kaury",
-      "match": "(?<![\\w-])(défilement|personnage|defilement|chargement|character|parallaxe|parallax|follows|lumiere|lumière|balance|enters|camera|tourne|survol|scroll|souris|depuis|object|flotte|sound|scène|hover|mouse|objet|saute|pulse|entre|light|click|scene|float|sway|says|clic|joue|play|load|jump|suit|spin|dit|son|au|on)(?![\\w-])"
+      "match": "(?<![\\w-])(soft-motion|chargement|defilement|personnage|character|parallaxe|lighting|parallax|une-fois|balance|follows|inverse|lumiere|reverse|bottom|boucle|camera|depuis|droite|enters|flotte|follow|gauche|object|rapide|rotate|scroll|smooth|souris|survol|tourne|audio|click|douce|enter|entre|float|fondu|hover|lente|light|model|mouse|objet|pulse|right|saute|scene|sound|clic|doux|down|fade|fast|fois|from|haut|joue|jump|left|lent|load|loop|once|play|says|slow|spin|suit|sway|turn|zoom|bas|dit|say|son|top|au|de|on|up|x|y|z)(?![\\w-])"
     },
     {
       "name": "entity.name.type.component.kaury",

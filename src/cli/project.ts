@@ -1,6 +1,7 @@
 // Building a Kaury site: compiles the .kaury files, bundles the JavaScript, renders every page to HTML.
 
 import { existsSync, readdirSync, statSync, readFileSync, mkdirSync, writeFileSync, cpSync, rmSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { dirname, join, relative, resolve, basename } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import * as esbuild from 'esbuild'
@@ -11,7 +12,7 @@ import { installSSR } from '../runtime/ssr.js'
 import { optimizeImages, type ImageInfo } from './images.js'
 import { selfHostFonts } from './fonts.js'
 import { loadContent, clearContentCache, CONTENT_SOURCE, type LoadedContent } from './content.js'
-import { marked } from 'marked'
+import { parseMarkdown } from '../runtime/markdown.js'
 
 export function packageRoot(): string {
   let d = dirname(fileURLToPath(import.meta.url))
@@ -212,7 +213,9 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
 
   // 4. CSS: base + the styles of the files (inlined in each page: no blocking request)
   // fonts: downloaded and served by the site itself (no third party, no blocking)
-  const fonts = await selfHostFonts([...collected.fonts], out, cacheDir)
+  const siteCss = [...collected.css.values()].join('\n')
+  const titleWeight = Math.max(700, ...[...siteCss.matchAll(/font-weight:\s*(\d+)/g)].map((m) => Number(m[1])).filter((w) => w <= 900))
+  const fonts = await selfHostFonts([...collected.fonts], out, cacheDir, titleWeight)
   const css = await minifyCss([fonts.css, assets.base === 'none' ? classesOnly(BASE_STYLE) : BASE_STYLE, ...assets.styles, ...collected.css.values()].join('\n'), !o.dev)
 
   // 5. server render of every page
@@ -237,7 +240,7 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
     throw esbuildErrors(e)
   }
   const doc = installSSR()
-  ;(globalThis as any).__kauryMarkdown = (md: string) => marked.parse(String(md ?? ''), { async: false }) as string
+  ;(globalThis as any).__kauryMarkdown = parseMarkdown
   let mod: any
   try {
     mod = await import(pathToFileURL(ssrFile).href)
@@ -270,9 +273,11 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
         (info.item ? `<script type="application/json" id="k-item" data-k-path="${esc(info.pattern)}">${jsonForHtml(info.item)}</script>` : '')
       : ''
     const js = dynamic ? siteJs : staticJs
+    const share = await shareImage(info.image, out, cacheDir)
+    const body = mod.serialize(target).replace(/^<div>|<\/div>$/g, '')
     const html = template({
-      ...common, lang: info.lang ?? lang, body: mod.serialize(target).replace(/^<div>|<\/div>$/g, ''), data,
-      title: info.title, description: info.description, image: info.image, alternates: info.alternates, head: (site.head ?? '') + (info.head ?? ''), path, js: '/_kaury/' + basename(js), preload: preloadOf(js), pageKind: dynamic ? 'dynamic' : 'static',
+      ...common, css: dynamic ? common.css : pruneCss(common.css, body), lang: info.lang ?? lang, body, data,
+      title: info.title, description: info.description, image: share?.url ?? info.image, imageSize: share?.size, alternates: info.alternates, head: (site.head ?? '') + (info.head ?? ''), path, js: '/_kaury/' + basename(js), preload: preloadOf(js), pageKind: dynamic ? 'dynamic' : 'static',
     })
     const file = path === '/' ? 'index.html' : path === '/404' ? '404.html' : join(path.slice(1), 'index.html')
     mkdirSync(dirname(join(out, file)), { recursive: true })
@@ -297,6 +302,77 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
   if (!existsSync(join(out, '_headers'))) writeFileSync(join(out, '_headers'), HEADERS)
 
   return { pages, files: Object.keys(outputs).length, dir: out, collected, duration: Date.now() - t0, images: Object.keys(images).length, staticPages }
+}
+
+/** og:locale from the page language: fr-CH → fr_CH, en → en_US. */
+function ogLocale(lang: string): string {
+  const [l, r] = lang.split('-')
+  const regions: Record<string, string> = { en: 'US', fr: 'FR', de: 'DE', it: 'IT', es: 'ES', pt: 'PT', nl: 'NL' }
+  return `${l.toLowerCase()}_${(r ?? regions[l.toLowerCase()] ?? l).toUpperCase()}`
+}
+
+/**
+ * Share image of a page (WhatsApp, LinkedIn, iMessage…): networks show 1.91:1 and crop the rest at random.
+ * A raster image of another shape is cut to 1200×630 JPEG (every bot reads JPEG); one already right is kept.
+ */
+async function shareImage(src: string | undefined, out: string, cacheDir: string): Promise<{ url: string; size: [number, number] } | undefined> {
+  if (!src || !src.startsWith('/') || !/\.(png|jpe?g|webp|avif)$/i.test(src)) return undefined
+  const file = join(out, src.slice(1))
+  if (!existsSync(file)) return undefined
+  let sharp: any
+  try {
+    sharp = (await import('sharp')).default
+  } catch {
+    return undefined
+  }
+  const meta = await sharp(file).metadata()
+  if (meta.width === 1200 && meta.height === 630) return { url: src, size: [1200, 630] }
+  const key = createHash('sha1').update(src + statSync(file).size + statSync(file).mtimeMs).digest('hex').slice(0, 12)
+  const name = `${basename(src).replace(/\.[^.]+$/, '').replace(/[^\w-]+/g, '-')}-${key}.jpg`
+  const cached = join(cacheDir, 'share', name)
+  if (!existsSync(cached)) {
+    mkdirSync(dirname(cached), { recursive: true })
+    await sharp(file).resize(1200, 630, { fit: 'cover' }).jpeg({ quality: 78, mozjpeg: true }).toFile(cached)
+  }
+  mkdirSync(join(out, '_kaury', 'share'), { recursive: true })
+  cpSync(cached, join(out, '_kaury', 'share', name))
+  return { url: `/_kaury/share/${name}`, size: [1200, 630] }
+}
+
+/**
+ * A page without JavaScript never changes its HTML: the rules of the site written for elements it does not have
+ * (classes made by Kaury: .kxxx-1, .ks-name, .ka-name) are removed from its stylesheet. The base look is kept.
+ */
+export function pruneCss(css: string, html: string): string {
+  const present = new Set<string>()
+  for (const m of html.matchAll(/class="([^"]*)"/g)) for (const c of m[1].split(/\s+/)) if (c) present.add(c)
+  const own = /\.(k[a-z0-9]{2,5}-[0-9a-z]+|ks-[\w-]+|ka-[\w-]+)/g
+  const keep = (selector: string) => selector.split(',').some((sel) => [...sel.matchAll(own)].every((m) => present.has(m[1])))
+  let out = ''
+  let i = 0
+  while (i < css.length) {
+    const open = css.indexOf('{', i)
+    if (open < 0) {
+      out += css.slice(i)
+      break
+    }
+    const head = css.slice(i, open)
+    // the matching closing brace (rules nested in @media / @supports)
+    let depth = 1
+    let j = open + 1
+    while (j < css.length && depth) {
+      if (css[j] === '{') depth++
+      else if (css[j] === '}') depth--
+      j++
+    }
+    const inner = css.slice(open + 1, j - 1)
+    if (head.trim().startsWith('@media') || head.trim().startsWith('@supports')) {
+      const kept = pruneCss(inner, html)
+      if (kept.trim()) out += `${head}{${kept}}`
+    } else if (head.trim().startsWith('@') || keep(head)) out += css.slice(i, j)
+    i = j
+  }
+  return out
 }
 
 /** JSON safe to put inside a <script> tag. */
@@ -361,7 +437,7 @@ const esc = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'
 
 export function template(d: {
   body: string; title: string; description?: string; image?: string; lang: string; siteName?: string; favicon?: string
-  css: string; js: string; preload?: string[]; fonts: string[]; fontPreload?: string[]; dev: boolean; path: string; siteUrl?: string; noindex?: boolean; data?: string; pageKind?: string; transition?: string; alternates?: [string, string][]; head?: string
+  css: string; js: string; preload?: string[]; fonts: string[]; fontPreload?: string[]; dev: boolean; path: string; siteUrl?: string; noindex?: boolean; data?: string; pageKind?: string; transition?: string; alternates?: [string, string][]; head?: string; imageSize?: [number, number]
 }): string {
   const fontLinks = d.fonts.map((p) => fontUrl(p)).filter(Boolean) as string[]
   const origins = [...new Set(fontLinks.map((l) => new URL(l).origin))]
@@ -371,7 +447,7 @@ export function template(d: {
   const canonical = d.siteUrl && !d.noindex ? `${d.siteUrl}${d.path === '/' ? '/' : d.path + '/'}` : ''
   const image = d.image && d.siteUrl && d.image.startsWith('/') ? d.siteUrl + d.image : d.image
   const jsonld = d.siteName && d.path === '/' && !/application\/ld\+json/.test(d.head ?? '') ? `<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebSite', name: d.siteName, description: d.description, url: d.siteUrl || undefined })}</script>` : ''
-  return `<!doctype html>
+  const html = `<!doctype html>
 <html lang="${esc(d.lang)}"${d.pageKind ? ` data-k-page="${d.pageKind}"` : ""}${d.transition ? ` data-k-transition="${esc(d.transition)}"` : ""}>
 <head>
 <meta charset="utf-8">
@@ -388,7 +464,8 @@ ${(d.alternates ?? []).map(([l, p], i) => {
 <meta property="og:title" content="${esc(d.title)}">
 ${d.description ? `<meta property="og:description" content="${esc(d.description)}">` : ''}
 ${canonical ? `<meta property="og:url" content="${esc(canonical)}">` : ''}
-${image ? `<meta property="og:image" content="${esc(image)}"><meta name="twitter:card" content="summary_large_image">` : ''}
+${image ? `<meta property="og:image" content="${esc(image)}">${d.imageSize ? `<meta property="og:image:width" content="${d.imageSize[0]}"><meta property="og:image:height" content="${d.imageSize[1]}">` : ''}<meta property="og:image:alt" content="${esc(d.title)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${esc(d.title)}">${d.description ? `<meta name="twitter:description" content="${esc(d.description)}">` : ''}<meta name="twitter:image" content="${esc(image)}">` : ''}
+<meta property="og:locale" content="${ogLocale(d.lang)}">
 ${d.siteName ? `<meta property="og:site_name" content="${esc(d.siteName)}">` : ''}
 <meta name="generator" content="Kaury">
 ${icon}
@@ -407,7 +484,10 @@ ${jsonld}
 ${d.dev ? '<script type="module" src="/_kaury/reload.js"></script>' : ''}
 </body>
 </html>
-`.replace(/\n{2,}/g, '\n')
+`
+  // tidy the empty lines of the head only: the body may hold <pre> blocks whose blank lines matter
+  const at = html.indexOf('<body>')
+  return html.slice(0, at).replace(/\n{2,}/g, '\n') + html.slice(at)
 }
 
 function llmsTxt(name: string | undefined, description: string | undefined, pages: { path: string; title: string; description?: string }[], url: string): string {
