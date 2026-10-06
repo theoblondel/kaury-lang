@@ -2,7 +2,8 @@
 import * as esbuild from 'esbuild'
 import { rmSync } from 'node:fs'
 const common = { bundle: true, platform: 'node', format: 'esm', target: 'node18', logLevel: 'info', sourcemap: true }
-await esbuild.build({ ...common, entryPoints: ['src/cli/index.ts'], outfile: 'dist/cli.js', external: ['esbuild', 'sharp'] })
+// dependencies written for require() (CommonJS) get a real one in this ES module
+await esbuild.build({ ...common, entryPoints: ['src/cli/index.ts'], outfile: 'dist/cli.js', external: ['esbuild', 'sharp'], banner: { js: "import { createRequire as $kauryRequire } from 'node:module'; const require = $kauryRequire(import.meta.url);" } })
 await esbuild.build({ ...common, entryPoints: ['src/core/index.ts'], outfile: 'dist/core.js', platform: 'neutral' })
 // the compiler for the browser (playground, VS Code)
 await esbuild.build({ ...common, entryPoints: ['src/core/index.ts'], outfile: 'playground/kaury-compiler.js', platform: 'browser', minify: true, sourcemap: false })

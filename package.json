@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "measure": "node scripts/measure.mjs",
     "site": "tsx scripts/site-prepare.ts && tsx src/cli/index.ts build site/site.kaury --lang en",
-    "site:dev": "tsx scripts/site-prepare.ts && tsx src/cli/index.ts dev site/site.kaury --lang en"
+    "site:dev": "tsx scripts/site-prepare.ts && tsx src/cli/index.ts dev site/site.kaury --lang en",
+    "prepublishOnly": "npm run build && npm test"
   },
   "keywords": [
     "language",
@@ -19,9 +20,15 @@
     "immersive",
     "compiler",
     "website",
-    "seo"
+    "seo",
+    "threejs",
+    "static-site",
+    "ssg",
+    "lighthouse",
+    "llms",
+    "ai"
   ],
-  "author": "",
+  "author": "Kaury Studio (https://kaury.studio)",
   "license": "MIT",
   "description": "Kaury — the language for immersive websites. Logic, structure, style and 3D in a single file.",
   "devDependencies": {
@@ -53,9 +60,18 @@
     "src",
     "docs",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "!dist/*.map"
   ],
   "engines": {
     "node": ">=18"
+  },
+  "homepage": "https://kaury.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theoblondel/kaury-lang.git"
+  },
+  "bugs": {
+    "url": "https://github.com/theoblondel/kaury-lang/issues"
   }
 }

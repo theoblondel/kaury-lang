@@ -231,7 +231,7 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
       logLevel: 'silent',
       nodePaths,
       define: { 'process.env.NODE_ENV': '"production"', __KAURY_IMAGES__: JSON.stringify(images) },
-      external: ['three', 'three/*', 'lottie-web', 'marked'],
+      // nothing external: the server render must work wherever the project is (three, marked… live in Kaury's folder)
       plugins: [kauryPlugin(root, { ...collected, css: new Map(), warnings: [], fonts: new Set(), content: collected.content }, siteDir, true, {
         ssr: `export * from ${entryPath}\nexport { renderPage, allPaths } from "kaury/runtime"\nexport { serialize } from "kaury/ssr"\n`,
       }, out)],
