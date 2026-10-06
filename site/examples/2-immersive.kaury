@@ -1,0 +1,10 @@
+page "/"
+  scene fullscreen, particles stars, background night, immediate
+    light neon
+    object star "star.svg", size 0.8
+      float
+      follows mouse, smooth
+      on click -> jump
+      says "Click me!"
+    title "A universe in 10 lines", size 64, color white
+      enters from bottom

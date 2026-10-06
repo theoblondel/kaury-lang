@@ -1,0 +1,11 @@
+state likes = 0
+let double = likes * 2
+
+page "/"
+  section fullscreen, center
+    title "Hello, world", size 72, text-gradient #F56E2E #A83E0D
+      enters from bottom
+    text "The double computes itself: {double}"
+    button "I like it ({likes})", large -> likes += 1
+    if likes >= 5
+      text "You really like it!", bold, orange

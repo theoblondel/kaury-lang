@@ -1,0 +1,10 @@
+page "/"
+  section center
+    title "Contact", size 48
+    form -> sent = true
+      field name "Your first name", required, label "First name"
+      field email "name@example.com", type email, required, label "Email"
+      checkbox agree "I agree to be contacted"
+      button "Send", disabled not agree
+    if sent
+      text "Thanks {name}, see you soon.", bold

@@ -1,0 +1,16 @@
+state cart = []
+let total = sum cart, f -> f.price
+let flavors = [
+  { name: "Berry", price: 3.9 },
+  { name: "Mint", price: 3.9 },
+  { name: "Mango", price: 4.2 }
+]
+
+page "/"
+  section center
+    title "Cart: {cart.length} · {price(total)}", size 40
+    grid 3 columns, gap 16
+      for f in flavors
+        card f.name
+          text price(f.price)
+          button "Add", small -> cart.add f
