@@ -42,11 +42,11 @@ export function mail(el: any, to: () => unknown, subject: (() => unknown) | null
     el.setAttribute('aria-busy', 'true')
     buttons.forEach((b) => (b.disabled = true))
     try {
-      const r = await fetch(MAIL_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: mailId(String(to() ?? '')), subject: subject ? String(subject() ?? '') : '', page: location.pathname, fields, time: Date.now() - loadedAt }),
-      })
+      const body = JSON.stringify({ to: mailId(String(to() ?? '')), subject: subject ? String(subject() ?? '') : '', page: location.pathname, fields, time: Date.now() - loadedAt })
+      const post = (url: string) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
+      let r = await post(MAIL_ENDPOINT)
+      // an Apache host whose .htaccess has no rewrite: the PHP file itself
+      if (r.status === 404 || r.status === 405) r = await post(MAIL_ENDPOINT + '.php')
       if (!r.ok) throw new Error(await r.text())
       if (done) await done(e)
     } catch (err) {

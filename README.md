@@ -91,7 +91,7 @@ Open `http://localhost:3000`, edit `site.kaury`, save: the page reloads by itsel
 - **Motion** — your own animations with `from` / `to`, entrances on scroll, reduced motion respected.
 - **3D as a word** — `.glb` models or built-in shapes (`sphere`, `knot`, `gem`, `torus`…), lights, cameras, particles, characters. Three.js loads only on pages with 3D, after the first paint.
 - **Ready-made blocks** — `Hero`, `Features`, `Pricing`, `Testimonials`, `Faq`, `Contact`, `Footer`… in your colors, nothing to import; write your own component of the same name to replace one.
-- **Forms that send e-mails** — `form mail "hello@you.com"`: shown in the terminal while you build, sent through [Resend](https://resend.com) once online, with the endpoint written for Netlify, Vercel and Cloudflare Pages.
+- **Forms that send e-mails** — `form mail "hello@you.com"`: shown in the terminal while you build, sent through [Resend](https://resend.com) once online, with the endpoint written for Netlify, Vercel, Cloudflare Pages and any PHP host (FTP).
 - **Content** — Markdown, MDX and YAML collections read at build time, one page per post, code blocks colored at build time.
 - **Fast by construction** — server rendering and hydration, zero JavaScript on pages without interaction, only the CSS a page needs, frames loaded near the screen.
 - **Accessible** — text colors chosen for WCAG contrast, real HTML in front of the 3D, tabs with the right roles.

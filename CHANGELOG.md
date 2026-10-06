@@ -3,7 +3,7 @@
 ## 0.4.0
 
 - **Ready-made blocks**: `Hero`, `Features`, `Steps`, `Stats`, `Pricing`, `Testimonials`, `Team`, `Logos`, `Gallery`, `Faq`, `Cta`, `Contact`, `Footer`. Written in Kaury, added by the compiler when a page uses them, in the site's colors and fonts. A component of the same name in the site replaces one.
-- **Forms that send e-mails**: `form mail "hello@you.com", subject "…" -> …`. `kaury dev` shows the e-mail in the terminal; with `KAURY_MAIL_KEY` (a resend.com key) it is really sent. `kaury build` writes the endpoint for Netlify, Vercel and Cloudflare Pages. The address never appears in the page, the endpoint only writes to the site's addresses, and robots are ignored.
+- **Forms that send e-mails**: `form mail "hello@you.com", subject "…" -> …`. `kaury dev` shows the e-mail in the terminal; with `KAURY_MAIL_KEY` (a resend.com key) it is really sent. `kaury build` writes the endpoint for Netlify, Vercel, Cloudflare Pages and PHP hosts filled by FTP (`dist/api/kaury-mail.php`, key in `kaury-mail-key.txt` next to the site's folder). The address never appears in the page, the endpoint only writes to the site's addresses, and robots are ignored.
 - **Templates**: `kaury new my-site --template landing | blog | portfolio` (the default `starter` still teaches the language).
 - **Theme colors and fonts**: `accent`, `on-accent`, `ink`, `muted`, `line`, `font "titles"`, `font "text"`.
 - A component called with too few or too many values says which ones it takes.

@@ -153,7 +153,7 @@ if sent
   text "Thanks {email}!"
 ```
 
-**Form sent by e-mail**: `form mail "hello@bloom.ch"` sends every field to that address, then runs the `->` action (`subject "New order"` optional). `kaury dev` shows the e-mail in the terminal; to really send, set `KAURY_MAIL_KEY` (a free resend.com key) on the host or in `.env`. `kaury build` writes the endpoint for Netlify, Vercel and Cloudflare Pages. The address never appears in the page.
+**Form sent by e-mail**: `form mail "hello@bloom.ch"` sends every field to that address, then runs the `->` action (`subject "New order"` optional). `kaury dev` shows the e-mail in the terminal; to really send, set `KAURY_MAIL_KEY` (a free resend.com key) on the host or in `.env`. `kaury build` writes the endpoint for Netlify, Vercel, Cloudflare Pages and PHP hosts (`dist/api/kaury-mail.php`; on an FTP host the key goes in `kaury-mail-key.txt` next to the site's folder). The address never appears in the page.
 ```
 form mail "hello@bloom.ch", subject "New request" -> sent = true
   field name "Your name", required, label "Name"

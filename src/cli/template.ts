@@ -58,6 +58,7 @@ It sends an e-mail to the address written in \`site.kaury\` (\`Contact "you@exam
 - With \`kaury dev\`, the e-mail is shown in the terminal.
 - To really send it, create a free key on [resend.com](https://resend.com) and set \`KAURY_MAIL_KEY\` where the site is hosted (Netlify, Vercel or Cloudflare Pages), or in a \`.env\` file to try it locally.
 - \`kaury build\` writes the small function that sends it for each of these hosts (\`netlify/\`, \`api/\`, \`functions/\`): keep these folders in the repository.
+- On a host you fill by FTP (Apache + PHP), copy \`dist/\` as usual and put a file \`kaury-mail-key.txt\` holding the key next to the site's folder, never inside it.
 ` : ''}`
 }
 

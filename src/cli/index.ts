@@ -129,7 +129,7 @@ async function buildCmd(here: string, file?: string, out?: string) {
     for (const { e, source } of r.collected.warnings) console.log(c.yellow(e.format(source)))
     console.log(`${c.green('✓')} ${r.pages.length} page${r.pages.length > 1 ? 's' : ''} (${r.pages.join(', ')}), ${r.images} image${r.images === 1 ? '' : 's'} ${msg('optimized', 'optimisée' + (r.images > 1 ? 's' : ''))}, ${r.duration} ms → ${relative(here, r.dir) || '.'}`)
     if (r.collected.immersion) console.log(c.gray(msg('  immersion: the 3D library loads only on pages that need it, after the page is displayed.', '  immersion : la 3D se charge seulement sur les pages qui en ont besoin, après l\'affichage.')))
-    if (r.mailFiles.length) console.log(c.gray(msg(`  forms by e-mail: endpoint written for Netlify, Vercel and Cloudflare Pages (${r.mailFiles.join(', ')}). Set KAURY_MAIL_KEY (a resend.com key) on the host.`, `  formulaires par e-mail : point d'envoi écrit pour Netlify, Vercel et Cloudflare Pages (${r.mailFiles.join(', ')}). Règle KAURY_MAIL_KEY (une clé resend.com) chez l'hébergeur.`)))
+    if (r.mailFiles.length) console.log(c.gray(msg(`  forms by e-mail: endpoint written for Netlify, Vercel, Cloudflare Pages (${r.mailFiles.join(', ')}) and PHP hosts (dist/api/kaury-mail.php). Set KAURY_MAIL_KEY (a resend.com key) on the host, or put it in kaury-mail-key.txt next to the site folder on an FTP host.`, `  formulaires par e-mail : point d'envoi écrit pour Netlify, Vercel, Cloudflare Pages (${r.mailFiles.join(', ')}) et les hébergeurs PHP (dist/api/kaury-mail.php). Règle KAURY_MAIL_KEY (une clé resend.com) chez l'hébergeur, ou mets-la dans kaury-mail-key.txt à côté du dossier du site sur un hébergement FTP.`)))
   } catch (e) {
     showFailure(e)
   }

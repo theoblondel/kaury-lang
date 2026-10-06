@@ -124,3 +124,45 @@ test('kaury new: every template builds, the landing sends its form by e-mail', a
     assert.doesNotMatch(html, /function |=>/, `${t}: no code shown as text`)
   }
 })
+
+// PHP on the machine (XAMPP on Windows, php elsewhere): the endpoint of FTP hosts is run for real
+const PHP = ['C:/xampp/php/php.exe', '/usr/bin/php', '/usr/local/bin/php', '/opt/homebrew/bin/php'].find((p) => existsSync(p))
+
+test('form mail on an FTP host: the PHP endpoint in dist/api, the key outside the site', { skip: !PHP && 'PHP is not installed' }, async () => {
+  const { spawn } = await import('node:child_process')
+  const { createServer } = await import('node:http')
+  const dir = join(TMP, 'php')
+  rmSync(dir, { recursive: true, force: true })
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'site.kaury'), 'page "/"\n  Contact "hello@bloom.ch"\n')
+  await build(join(dir, 'site.kaury'), { out: join(dir, 'www') })
+  assert.match(readFileSync(join(dir, 'www', '.htaccess'), 'utf8'), /RewriteRule \^api\/kaury-mail\/\?\$ api\/kaury-mail\.php/)
+  const got: any[] = []
+  const mock = createServer((q, r) => {
+    let b = ''
+    q.on('data', (d) => (b += d))
+    q.on('end', () => {
+      got.push({ auth: q.headers.authorization, body: JSON.parse(b) })
+      r.end('{"id":"x"}')
+    })
+  }).listen(3297)
+  const php = spawn(PHP!, ['-S', '127.0.0.1:3296', '-t', join(dir, 'www')], { env: { ...process.env, KAURY_MAIL_API: 'http://127.0.0.1:3297/emails' } })
+  try {
+    await new Promise((r) => setTimeout(r, 900))
+    const ask = (b: unknown) => fetch('http://127.0.0.1:3296/api/kaury-mail.php', { method: 'POST', body: JSON.stringify(b) })
+    const id = mailId('hello@bloom.ch')
+    assert.equal((await ask({ to: id, fields: { a: 'b' }, time: 4000 })).status, 503)
+    writeFileSync(join(dir, 'kaury-mail-key.txt'), 're_test\n') // next to the site folder, never served
+    assert.equal((await ask({ to: id, subject: 'Hi\nBcc: x', fields: { email: 'ana@x.ch', message: 'Hello' }, page: '/', time: 4000 })).status, 200)
+    assert.equal((await ask({ to: mailId('someone@else.com'), fields: { a: 'b' }, time: 4000 })).status, 403)
+    assert.equal((await ask({ to: id, fields: { a: 'b' }, time: 100 })).status, 200)
+    assert.equal(got.length, 1)
+    assert.equal(got[0].auth, 'Bearer re_test')
+    assert.deepEqual(got[0].body.to, ['hello@bloom.ch'])
+    assert.equal(got[0].body.subject, 'Hi Bcc: x')
+    assert.equal(got[0].body.reply_to, 'ana@x.ch')
+  } finally {
+    php.kill()
+    mock.close()
+  }
+})

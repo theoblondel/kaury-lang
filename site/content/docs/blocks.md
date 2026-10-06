@@ -93,7 +93,8 @@ page "/"
 
 - **While you build**: `kaury dev` shows each e-mail in the terminal. Nothing leaves your computer.
 - **To really send**: create a free key on [resend.com](https://resend.com) and set it as `KAURY_MAIL_KEY` on your host (or in a `.env` file to try locally).
-- **Hosting**: `kaury build` writes the small function that sends the e-mail for Netlify, Vercel and Cloudflare Pages. Keep the `netlify/`, `api/` and `functions/` folders it creates.
+- **Hosting**: `kaury build` writes the small function that sends the e-mail for Netlify, Vercel and Cloudflare Pages (keep the `netlify/`, `api/` and `functions/` folders it creates), and a PHP version in `dist/api/` for the hosts you fill by FTP (LWS, Infomaniak, OVH…).
+- **On an FTP host**: copy `dist/` as usual, then put a file `kaury-mail-key.txt` holding the key **next to** the site's folder (on LWS: beside `htdocs/`), where the web never reaches it.
 - **Safe by default**: the address is never in the page, the endpoint only writes to the addresses of your site, the answer goes to the visitor's e-mail (reply-to), and robots that fill the form instantly are ignored.
 
 ## Templates
