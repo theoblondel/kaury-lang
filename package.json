@@ -1,6 +1,6 @@
 {
   "name": "kaury",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "main": "dist/core.js",
   "scripts": {
     "build": "node scripts/build.mjs && tsx scripts/editor.ts",
