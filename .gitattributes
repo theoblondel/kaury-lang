@@ -1,3 +1,4 @@
 # Built bundles of the playground: not hand-written code
 playground/kaury-compiler.js linguist-generated
 playground/rt/** linguist-generated
+editors/vscode/core.js linguist-generated
