@@ -4,7 +4,8 @@ import { parse } from './parser.js'
 import { KauryError } from './errors.js'
 import { check, type ModuleInfo } from './checker.js'
 import { generate, type Output } from './codegen.js'
-import type { Stmt } from './ast.js'
+import type { Stmt, Pos } from './ast.js'
+import { BLOCKS } from './blocks.js'
 
 export { KauryError, KauryErrors, setLanguage, getLanguage, msg } from './errors.js'
 export { tokenize } from './lexer.js'
@@ -15,6 +16,7 @@ export { fontUrl } from './css.js'
 export * as vocabulary from './vocabulary.js'
 export * as keywords from './keywords.js'
 export * as globals from './globals.js'
+export { BLOCKS } from './blocks.js'
 
 export interface Result {
   ok: boolean
@@ -27,6 +29,7 @@ export interface Result {
   fonts: string[]
   site: { name?: string; lang?: string; base?: string }
   assets: string[]
+  mails: string[]
   map: { generated: number; source: number }[]
 }
 
@@ -37,7 +40,7 @@ export interface CompileOptions {
 }
 
 export function compile(source: string, options: CompileOptions = {}): Result {
-  const empty: Result = { ok: false, js: '', css: '', errors: [], warnings: [], fonts: [], site: {}, assets: [], map: [] }
+  const empty: Result = { ok: false, js: '', css: '', errors: [], warnings: [], fonts: [], site: {}, assets: [], mails: [], map: [] }
   let ast: Stmt[]
   try {
     ast = parse(source)
@@ -48,10 +51,54 @@ export function compile(source: string, options: CompileOptions = {}): Result {
     }
     throw e
   }
+  ast = withBlocks(ast)
   const { errors, warnings, info } = check(ast, { file: options.file })
   if (errors.length || options.checkOnly) return { ...empty, ok: !errors.length, errors, warnings, info, ast }
   const out: Output = generate(ast, info, { file: options.file, runtime: options.runtime })
-  return { ok: true, js: out.js, css: out.css, errors: [], warnings, info, ast, fonts: out.fonts, site: out.site, assets: out.assets, map: out.map }
+  return { ok: true, js: out.js, css: out.css, errors: [], warnings, info, ast, fonts: out.fonts, site: out.site, assets: out.assets, mails: out.mails, map: out.map }
+}
+
+/**
+ * Adds the ready-made components (Hero, Pricing, Contact…) the program uses without writing or importing them.
+ * Their lines point at the first line that uses them: an error at run time shows where the block is called.
+ */
+function withBlocks(ast: Stmt[]): Stmt[] {
+  const used = new Map<string, Pos>()
+  const visit = (x: any) => {
+    if (!x || typeof x !== 'object') return
+    if (Array.isArray(x)) return x.forEach(visit)
+    if (x.k === 'command' && typeof x.head === 'string' && /^\p{Lu}/u.test(x.head) && !used.has(x.head)) used.set(x.head, x.pos)
+    for (const key in x) if (key !== 'pos' && key !== 'binding' && key !== 'meaning') visit(x[key])
+  }
+  visit(ast)
+  const defined = new Set<string>()
+  const styles = new Set<string>()
+  for (const s of ast) {
+    if (s.k === 'component') defined.add(s.name)
+    if (s.k === 'import') for (const n of [s.default, s.all, ...(s.names ?? []).map((x) => x.alias ?? x.name)]) if (n) defined.add(n)
+    if (s.k === 'style-def') styles.add(s.name)
+  }
+  const added: Stmt[] = []
+  for (const name of Object.keys(BLOCKS)) {
+    const at = used.get(name)
+    if (!at || defined.has(name)) continue
+    for (const s of parse(BLOCKS[name].source)) {
+      if (s.k === 'style-def') {
+        if (styles.has(s.name)) continue
+        styles.add(s.name)
+      }
+      added.push(relocate(s, at))
+    }
+  }
+  return added.length ? [...ast, ...added] : ast
+}
+
+function relocate<T>(x: T, at: Pos): T {
+  if (!x || typeof x !== 'object') return x
+  if (Array.isArray(x)) return x.map((y) => relocate(y, at)) as T
+  const out: any = {}
+  for (const [k, v] of Object.entries(x)) out[k] = k === 'pos' ? { ...at, length: 0 } : relocate(v, at)
+  return out
 }
 
 /** Readable message for all the problems of a compilation. */

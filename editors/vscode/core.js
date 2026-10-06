@@ -712,7 +712,13 @@ var COLORS = {
   sand: "#e9d8b4",
   slate: "#3c4454",
   night: "#0b1020",
-  transparent: "transparent"
+  transparent: "transparent",
+  // colors of the theme: they follow the site (accent = first site color, on-accent = text on it, ink = text, muted = soft text, line = borders)
+  accent: "var(--k-accent)",
+  "on-accent": "var(--k-on-accent)",
+  ink: "var(--k-ink)",
+  muted: "var(--k-muted)",
+  line: "var(--k-line)"
 };
 var COLOR_ALIASES = {
   rouge: "red",
@@ -820,6 +826,10 @@ var ELEMENT_OPTIONS = {
     large: o("", ["grand"], "large button", "grand bouton", "large"),
     small: o("", ["petit"], "small button", "petit bouton", "small"),
     disabled: o("e?", ["desactive"], "disabled (when the condition is true)", "d\xE9sactiv\xE9 (si la condition est vraie)", "disabled cart.length == 0")
+  },
+  form: {
+    mail: o("e", ["courriel", "email"], "sends what is typed by e-mail to this address, then runs -> (needs KAURY_MAIL_KEY where the site is hosted)", "envoie ce qui est saisi par e-mail \xE0 cette adresse, puis lance -> (demande KAURY_MAIL_KEY chez l'h\xE9bergeur)", 'form mail "hello@bloom.ch" -> sent = true'),
+    subject: o("t", ["sujet", "objet"], "subject of the e-mail sent by mail", "sujet de l'e-mail envoy\xE9 par mail", 'subject "New order"')
   },
   link: { "new-tab": o("", ["nouvel", "blank"], "opens in a new tab", "ouvre dans un nouvel onglet", "new-tab") },
   field: {
@@ -2251,6 +2261,7 @@ var Checker = class {
   warnings = [];
   info = { pages: [], components: [], immersion: false, threeD: false, lottie: false, colors: {}, exports: [] };
   components = /* @__PURE__ */ new Set();
+  componentParams = /* @__PURE__ */ new Map();
   /** named styles: style promise (indented options) → used as “column promise” */
   namedStyles = /* @__PURE__ */ new Set();
   namedAnimations = /* @__PURE__ */ new Set();
@@ -2313,6 +2324,7 @@ var Checker = class {
         case "component":
           this.declare(s, i.name, "component", i.pos);
           this.components.add(i.name);
+          this.componentParams.set(i.name, { names: i.params.map((p) => p.name), required: i.params.filter((p) => !p.default).length });
           this.info.components.push(i.name);
           if (i.exported) this.info.exports.push(i.name);
           break;
@@ -2768,6 +2780,15 @@ var Checker = class {
         positional2.push(a);
       }
       c.meaning = { kind: "component", positional: positional2, options: [] };
+      const sig = this.componentParams.get(head);
+      if (sig && (positional2.length < sig.required || positional2.length > sig.names.length)) {
+        const usage = `${head} ${sig.names.join(", ")}`;
+        this.err(
+          { ...c.pos, length: head.length },
+          positional2.length < sig.required ? msg(`${q(head)} needs ${sig.required} value${sig.required > 1 ? "s" : ""} (${sig.names.slice(0, sig.required).join(", ")}), I see ${positional2.length}.`, `${q(head)} demande ${sig.required} valeur${sig.required > 1 ? "s" : ""} (${sig.names.slice(0, sig.required).join(", ")}), j'en vois ${positional2.length}.`) : msg(`${q(head)} takes at most ${sig.names.length} value${sig.names.length > 1 ? "s" : ""} (${sig.names.join(", ")}), I see ${positional2.length}.`, `${q(head)} prend au plus ${sig.names.length} valeur${sig.names.length > 1 ? "s" : ""} (${sig.names.join(", ")}), j'en vois ${positional2.length}.`),
+          usage
+        );
+      }
       this.children(c, s);
       return;
     }
@@ -3269,7 +3290,7 @@ var FONTSHARE = /* @__PURE__ */ new Set([
   "Nippo",
   "Hoover"
 ]);
-var SYSTEM_FONTS = /* @__PURE__ */ new Set(["system-ui", "serif", "sans-serif", "monospace", "mono", "sans", "system", "Arial", "Helvetica", "Georgia", "Times New Roman"]);
+var SYSTEM_FONTS = /* @__PURE__ */ new Set(["system-ui", "serif", "sans-serif", "monospace", "mono", "sans", "system", "Arial", "Helvetica", "Georgia", "Times New Roman", "titles", "text"]);
 var SYSTEM_STACKS = {
   mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
   monospace: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
@@ -3277,7 +3298,9 @@ var SYSTEM_STACKS = {
   sans: "var(--k-font-fallback)",
   "sans-serif": "var(--k-font-fallback)",
   system: "var(--k-font-fallback)",
-  "system-ui": "var(--k-font-fallback)"
+  "system-ui": "var(--k-font-fallback)",
+  titles: "var(--k-font-titles)",
+  text: "var(--k-font)"
 };
 function fontFamily(name) {
   return SYSTEM_STACKS[name.toLowerCase()] ?? `"${name}", var(--k-font-fallback)`;
@@ -3465,6 +3488,7 @@ var Generator = class {
   css = [];
   fonts = /* @__PURE__ */ new Set();
   assets = [];
+  mails = [];
   site = {};
   prefix;
   declared = /* @__PURE__ */ new Set();
@@ -3520,7 +3544,8 @@ var Generator = class {
       map: this.sources.map((s, g2) => ({ generated: g2 + 1, source: s })),
       fonts: [...this.fonts],
       site: this.site,
-      assets: this.assets
+      assets: this.assets,
+      mails: this.mails
     };
   }
   importStmt(i) {
@@ -4135,13 +4160,19 @@ var Generator = class {
     return this.ex(v);
   }
   event(target, type, action, ctx) {
+    this.emit(`$k.on(${target}, ${JSON.stringify(type)}, ${this.handler(action, { ...ctx, target: ctx.target ?? target })})`);
+  }
+  /** An action as a function expression: its body is emitted on the lines that follow. */
+  handler(action, ctx) {
     const asy = bodyHasAwait(action) ? "async " : "";
-    this.emit(`$k.on(${target}, ${JSON.stringify(type)}, ${asy}($event) => {`);
+    const name = this.fresh("act");
+    this.emit(`const ${name} = ${asy}($event) => {`);
     this.indent++;
     this.localDeclarations(action);
-    for (const a of action) this.statement(a, { view: false, target: ctx.target ?? target });
+    for (const a of action) this.statement(a, { view: false, target: ctx.target });
     this.indent--;
-    this.emit("})");
+    this.emit("}");
+    return name;
   }
   /** A command used as an action: jump, spin, says "…", sound "click.mp3". */
   commandAction(c, ctx) {
@@ -4371,7 +4402,7 @@ var Generator = class {
         for (const x of p) {
           const a = this.fresh();
           this.emit(`const ${a} = $k.h(${n}, "a", "k-nav-link")`);
-          if (x.k === "name" && !x.binding) {
+          if (x.k === "name" && (!x.binding || x.binding.kind === "component")) {
             this.emit(`$k.setText(${a}, ${JSON.stringify(x.name.replace(/-/g, " "))})`);
             this.emit(`$k.autoLink(${a}, ${JSON.stringify(x.name)})`);
           } else if (x.k === "text") {
@@ -4431,6 +4462,16 @@ var Generator = class {
     this.skipText = false;
     this.styleClass(n, head, m.options, []);
     this.childrenOf(c, { ...ctx, parent: n, target: n, parentHead: head });
+    const mail = head === "form" ? opt("mail") : void 0;
+    if (mail?.values[0]) {
+      const to = mail.values[0];
+      const l = literal(to, {});
+      if (typeof l === "string") this.mails.push(l);
+      const subject = opt("subject")?.values[0];
+      this.emit(`$k.form(${n})`);
+      this.emit(`$k.mail(${n}, () => ${this.ex(to)}, ${subject ? `() => ${this.ex(subject)}` : "null"}, ${c.action ? this.handler(c.action, { ...ctx, target: n }) : "null"})`, c.pos);
+      return;
+    }
     if (c.action) {
       const ev = head === "form" ? "submit" : ["field", "textarea"].includes(head) ? "input" : ["select", "checkbox"].includes(head) ? "change" : "click";
       this.event(n, ev, c.action, { ...ctx, target: n });
@@ -4714,9 +4755,326 @@ function bodyHasAwait(body) {
   return false;
 }
 
+// src/core/blocks.ts
+var BLOCKS = {
+  Hero: {
+    params: 'heading, intro = "", action = "", href = "#contact", picture = ""',
+    help: "the first screen: a big title, a sentence, a button, an image",
+    example: 'Hero "Flowers that *speak*.", "Delivered the same day.", "Order", "#shop"',
+    source: `
+component Hero heading, intro = "", action = "", href = "#contact", picture = ""
+  section
+    column kb-hero
+      title heading
+        enters from bottom
+      if intro
+        text intro
+      if action
+        button action, to href, large
+      if picture
+        image picture
+
+style kb-hero
+  center, gap 22, padding 72 0 48
+  title size 76, center
+  text size 20, color muted, center
+  image radius 24, margin 28 0 0
+`
+  },
+  Features: {
+    params: 'items, heading = ""',
+    help: "a grid of cards; each item has title, text and maybe icon",
+    example: 'Features features, "Why us"   // features: [{ icon: "\u{1F338}", title: "Fresh", text: "Cut this morning." }]',
+    source: `
+component Features items, heading = ""
+  section id slug(heading)
+    if heading
+      subtitle heading, center
+    grid 3 columns, gap 20
+      for f in items
+        card kb-feature
+          if f.icon
+            icon f.icon
+          subtitle f.title, level 3
+          text f.text
+          enters from bottom
+
+style kb-feature
+  padding 28, gap 10
+  icon size 32
+  subtitle size 22
+  text color muted
+`
+  },
+  Steps: {
+    params: 'items, heading = ""',
+    help: "numbered steps; each item has title and text",
+    example: 'Steps steps, "How it works"   // steps: [{ title: "Choose", text: "\u2026" }]',
+    source: `
+component Steps items, heading = ""
+  section id slug(heading)
+    if heading
+      subtitle heading, center
+    grid 3 columns, gap 20
+      for s, i in items
+        column kb-step
+          text "{i + 1}", kb-step-number
+          subtitle s.title, level 3
+          text s.text
+          enters from bottom
+
+style kb-step
+  gap 10, border-top 2 ink, padding 20 0 0
+  text color muted
+  subtitle size 22
+
+style kb-step-number
+  font "titles", size 40, weight 800, color accent, line-height 1
+`
+  },
+  Stats: {
+    params: "items",
+    help: "big numbers in a row; each item has value and label",
+    example: 'Stats [{ value: "12k", label: "bouquets" }, { value: "4.9", label: "rating" }]',
+    source: `
+component Stats items
+  section
+    row kb-stats
+      for s in items
+        column center, gap 4
+          text s.value, kb-stat-value
+          text s.label
+          enters from bottom
+
+style kb-stats
+  center, gap 64, padding 24 0
+  text color muted, center
+
+style kb-stat-value
+  font "titles", size 56, weight 800, color accent, line-height 1
+`
+  },
+  Pricing: {
+    params: 'plans, heading = ""',
+    help: "price cards; each plan has name, price, and maybe per, text, features (list), button, link, featured (true)",
+    example: 'Pricing plans, "Prices"   // plans: [{ name: "Solo", price: "9 CHF", per: "/ month", features: ["1 site"], featured: true }]',
+    source: `
+component Pricing plans, heading = ""
+  section id slug(heading)
+    if heading
+      subtitle heading, center
+    grid 3 columns, gap 20
+      for p in plans
+        card kb-plan, current p.featured == true
+          text p.name, bold
+          row gap 6
+            text p.price, kb-price
+            if p.per
+              text p.per
+          if p.text
+            text p.text
+          if p.features
+            list
+              for f in p.features
+                item f
+          button p.button or "Choose", to p.link or "#contact", outline
+          enters from bottom
+
+style kb-plan
+  padding 28, gap 14
+  current border 2 accent, shadow medium
+  text color muted
+  item color ink
+
+style kb-price
+  font "titles", size 44, weight 800, color ink, line-height 1
+`
+  },
+  Testimonials: {
+    params: 'items, heading = ""',
+    help: "quotes of customers; each item has quote, name, and maybe role, photo",
+    example: 'Testimonials reviews, "They loved it"   // reviews: [{ quote: "Gorgeous.", name: "Ana", role: "Vevey" }]',
+    source: `
+component Testimonials items, heading = ""
+  section id slug(heading)
+    if heading
+      subtitle heading, center
+    grid 3 columns, gap 20
+      for t in items
+        card kb-quote
+          text "\u201C{t.quote}\u201D"
+          row gap 12
+            if t.photo
+              image t.photo, round, width 44, height 44
+            column gap 0
+              text t.name, bold
+              if t.role
+                text t.role, kb-muted
+          enters from bottom
+
+style kb-quote
+  padding 28, gap 18
+  text size 18
+
+style kb-muted
+  color muted, size 15
+`
+  },
+  Team: {
+    params: 'people, heading = ""',
+    help: "portraits; each person has name, and maybe role, photo",
+    example: 'Team people, "The team"   // people: [{ name: "L\xE9a", role: "Florist", photo: "lea.jpg" }]',
+    source: `
+component Team people, heading = ""
+  section id slug(heading)
+    if heading
+      subtitle heading, center
+    grid 4 columns, gap 20
+      for p in people
+        column kb-person
+          if p.photo
+            image p.photo
+          else
+            row kb-avatar
+              text p.name[0]
+          text p.name, bold
+          if p.role
+            text p.role, kb-muted
+          enters from bottom
+
+style kb-person
+  gap 4
+  image radius 20, margin 0 0 8 0
+
+style kb-avatar
+  width 72, height 72, round, background accent, center, margin 0 0 8 0
+  text color on-accent, font "titles", size 30, weight 800
+
+style kb-muted
+  color muted, size 15
+`
+  },
+  Logos: {
+    params: 'images, heading = ""',
+    help: "a row of logos (customers, partners, press)",
+    example: 'Logos ["acme.svg", "globex.svg"], "They trust us"',
+    source: `
+component Logos images, heading = ""
+  section id slug(heading)
+    if heading
+      text heading, kb-logos-title
+    row kb-logos
+      for src in images
+        image src, height 36
+
+style kb-logos
+  center, gap 48, padding 8 0
+  image opacity 0.7, hover opacity 1
+
+style kb-logos-title
+  center, color muted, uppercase, tracking 1, size 13
+`
+  },
+  Gallery: {
+    params: 'images, heading = ""',
+    help: "a grid of pictures",
+    example: 'Gallery ["a.jpg", "b.jpg", "c.jpg"], "Our work"',
+    source: `
+component Gallery images, heading = ""
+  section id slug(heading)
+    if heading
+      subtitle heading, center
+    grid 3 columns, gap 12
+      for src in images
+        image src, kb-shot
+          enters from bottom
+
+style kb-shot
+  radius 16, hover lift 4
+`
+  },
+  Faq: {
+    params: 'items, heading = "Questions"',
+    help: "questions that open on click; each item has q and a",
+    example: 'Faq faq   // faq: [{ q: "Do you deliver?", a: "Yes, every day." }]',
+    source: `
+component Faq items, heading = "Questions"
+  section id slug(heading)
+    column kb-faq
+      if heading
+        subtitle heading
+      for f in items
+        details f.q
+          text f.a
+
+style kb-faq
+  max-width 760, margin 0 auto, gap 4
+  text color muted
+`
+  },
+  Cta: {
+    params: 'heading, intro = "", action = "", href = "#contact"',
+    help: "a colored band that asks for the next step",
+    example: 'Cta "Ready to bloom?", "Order before noon, delivered tonight.", "Order now", "#shop"',
+    source: `
+component Cta heading, intro = "", action = "", href = "#contact"
+  section id slug(heading)
+    column kb-cta
+      subtitle heading
+      if intro
+        text intro
+      if action
+        button action, to href, large
+
+style kb-cta
+  background accent, color on-accent, radius 28, padding 64 32, center, gap 16
+  subtitle color on-accent, center
+  text color on-accent, center
+  button background on-accent, color accent
+`
+  },
+  Contact: {
+    params: 'to, heading = "Contact", intro = "", thanks = "Thank you! We will answer soon."',
+    help: "a contact form (name, email, message) sent by e-mail to the address",
+    example: 'Contact "hello@bloom.ch", "Write to us"',
+    source: `
+component Contact to, heading = "Contact", intro = "", thanks = "Thank you! We will answer soon."
+  section contact
+    column kb-contact
+      subtitle heading
+      if intro
+        text intro
+      if sent
+        text thanks, bold
+      else
+        form mail to -> sent = true
+          field name "Your name", required, label "Name"
+          field email "you@example.com", type email, required, label "Email"
+          textarea message "Your message", required, label "Message"
+          button "Send", large
+
+style kb-contact
+  max-width 560, margin 0 auto, gap 14
+  text color muted
+`
+  },
+  Footer: {
+    params: 'name, note = ""',
+    help: "the bottom of the page: \xA9 year and name, and maybe a note",
+    example: 'Footer "Bloom", "Flowers in Vevey since 2009"',
+    source: `
+component Footer name, note = ""
+  footer
+    text "\xA9 {now().getFullYear()} {name}"
+    if note
+      text note
+`
+  }
+};
+
 // src/core/index.ts
 function compile(source, options = {}) {
-  const empty = { ok: false, js: "", css: "", errors: [], warnings: [], fonts: [], site: {}, assets: [], map: [] };
+  const empty = { ok: false, js: "", css: "", errors: [], warnings: [], fonts: [], site: {}, assets: [], mails: [], map: [] };
   let ast;
   try {
     ast = parse(source);
@@ -4727,10 +5085,50 @@ function compile(source, options = {}) {
     }
     throw e2;
   }
+  ast = withBlocks(ast);
   const { errors, warnings, info } = check(ast, { file: options.file });
   if (errors.length || options.checkOnly) return { ...empty, ok: !errors.length, errors, warnings, info, ast };
   const out = generate(ast, info, { file: options.file, runtime: options.runtime });
-  return { ok: true, js: out.js, css: out.css, errors: [], warnings, info, ast, fonts: out.fonts, site: out.site, assets: out.assets, map: out.map };
+  return { ok: true, js: out.js, css: out.css, errors: [], warnings, info, ast, fonts: out.fonts, site: out.site, assets: out.assets, mails: out.mails, map: out.map };
+}
+function withBlocks(ast) {
+  const used = /* @__PURE__ */ new Map();
+  const visit = (x) => {
+    if (!x || typeof x !== "object") return;
+    if (Array.isArray(x)) return x.forEach(visit);
+    if (x.k === "command" && typeof x.head === "string" && new RegExp("^\\p{Lu}", "u").test(x.head) && !used.has(x.head)) used.set(x.head, x.pos);
+    for (const key in x) if (key !== "pos" && key !== "binding" && key !== "meaning") visit(x[key]);
+  };
+  visit(ast);
+  const defined = /* @__PURE__ */ new Set();
+  const styles = /* @__PURE__ */ new Set();
+  for (const s of ast) {
+    if (s.k === "component") defined.add(s.name);
+    if (s.k === "import") {
+      for (const n of [s.default, s.all, ...(s.names ?? []).map((x) => x.alias ?? x.name)]) if (n) defined.add(n);
+    }
+    if (s.k === "style-def") styles.add(s.name);
+  }
+  const added = [];
+  for (const name of Object.keys(BLOCKS)) {
+    const at = used.get(name);
+    if (!at || defined.has(name)) continue;
+    for (const s of parse(BLOCKS[name].source)) {
+      if (s.k === "style-def") {
+        if (styles.has(s.name)) continue;
+        styles.add(s.name);
+      }
+      added.push(relocate(s, at));
+    }
+  }
+  return added.length ? [...ast, ...added] : ast;
+}
+function relocate(x, at) {
+  if (!x || typeof x !== "object") return x;
+  if (Array.isArray(x)) return x.map((y) => relocate(y, at));
+  const out = {};
+  for (const [k, v] of Object.entries(x)) out[k] = k === "pos" ? { ...at, length: 0 } : relocate(v, at);
+  return out;
 }
 function formatErrors(r, source) {
   return [...r.errors, ...r.warnings].map((e2) => e2.format(source)).join("\n\n");
@@ -4757,6 +5155,7 @@ function sourceMap(r, file, source) {
   return JSON.stringify({ version: 3, file: file + ".js", sources: [file], sourcesContent: [source], names: [], mappings: lines.join(";") });
 }
 export {
+  BLOCKS,
   KauryError,
   KauryErrors,
   assetPath,

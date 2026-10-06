@@ -33,6 +33,7 @@ export interface Output {
   fonts: string[]
   site: { name?: string; lang?: string; base?: string }
   assets: string[] // import "style.css" / "script.js": stylesheets and browser scripts of the whole site
+  mails: string[] // addresses written in « form mail "…" »: the only ones the site's mail endpoint accepts (with those seen while rendering)
 }
 
 interface Ctx {
@@ -95,6 +96,7 @@ class Generator {
   private css: string[] = []
   private fonts = new Set<string>()
   private assets: string[] = []
+  private mails: string[] = []
   private site: { name?: string; lang?: string; base?: string } = {}
   private prefix: string
   private declared = new Set<Binding>()
@@ -162,6 +164,7 @@ class Generator {
       fonts: [...this.fonts],
       site: this.site,
       assets: this.assets,
+      mails: this.mails,
     }
   }
 
@@ -823,13 +826,20 @@ class Generator {
   }
 
   private event(target: string, type: string, action: Stmt[], ctx: Ctx) {
+    this.emit(`$k.on(${target}, ${JSON.stringify(type)}, ${this.handler(action, { ...ctx, target: ctx.target ?? target })})`)
+  }
+
+  /** An action as a function expression: its body is emitted on the lines that follow. */
+  private handler(action: Stmt[], ctx: Ctx): string {
     const asy = bodyHasAwait(action) ? 'async ' : ''
-    this.emit(`$k.on(${target}, ${JSON.stringify(type)}, ${asy}($event) => {`)
+    const name = this.fresh('act')
+    this.emit(`const ${name} = ${asy}($event) => {`)
     this.indent++
     this.localDeclarations(action)
-    for (const a of action) this.statement(a, { view: false, target: ctx.target ?? target })
+    for (const a of action) this.statement(a, { view: false, target: ctx.target })
     this.indent--
-    this.emit('})')
+    this.emit('}')
+    return name
   }
 
   /** A command used as an action: jump, spin, says "…", sound "click.mp3". */
@@ -1048,7 +1058,7 @@ class Generator {
         for (const x of p) {
           const a = this.fresh()
           this.emit(`const ${a} = $k.h(${n}, "a", "k-nav-link")`)
-          if (x.k === 'name' && !x.binding) {
+          if (x.k === 'name' && (!x.binding || x.binding.kind === 'component')) {
             this.emit(`$k.setText(${a}, ${JSON.stringify(x.name.replace(/-/g, ' '))})`)
             this.emit(`$k.autoLink(${a}, ${JSON.stringify(x.name)})`)
           } else if (x.k === 'text') {
@@ -1113,6 +1123,17 @@ class Generator {
     this.skipText = false
     this.styleClass(n, head, m.options, [])
     this.childrenOf(c, { ...ctx, parent: n, target: n, parentHead: head })
+    const mail = head === 'form' ? opt('mail') : undefined
+    if (mail?.values[0]) {
+      // form mail "hello@bloom.ch" -> …: sent by e-mail through the site's own endpoint, then the action runs
+      const to = mail.values[0]
+      const l = literal(to, {})
+      if (typeof l === 'string') this.mails.push(l)
+      const subject = opt('subject')?.values[0]
+      this.emit(`$k.form(${n})`)
+      this.emit(`$k.mail(${n}, () => ${this.ex(to)}, ${subject ? `() => ${this.ex(subject)}` : 'null'}, ${c.action ? this.handler(c.action, { ...ctx, target: n }) : 'null'})`, c.pos)
+      return
+    }
     if (c.action) {
       const ev = head === 'form' ? 'submit' : ['field', 'textarea'].includes(head) ? 'input' : ['select', 'checkbox'].includes(head) ? 'change' : 'click'
       this.event(n, ev, c.action, { ...ctx, target: n })

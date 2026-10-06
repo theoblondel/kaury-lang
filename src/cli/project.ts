@@ -13,6 +13,7 @@ import { optimizeImages, type ImageInfo } from './images.js'
 import { selfHostFonts } from './fonts.js'
 import { loadContent, clearContentCache, CONTENT_SOURCE, type LoadedContent } from './content.js'
 import { parseMarkdown } from '../runtime/markdown.js'
+import { mailMap, writeMailFunctions } from './mail.js'
 
 export function packageRoot(): string {
   let d = dirname(fileURLToPath(import.meta.url))
@@ -54,6 +55,7 @@ export interface Collected {
   warnings: { e: KauryError; source: string }[]
   immersion: boolean
   content: Map<string, any>
+  mails: Set<string>
 }
 
 export class CompileFailure extends Error {
@@ -112,9 +114,10 @@ function kauryPlugin(root: string, collected: Collected, siteDir: string, ssr: b
         }
         collected.css.set(a.path, r.css)
         r.fonts.forEach((f) => collected.fonts.add(f))
+        r.mails.forEach((m) => collected.mails.add(m))
         if (r.site.name) collected.site.name = r.site.name
         if (r.site.lang) collected.site.lang = r.site.lang
-        if (r.info?.immersion) collected.immersion = true
+        if (r.info?.threeD) collected.immersion = true
         if (!ssr) for (const e of r.warnings) collected.warnings.push({ e, source })
         const map = Buffer.from(sourceMap(r, file, source)).toString('base64')
         return { contents: `${r.js}\n//# sourceMappingURL=data:application/json;base64,${map}`, loader: 'js', resolveDir: dirname(a.path) }
@@ -145,6 +148,8 @@ export interface BuildResult {
   duration: number
   images: number
   staticPages: number
+  mails: Record<string, string> // id → address of the forms that send e-mails
+  mailFiles: string[] // endpoint files written for the hosts
 }
 
 export interface BuildOptions {
@@ -160,7 +165,7 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
   const siteDir = dirname(entry)
   const out = resolve(siteDir, o.out ?? 'dist')
   const cacheDir = join(siteDir, '.kaury-cache')
-  const collected: Collected = { css: new Map(), fonts: new Set(), site: {}, warnings: [], immersion: false, content: new Map() }
+  const collected: Collected = { css: new Map(), fonts: new Set(), site: {}, warnings: [], immersion: false, content: new Map(), mails: new Set() }
   const nodePaths = [join(root, 'node_modules'), join(siteDir, 'node_modules')]
   clearContentCache()
 
@@ -233,7 +238,7 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
       define: { 'process.env.NODE_ENV': '"production"', __KAURY_IMAGES__: JSON.stringify(images) },
       // nothing external: the server render must work wherever the project is (three, marked… live in Kaury's folder)
       plugins: [kauryPlugin(root, { ...collected, css: new Map(), warnings: [], fonts: new Set(), content: collected.content }, siteDir, true, {
-        ssr: `export * from ${entryPath}\nexport { renderPage, allPaths } from "kaury/runtime"\nexport { serialize } from "kaury/ssr"\n`,
+        ssr: `export * from ${entryPath}\nexport { renderPage, allPaths, mailAddresses } from "kaury/runtime"\nexport { serialize } from "kaury/ssr"\n`,
       }, out)],
     })
   } catch (e) {
@@ -290,6 +295,10 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
     writeFileSync(join(out, '404.html'), template({ ...common, body: '', title: site.name ?? 'Kaury', path: '/404', noindex: true, js: '/_kaury/' + basename(siteJs), preload: preloadOf(siteJs), pageKind: 'dynamic' }))
   }
 
+  // the endpoint of the forms that send e-mails, for the hosts that run functions
+  const mails = mailMap([...collected.mails, ...(mod.mailAddresses ?? [])])
+  const mailFiles = o.dev ? [] : writeMailFunctions(siteDir, mails)
+
   // 6. files for search engines, AIs and hosts
   const ownRobots = existsSync(join(out, 'robots.txt'))
   if (siteUrl) {
@@ -301,7 +310,7 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
   if (!existsSync(join(out, '.htaccess'))) writeFileSync(join(out, '.htaccess'), HTACCESS)
   if (!existsSync(join(out, '_headers'))) writeFileSync(join(out, '_headers'), HEADERS)
 
-  return { pages, files: Object.keys(outputs).length, dir: out, collected, duration: Date.now() - t0, images: Object.keys(images).length, staticPages }
+  return { pages, files: Object.keys(outputs).length, dir: out, collected, duration: Date.now() - t0, images: Object.keys(images).length, staticPages, mails, mailFiles }
 }
 
 /** og:locale from the page language: fr-CH → fr_CH, en → en_US. */
@@ -537,7 +546,7 @@ export async function run(file: string) {
   const root = packageRoot()
   const dir = dirname(file)
   const out = join(dir, '.kaury-cache', `run-${Date.now()}.mjs`)
-  const collected: Collected = { css: new Map(), fonts: new Set(), site: {}, warnings: [], immersion: false, content: new Map() }
+  const collected: Collected = { css: new Map(), fonts: new Set(), site: {}, warnings: [], immersion: false, content: new Map(), mails: new Set() }
   try {
     await esbuild.build({
       entryPoints: { run: 'kaury:entry:run' },

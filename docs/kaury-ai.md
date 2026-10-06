@@ -153,6 +153,44 @@ if sent
   text "Thanks {email}!"
 ```
 
+**Form sent by e-mail**: `form mail "hello@bloom.ch"` sends every field to that address, then runs the `->` action (`subject "New order"` optional). `kaury dev` shows the e-mail in the terminal; to really send, set `KAURY_MAIL_KEY` (a free resend.com key) on the host or in `.env`. `kaury build` writes the endpoint for Netlify, Vercel and Cloudflare Pages. The address never appears in the page.
+```
+form mail "hello@bloom.ch", subject "New request" -> sent = true
+  field name "Your name", required, label "Name"
+  field email "you@example.com", type email, required, label "Email"
+  textarea message "Your message", required, label "Message"
+  button "Send"
+```
+
+**Ready-made blocks** (nothing to import; a component of the same name written in the site replaces one). Prefer them for usual sections. A block with a heading is the section named after it (`Pricing plans, "Prices"` → `#prices`, found by `links Prices`); `Contact` is `#contact`, the default target of buttons.
+
+| Block | Values | Items |
+|---|---|---|
+| `Hero` | heading, intro, action, href, picture | |
+| `Features` | items, heading | `{ icon, title, text }` |
+| `Steps` | items, heading | `{ title, text }` (numbered) |
+| `Stats` | items | `{ value, label }` |
+| `Pricing` | plans, heading | `{ name, price, per, text, features: [..], button, link, featured: true }` |
+| `Testimonials` | items, heading | `{ quote, name, role, photo }` |
+| `Team` | people, heading | `{ name, role, photo }` |
+| `Logos` | images, heading | image files |
+| `Gallery` | images, heading | image files |
+| `Faq` | items, heading | `{ q, a }` |
+| `Cta` | heading, intro, action, href | |
+| `Contact` | to, heading, intro, thanks | form sent by e-mail to `to` |
+| `Footer` | name, note | |
+
+```
+let plans = [{ name: "Solo", price: "9 CHF", per: "/ month", features: ["1 site"], featured: true }]
+page "/"
+  Hero "Flowers that *speak*.", "Delivered the same day.", "Order", "#prices"
+  Pricing plans, "Prices"
+  Contact "hello@bloom.ch"
+  Footer "Bloom"
+```
+
+**Theme colors** (follow the site): `accent` (first site color), `on-accent` (text on it), `ink` (text), `muted` (soft text), `line` (borders). Fonts: `font "titles"` and `font "text"` are the two fonts of the site.
+
 ## 4. Immersion
 
 Levels: a **touch** (one `object` alone in a page), a **scene** (`scene` with decor, light, camera), a **universe** (the whole site). An object can be 2D (`.png .jpg .webp .svg`), animated 2D (`.json` Lottie) or 3D (`.glb .gltf`, Meshopt/Draco compressed accepted). The code is the same.

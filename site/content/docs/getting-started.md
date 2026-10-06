@@ -29,6 +29,8 @@ kaury dev
 
 Open `http://localhost:3000`. The whole site is in **`site.kaury`**: edit it, save, and the page reloads by itself.
 
+Prefer a real site to start from? `kaury new my-site --template landing` (or `blog`, `portfolio`) makes one from [ready-made blocks](/docs/blocks/).
+
 A new project looks like this:
 
 ```

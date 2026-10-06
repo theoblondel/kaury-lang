@@ -71,6 +71,7 @@ class Checker {
   warnings: KauryError[] = []
   info: ModuleInfo = { pages: [], components: [], immersion: false, threeD: false, lottie: false, colors: {}, exports: [] }
   private components = new Set<string>()
+  private componentParams = new Map<string, { names: string[]; required: number }>()
   /** named styles: style promise (indented options) → used as “column promise” */
   private namedStyles = new Set<string>()
   private namedAnimations = new Set<string>()
@@ -138,6 +139,7 @@ class Checker {
         case 'component':
           this.declare(s, i.name, 'component', i.pos)
           this.components.add(i.name)
+          this.componentParams.set(i.name, { names: i.params.map((p) => p.name), required: i.params.filter((p) => !p.default).length })
           this.info.components.push(i.name)
           if (i.exported) this.info.exports.push(i.name)
           break
@@ -521,6 +523,15 @@ class Checker {
         positional.push(a)
       }
       c.meaning = { kind: 'component', positional, options: [] }
+      const sig = this.componentParams.get(head)
+      if (sig && (positional.length < sig.required || positional.length > sig.names.length)) {
+        const usage = `${head} ${sig.names.join(', ')}`
+        this.err({ ...c.pos, length: head.length },
+          positional.length < sig.required
+            ? msg(`${q(head)} needs ${sig.required} value${sig.required > 1 ? 's' : ''} (${sig.names.slice(0, sig.required).join(', ')}), I see ${positional.length}.`, `${q(head)} demande ${sig.required} valeur${sig.required > 1 ? 's' : ''} (${sig.names.slice(0, sig.required).join(', ')}), j'en vois ${positional.length}.`)
+            : msg(`${q(head)} takes at most ${sig.names.length} value${sig.names.length > 1 ? 's' : ''} (${sig.names.join(', ')}), I see ${positional.length}.`, `${q(head)} prend au plus ${sig.names.length} valeur${sig.names.length > 1 ? 's' : ''} (${sig.names.join(', ')}), j'en vois ${positional.length}.`),
+          usage)
+      }
       this.children(c, s)
       return
     }

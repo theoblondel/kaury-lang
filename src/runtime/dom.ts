@@ -112,7 +112,7 @@ export function frame(el: any, fn: () => unknown) {
 export function attr(el: any, name: string, fn: () => unknown) {
   effect(() => {
     const v = fn()
-    if (v === false || v === null || v === undefined) el.removeAttribute(name)
+    if (v === false || v === null || v === undefined || (v === '' && name === 'id')) el.removeAttribute(name)
     else el.setAttribute(name, v === true ? '' : String(v))
     if (name === 'disabled') el.disabled = !!v
   })

@@ -208,14 +208,15 @@ export const FONTSHARE = new Set([
   'Gambetta', 'Supreme', 'Chillax', 'Panchang', 'Boska', 'Sentient', 'Ranade', 'Tanker', 'Author', 'Bespoke Serif',
   'Excon', 'Melodrama', 'Pally', 'Synonym', 'Telma', 'Rowan', 'Khand', 'Nippo', 'Hoover',
 ])
-export const SYSTEM_FONTS = new Set(['system-ui', 'serif', 'sans-serif', 'monospace', 'mono', 'sans', 'system', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman'])
+export const SYSTEM_FONTS = new Set(['system-ui', 'serif', 'sans-serif', 'monospace', 'mono', 'sans', 'system', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'titles', 'text'])
 
-/** font "mono", "serif", "sans": the fonts already on every device, nothing to download. */
+/** font "mono", "serif", "sans": the fonts already on every device, nothing to download; "titles" and "text": the two fonts of the site. */
 const SYSTEM_STACKS: Record<string, string> = {
   mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
   monospace: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
   serif: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
   sans: 'var(--k-font-fallback)', 'sans-serif': 'var(--k-font-fallback)', system: 'var(--k-font-fallback)', 'system-ui': 'var(--k-font-fallback)',
+  titles: 'var(--k-font-titles)', text: 'var(--k-font)',
 }
 export function fontFamily(name: string): string {
   return SYSTEM_STACKS[name.toLowerCase()] ?? `"${name}", var(--k-font-fallback)`

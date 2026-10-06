@@ -8,7 +8,8 @@ import { join, resolve, extname, dirname, relative } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { compile, formatErrors, msg, setLanguage } from '../core/index.js'
 import { build, run, findEntry, CompileFailure, packageRoot } from './project.js'
-import { newSiteTemplate } from './template.js'
+import { newSiteTemplate, TEMPLATES } from './template.js'
+import { devMailHandler, readEnvFile } from './mail.js'
 
 const c = {
   bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
@@ -26,7 +27,7 @@ function help() {
 ${c.pink(c.bold('Kaury'))} ${c.gray('v' + version())} — ${msg('the language for immersive websites', 'le langage des sites immersifs')}
 
 ${c.bold(msg('Commands', 'Commandes'))}
-  kaury new ${c.gray('my-site')}          ${msg('creates a ready-to-use project', 'crée un projet prêt à l\'emploi')}
+  kaury new ${c.gray('my-site')}          ${msg('creates a ready-to-use project', 'crée un projet prêt à l\'emploi')} ${c.gray('(--template starter|landing|blog|portfolio)')}
   kaury dev ${c.gray('[file]')}           ${msg('shows the site and reloads it on every change', 'affiche le site et le recharge à chaque modification')}
   kaury build ${c.gray('[file]')}         ${msg('makes the final, optimized site in dist/', 'produit le site final, optimisé, dans dist/')}
   kaury check ${c.gray('[files]')}        ${msg('checks the code without building', 'vérifie le code sans construire')} ${c.gray('(--json)')}
@@ -46,7 +47,7 @@ async function main() {
   const args = argv.filter((a, i) => !(a === '--lang' || argv[i - 1] === '--lang'))
   const [cmd, ...rest] = args
   const flags = new Set(rest.filter((a) => a.startsWith('--')))
-  const positional = rest.filter((a, i) => !a.startsWith('--') && !['--port', '--out'].includes(rest[i - 1]))
+  const positional = rest.filter((a, i) => !a.startsWith('--') && !['--port', '--out', '--template', '-t'].includes(rest[i - 1]))
   const here = process.cwd()
   switch (cmd) {
     case undefined: case 'help': case 'aide': case '--help': case '-h':
@@ -54,7 +55,7 @@ async function main() {
     case '--version': case '-v': case 'version':
       return console.log(version())
     case 'new': case 'nouveau':
-      return newProject(positional[0] ?? 'my-site')
+      return newProject(positional[0] ?? 'my-site', value(rest, '--template') ?? value(rest, '-t') ?? 'starter')
     case 'dev':
       return dev(here, positional[0], Number(value(rest, '--port') ?? 3000))
     case 'build': case 'construis':
@@ -94,7 +95,13 @@ function showFailure(e: unknown) {
 }
 
 // ---------------------------------------------------------------- new
-function newProject(name: string) {
+function newProject(name: string, template: string) {
+  if (!TEMPLATES[template]) {
+    console.error(c.red(msg(`Unknown template "${template}".`, `Modèle inconnu « ${template} ».`)))
+    for (const [t, d] of Object.entries(TEMPLATES)) console.error(`  ${c.bold(t.padEnd(10))} ${c.gray(d)}`)
+    process.exitCode = 1
+    return
+  }
   const dir = resolve(process.cwd(), name)
   if (existsSync(dir) && readdirSync(dir).length) {
     console.error(c.red(msg(`The folder "${name}" already exists and is not empty.`, `Le dossier « ${name} » existe déjà et n'est pas vide.`)))
@@ -103,12 +110,14 @@ function newProject(name: string) {
   }
   const specFile = join(packageRoot(), 'docs', 'kaury-ai.md')
   const spec = existsSync(specFile) ? readFileSync(specFile, 'utf8') : undefined
-  for (const [path, content] of Object.entries(newSiteTemplate(name, spec))) {
+  for (const [path, content] of Object.entries(newSiteTemplate(name, spec, template))) {
     const p = join(dir, path)
     mkdirSync(dirname(p), { recursive: true })
     writeFileSync(p, content)
   }
-  console.log(`\n${c.green('✓')} ${msg('Project', 'Projet')} ${c.bold(name)} ${msg('created.', 'créé.')}\n\n  cd ${name}\n  kaury dev\n\n${msg('Open', 'Ouvre')} ${c.bold('site.kaury')}: ${msg('the whole site is in this file.', 'tout le site est dans ce fichier.')}\n`)
+  console.log(`\n${c.green('✓')} ${msg('Project', 'Projet')} ${c.bold(name)} ${msg('created', 'créé')} (${template}).\n\n  cd ${name}\n  kaury dev\n\n${msg('Open', 'Ouvre')} ${c.bold('site.kaury')}: ${msg('the whole site is in this file.', 'tout le site est dans ce fichier.')}`)
+  if (template === 'starter') console.log(c.gray(msg(`Other starting points: ${Object.keys(TEMPLATES).filter((t) => t !== 'starter').map((t) => `kaury new ${name} --template ${t}`).join(' · ')}`, `Autres points de départ : ${Object.keys(TEMPLATES).filter((t) => t !== 'starter').map((t) => `kaury new ${name} --template ${t}`).join(' · ')}`)))
+  console.log('')
 }
 
 // ---------------------------------------------------------------- build
@@ -120,6 +129,7 @@ async function buildCmd(here: string, file?: string, out?: string) {
     for (const { e, source } of r.collected.warnings) console.log(c.yellow(e.format(source)))
     console.log(`${c.green('✓')} ${r.pages.length} page${r.pages.length > 1 ? 's' : ''} (${r.pages.join(', ')}), ${r.images} image${r.images === 1 ? '' : 's'} ${msg('optimized', 'optimisée' + (r.images > 1 ? 's' : ''))}, ${r.duration} ms → ${relative(here, r.dir) || '.'}`)
     if (r.collected.immersion) console.log(c.gray(msg('  immersion: the 3D library loads only on pages that need it, after the page is displayed.', '  immersion : la 3D se charge seulement sur les pages qui en ont besoin, après l\'affichage.')))
+    if (r.mailFiles.length) console.log(c.gray(msg(`  forms by e-mail: endpoint written for Netlify, Vercel and Cloudflare Pages (${r.mailFiles.join(', ')}). Set KAURY_MAIL_KEY (a resend.com key) on the host.`, `  formulaires par e-mail : point d'envoi écrit pour Netlify, Vercel et Cloudflare Pages (${r.mailFiles.join(', ')}). Règle KAURY_MAIL_KEY (une clé resend.com) chez l'hébergeur.`)))
   } catch (e) {
     showFailure(e)
   }
@@ -199,12 +209,15 @@ async function dev(here: string, file: string | undefined, port: number) {
   const out = join(siteDir, '.kaury-cache', 'dev')
   let error: string | null = null
   let ver = 0
+  let mails: Record<string, string> = {}
+  const sendMail = devMailHandler({ ...readEnvFile(siteDir), ...process.env })
   const clients = new Set<any>()
 
   const rebuild = async () => {
     const t0 = Date.now()
     try {
       const r = await build(entry, { out, dev: true, minify: false })
+      mails = r.mails
       error = null
       for (const { e, source } of r.collected.warnings) console.log(c.yellow(e.format(source)))
       console.log(`${c.green('✓')} ${c.gray(new Date().toLocaleTimeString())} ${r.pages.length} page${r.pages.length > 1 ? 's' : ''} ${msg('ready in', 'prête' + (r.pages.length > 1 ? 's' : '') + ' en')} ${Date.now() - t0} ms`)
@@ -247,6 +260,22 @@ async function dev(here: string, file: string | undefined, port: number) {
       res.write(`data: ${ver}\n\n`)
       clients.add(res)
       req.on('close', () => clients.delete(res))
+      return
+    }
+    if (url.pathname === '/api/kaury-mail' && req.method === 'POST') {
+      let body = ''
+      req.on('data', (d) => (body += d))
+      req.on('end', async () => {
+        const r = await sendMail(body, `http://localhost:${port}${url.pathname}`, mails)
+        if (r.preview) {
+          console.log(`\n${c.pink('✉')} ${c.bold(msg('E-mail to', 'E-mail pour'))} ${r.preview.to}`)
+          for (const [k, v] of Object.entries(r.preview.fields)) console.log(`  ${c.gray(k + ':')} ${v}`)
+          console.log(c.gray(msg('  (not sent: put KAURY_MAIL_KEY, a resend.com key, in .env to send it for real)', '  (pas envoyé : mets KAURY_MAIL_KEY, une clé resend.com, dans .env pour l\'envoyer vraiment)')))
+        } else if (r.status !== 200) console.log(c.red(`✉ ${r.body}`))
+        else console.log(`${c.green('✉')} ${msg('e-mail sent', 'e-mail envoyé')}`)
+        res.writeHead(r.status, { 'Content-Type': 'application/json' })
+        res.end(r.body)
+      })
       return
     }
     if (url.pathname === '/_kaury/reload.js') {

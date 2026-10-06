@@ -11,6 +11,7 @@ export {
   options, form, card, frame, autoLink, resolveLinks, mobileMenu, installMenus, markdown, html, classes, imageSize, inBrowser, slug,
 } from './dom.js'
 export { serverCollection, clientCollection, rawItems } from './content.js'
+export { mail, mailId, mailAddresses, MAIL_ENDPOINT } from './mail.js'
 export {
   mouse, scroll, screen, route, objects, namedObject, object, scene, sceneReady, setting, sound, playSound, motion, action,
   says, bodyOf, startGlobals,

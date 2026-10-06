@@ -11,6 +11,8 @@ export const COLORS: Record<string, string> = {
   cream: '#fff4e8', beige: '#efe3cf', brown: '#8a5a3b', teal: '#12a594', gold: '#d4a72c',
   silver: '#c0c4cc', navy: '#14213d', coral: '#ff7f61', mint: '#7fe0c0', lavender: '#b9a6ef',
   sky: '#7cc4fa', sand: '#e9d8b4', slate: '#3c4454', night: '#0b1020', transparent: 'transparent',
+  // colors of the theme: they follow the site (accent = first site color, on-accent = text on it, ink = text, muted = soft text, line = borders)
+  accent: 'var(--k-accent)', 'on-accent': 'var(--k-on-accent)', ink: 'var(--k-ink)', muted: 'var(--k-muted)', line: 'var(--k-line)',
 }
 const COLOR_ALIASES: Record<string, string> = {
   rouge: 'red', jaune: 'yellow', vert: 'green', bleu: 'blue', violet: 'purple', rose: 'pink', noir: 'black',
@@ -115,6 +117,10 @@ export const ELEMENT_OPTIONS: Record<string, Record<string, OptionSpec>> = {
     large: o('', ['grand'], 'large button', 'grand bouton', 'large'),
     small: o('', ['petit'], 'small button', 'petit bouton', 'small'),
     disabled: o('e?', ['desactive'], 'disabled (when the condition is true)', 'désactivé (si la condition est vraie)', 'disabled cart.length == 0'),
+  },
+  form: {
+    mail: o('e', ['courriel', 'email'], 'sends what is typed by e-mail to this address, then runs -> (needs KAURY_MAIL_KEY where the site is hosted)', 'envoie ce qui est saisi par e-mail à cette adresse, puis lance -> (demande KAURY_MAIL_KEY chez l\'hébergeur)', 'form mail "hello@bloom.ch" -> sent = true'),
+    subject: o('t', ['sujet', 'objet'], 'subject of the e-mail sent by mail', 'sujet de l\'e-mail envoyé par mail', 'subject "New order"'),
   },
   link: { 'new-tab': o('', ['nouvel', 'blank'], 'opens in a new tab', 'ouvre dans un nouvel onglet', 'new-tab') },
   field: {

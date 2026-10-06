@@ -1,6 +1,6 @@
 {
   "name": "@kaury/cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "main": "dist/core.js",
   "scripts": {
     "build": "node scripts/build.mjs && tsx scripts/editor.ts",
@@ -61,6 +61,7 @@
     "docs",
     "LICENSE",
     "README.md",
+    "CHANGELOG.md",
     "!dist/*.map",
     "!docs/assets"
   ],

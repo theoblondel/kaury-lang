@@ -90,6 +90,8 @@ Open `http://localhost:3000`, edit `site.kaury`, save: the page reloads by itsel
 - **A design system without CSS** — named styles with states (`hover`, `selected`, `open`…), parts (`link`, `title`…) and screens (`mobile`, `tablet`); a style named after an element restyles all of them.
 - **Motion** — your own animations with `from` / `to`, entrances on scroll, reduced motion respected.
 - **3D as a word** — `.glb` models or built-in shapes (`sphere`, `knot`, `gem`, `torus`…), lights, cameras, particles, characters. Three.js loads only on pages with 3D, after the first paint.
+- **Ready-made blocks** — `Hero`, `Features`, `Pricing`, `Testimonials`, `Faq`, `Contact`, `Footer`… in your colors, nothing to import; write your own component of the same name to replace one.
+- **Forms that send e-mails** — `form mail "hello@you.com"`: shown in the terminal while you build, sent through [Resend](https://resend.com) once online, with the endpoint written for Netlify, Vercel and Cloudflare Pages.
 - **Content** — Markdown, MDX and YAML collections read at build time, one page per post, code blocks colored at build time.
 - **Fast by construction** — server rendering and hydration, zero JavaScript on pages without interaction, only the CSS a page needs, frames loaded near the screen.
 - **Accessible** — text colors chosen for WCAG contrast, real HTML in front of the 3D, tabs with the right roles.
@@ -113,7 +115,7 @@ Kaury is short, regular and checked by a compiler that explains its errors — w
 
 | Command | What it does |
 |---|---|
-| `kaury new my-site` | creates a ready-to-use project |
+| `kaury new my-site` | creates a ready-to-use project (`--template landing`, `blog`, `portfolio`) |
 | `kaury dev` | live preview, reloads on every change |
 | `kaury check [--json]` | checks the code without building |
 | `kaury build` | the final, optimized site in `dist/` |
@@ -130,6 +132,7 @@ Messages are in English; French keywords and messages exist too (`--lang fr`).
 | [Getting started](site/content/docs/getting-started.md) | [The language](site/content/docs/language.md) | [A landing page in 30 lines](site/content/blog/landing-page-in-30-lines.md) |
 | [Tutorial: a site in 10 steps](site/content/docs/tutorial.md) | [Pages, elements, styles](site/content/docs/web.md) | [Your first 3D scene](site/content/blog/first-3d-scene.md) |
 | [Spec for AI assistants](docs/kaury-ai.md) | [Immersion: 3D](site/content/docs/immersion.md) | [A design system without CSS](site/content/blog/design-system-without-css.md) |
+| | [Blocks, forms, templates](site/content/docs/blocks.md) | |
 | | [Content and blog](site/content/docs/content.md) | [Let an AI write your site](site/content/blog/ai-writes-kaury.md) |
 | | [SEO, GEO, performance](site/content/docs/seo-geo.md) | |
 
@@ -137,7 +140,7 @@ Every Kaury example of these pages is compiled by the test suite: the docs canno
 
 ## Status
 
-Kaury is young (0.3). It already builds complete multi-page sites with 3D, and its own site is written in it. On the way: forms that send e-mails, ready-made templates and components, a language server for every editor, and the published VS Code extension (its source is in [`editors/vscode`](editors/vscode)).
+Kaury is young (0.4). It already builds complete multi-page sites with 3D, ready-made blocks, forms that send e-mails and four templates, and its own site is written in it. On the way: a language server for every editor and the published VS Code extension (its source is in [`editors/vscode`](editors/vscode)).
 
 Ideas, bugs, questions: [open an issue](https://github.com/theoblondel/kaury-lang/issues).
 

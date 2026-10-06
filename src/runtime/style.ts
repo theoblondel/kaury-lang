@@ -26,7 +26,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* ---- page and sections ---- */
 .k-page{display:flex;flex-direction:column;min-height:100svh;width:100%}
 .k-section{position:relative;display:flex;flex-direction:column;gap:var(--k-gap);padding:var(--k-section) var(--k-gutter);width:100%}
-.k-section>*:not(.k-full){width:100%;max-width:var(--k-width);margin-inline:auto}
+.k-section>*:not(.k-full,.k-column,.k-box,.k-grid,.k-row){width:100%;max-width:var(--k-width);margin-inline:auto}
+/* layout boxes: a named style can make them narrower (max-width 640) */
+.k-section>:where(.k-column,.k-box,.k-grid,.k-row):where(:not(.k-full)){width:100%;max-width:var(--k-width);margin-inline:auto}
 .k-section.k-section-header,header.k-header{flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap;padding-block:16px;gap:16px 28px;max-width:none}
 .k-section.k-section-header>*,header.k-header>*{width:auto;max-width:none;margin:0}
 .k-section.k-section-header>.k-links,header.k-header>.k-links{margin-left:auto}
@@ -133,6 +135,8 @@ h3.k-title{font-size:clamp(22px,2.2vw,30px)}
 /* ---- forms ---- */
 .k-form{display:flex;flex-direction:column;gap:14px;max-width:560px}
 .k-field,.k-textarea,.k-select{width:100%;min-height:44px;padding:.8em 1em;border:1.5px solid var(--k-line);border-radius:12px;background:color-mix(in srgb,var(--k-bg) 60%,#fff);transition:border-color .2s,box-shadow .2s}
+.k-form-error{margin:0;color:#c2331b;font-weight:500}
+.k-form[aria-busy=true]{opacity:.7;cursor:progress}
 .k-field:focus,.k-textarea:focus,.k-select:focus{outline:none;border-color:var(--k-accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--k-accent) 18%,transparent)}
 .k-validated .k-field:invalid,.k-validated .k-textarea:invalid{border-color:#e5484d}
 .k-textarea{min-height:120px;resize:vertical}
