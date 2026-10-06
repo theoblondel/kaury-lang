@@ -108,7 +108,7 @@ const llms = `# Kaury
 
 > ${intro}
 
-Install: \`npm install -g kaury\`, then \`kaury new my-site\`, \`kaury dev\`, \`kaury build\`.
+Install: \`npm install -g @kaury/cli\`, then \`kaury new my-site\`, \`kaury dev\`, \`kaury build\`.
 To write Kaury, an AI assistant should read the specification first: it is complete, short and made for that.
 
 ## Specification for AI assistants

@@ -32,7 +32,7 @@ No HTML, no CSS, no JavaScript to write: pages, styles, animations, data and 3D 
 ## Start
 
 ```bash
-npm install -g kaury
+npm install -g @kaury/cli
 kaury new my-site
 cd my-site
 kaury dev

@@ -20,7 +20,7 @@ export function packageRoot(): string {
     const p = join(d, 'package.json')
     if (existsSync(p)) {
       try {
-        if (JSON.parse(readFileSync(p, 'utf8')).name === 'kaury') return d
+        if (['kaury', '@kaury/cli'].includes(JSON.parse(readFileSync(p, 'utf8')).name)) return d
       } catch {
         /* keep looking */
       }

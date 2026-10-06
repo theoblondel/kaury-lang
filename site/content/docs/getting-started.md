@@ -10,7 +10,7 @@ Kaury needs **Node.js 18 or newer**. Nothing else: no framework, no bundler to c
 ## Install
 
 ```bash
-npm install -g kaury
+npm install -g @kaury/cli
 ```
 
 Check it worked:

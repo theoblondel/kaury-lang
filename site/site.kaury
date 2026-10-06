@@ -23,7 +23,7 @@ site "Kaury"
   seo "Kaury", "The programming language for immersive websites: one file for logic, structure, style and 3D. Open source, Lighthouse 100."
 
 // ---------------- data ----------------
-let install = "npm install -g kaury"
+let install = "npm install -g @kaury/cli"
 let repo = "https://github.com/theoblondel/kaury-lang"
 let guide = docs.sort(d -> d.order)
 let articles = posts.sort(p -> p.date).reverse()
@@ -58,7 +58,7 @@ let language-ld = {
       applicationCategory: "DeveloperApplication",
       operatingSystem: "Windows, macOS, Linux",
       softwareVersion: release.version,
-      downloadUrl: "https://www.npmjs.com/package/kaury",
+      downloadUrl: "https://www.npmjs.com/package/@kaury/cli",
       installUrl: "https://kaury.dev/docs/getting-started/",
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
       license: "https://opensource.org/license/mit"
