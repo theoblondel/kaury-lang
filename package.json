@@ -61,7 +61,8 @@
     "docs",
     "LICENSE",
     "README.md",
-    "!dist/*.map"
+    "!dist/*.map",
+    "!docs/assets"
   ],
   "engines": {
     "node": ">=18"
