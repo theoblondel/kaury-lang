@@ -386,6 +386,23 @@ test('a page that runs code carries the named styles it can use, through its com
   assert.equal(other.includes('.ka-drift{'), true)
 })
 
+test('a site built to be published carries no debugging files', async () => {
+  // found when packing the site of the language for its host: 339 MB of “.map” files out of 614, which no visitor reads
+  const { readdirSync } = await import('node:fs')
+  const dir = join(resolve('tests/.tmp'), 'natural-no-maps')
+  rmSync(dir, { recursive: true, force: true })
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'site.kaury'), 'state n = 0\n' + HEAD + '  button "a {n}" -> n += 1\n')
+  const published = await build(join(dir, 'site.kaury'))
+  const files = readdirSync(join(published.dir, '_kaury'))
+  assert.equal(files.some((f) => f.endsWith('.js')), true)
+  assert.deepEqual(files.filter((f) => f.endsWith('.map')), [])
+  assert.equal(files.some((f) => f.endsWith('.js') && readFileSync(join(published.dir, '_kaury', f), 'utf8').includes('sourceMappingURL')), false)
+  // while developing they are there: an error in the browser shows the line of the .kaury file
+  const developing = await build(join(dir, 'site.kaury'), { dev: true })
+  assert.equal(readdirSync(join(developing.dir, '_kaury')).some((f) => f.endsWith('.map')), true)
+})
+
 // ---------------- content in files ----------------
 test('a field read from a content file that no file has is said, with the one meant', async () => {
   // “post.titel” showed nothing, in silence: an empty value is normal for data that arrives, not for a field that exists nowhere

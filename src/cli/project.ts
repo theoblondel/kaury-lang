@@ -521,7 +521,7 @@ export async function build(entry: string, o: BuildOptions = {}): Promise<BuildR
       entryNames: '[name]-[hash]',
       chunkNames: 'chunk-[hash]',
       minify: o.minify ?? !o.dev,
-      sourcemap: true,
+      sourcemap: !!o.dev, // while developing only: a published site carries no debugging files
       target: ['es2020', 'chrome90', 'safari15', 'firefox90'],
       metafile: true,
       logLevel: 'silent',
