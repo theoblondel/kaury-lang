@@ -1,0 +1,16 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Kaury",
+  "description": "A language for websites: pages, look, logic and 3D in one .kaury file, compiled to fast server-rendered HTML. Built so that AI assistants write it right the first time.",
+  "folders": ["docs", "site/content/docs", "examples"],
+  "excludeFolders": ["node_modules", "dist", "tests", "playground", "editors", "site/public", "site/library", "site/dist"],
+  "rules": [
+    "Read docs/kaury-ai.md first: it is the whole language in one file, written for AI assistants.",
+    "A block is a line followed by lines indented by exactly 2 spaces. Options are separated by commas. Text is between double quotes.",
+    "After writing a .kaury file, run `kaury check --json`, fix every problem it lists (each has its line and a fix), then run `kaury build`.",
+    "In the site block, `fonts \"Text font\", \"Title font\"`: the font of the text comes first, then the font of the titles.",
+    "A value that changes on screen is a `state`; a `let` made from a state follows it by itself.",
+    "Use the ready-made blocks for usual sections: Hero, Features, Steps, Stats, Table, Chart, Pricing, Testimonials, Faq, Contact, Footer.",
+    "Do not use Kaury for an application with accounts and a database, for payments, or for one widget inside an existing site."
+  ]
+}
