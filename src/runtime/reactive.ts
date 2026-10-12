@@ -74,6 +74,9 @@ function run(e: Effect) {
   try {
     e.fn()
   } catch (err) {
+    // the served HTML differs from what the page shows now (a cart kept in the browser, a date): not a mistake
+    // to report, the page is rebuilt whole. It goes up to renderPage, also from inside an “if” or a “for”.
+    if ((err as { rebuild?: boolean } | null)?.rebuild) throw err
     reporter(err)
   } finally {
     e.running = false
@@ -125,6 +128,26 @@ function release(o: Owner) {
 
 export function onCleanup(fn: () => void) {
   owner?.cleanups.push(fn)
+}
+
+// ---------------- what waits until the served HTML is adopted ----------------
+// A page that comes with its HTML adopts it as the server made it (a wide screen, nothing saved). What the browser
+// knows — the real size of the screen, a state kept with “persist” — applied before, would make the page differ
+// from its HTML, and the whole page would be rebuilt. It is applied right after: the page follows, as for any change.
+let adoptionDone = false
+const waiting: (() => void)[] = []
+
+/** Runs now; or, when the page came with its HTML and has not adopted it yet, right after it has. */
+export function afterAdoption(fn: () => void) {
+  const doc = typeof document !== 'undefined' ? document : undefined
+  if (!adoptionDone && typeof doc?.querySelector === 'function' && doc.querySelector('#app')?.firstChild) waiting.push(fn)
+  else fn()
+}
+
+/** The page has adopted its HTML (or had none to adopt): what was waiting is applied. */
+export function adopted() {
+  adoptionDone = true
+  for (const f of waiting.splice(0)) f()
 }
 
 export function effect(fn: () => void): () => void {
@@ -249,10 +272,28 @@ export class Cell<T = any> {
   }
 }
 
+// Content collections read while building a page (server side). A derived value is computed once
+// and then served from its cache: it remembers the collections it read, so that every page reading
+// it counts as reading them too (their data is then inlined in that page).
+const usedCollections = new Set<string>()
+let collecting: Set<string> | null = null
+
+export function noteCollection(id: string) {
+  usedCollections.add(id)
+  collecting?.add(id)
+}
+
+export function takeNotedCollections(): string[] {
+  const l = [...usedCollections]
+  usedCollections.clear()
+  return l
+}
+
 /** A derived value (let total = …): recomputed only when what it reads changes. */
 export class Derived<T = any> {
   private dirty = true
   private val!: T
+  private cols: Set<string> | null = null
   private e: Effect
   constructor(private compute: () => T) {
     this.e = {
@@ -272,14 +313,19 @@ export class Derived<T = any> {
     if (this.dirty) {
       cleanup(this.e)
       const prev = current
+      const outer = collecting
       current = this.e
+      collecting = new Set()
       try {
         this.val = this.compute()
       } finally {
         current = prev
+        this.cols = collecting.size ? collecting : null
+        collecting = outer
       }
       this.dirty = false
     }
+    if (this.cols) for (const id of this.cols) noteCollection(id)
     return this.val
   }
   set v(_: T) {

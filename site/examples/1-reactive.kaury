@@ -8,4 +8,4 @@ page "/"
     text "The double computes itself: {double}"
     button "I like it ({likes})", large -> likes += 1
     if likes >= 5
-      text "You really like it!", bold, orange
+      text "You really like it!", bold, color #C2410C

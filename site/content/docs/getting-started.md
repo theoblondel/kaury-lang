@@ -68,6 +68,8 @@ The optimized site lands in `dist/`: one HTML file per page, rendered on the ser
 
 It is a **static site**: it works on any host (Netlify, Vercel, Cloudflare Pages, GitHub Pages, an Apache or Nginx server…).
 
+A site that lives in a folder of another site (`user.github.io/project/`, `example.com/demo/`) is built with its folder: `kaury build --base /project/`. Every address of the site then starts there, pictures, pages and scripts alike.
+
 ## Put it online
 
 ```bash
@@ -82,8 +84,8 @@ Or drag the `dist/` folder onto [app.netlify.com/drop](https://app.netlify.com/d
 |---|---|
 | `kaury new my-site` | creates a ready-to-use project |
 | `kaury dev` | shows the site and reloads it on every change |
-| `kaury build` | makes the final, optimized site in `dist/` |
-| `kaury check [--json]` | checks the code without building (`--json` for AI assistants and editors) |
+| `kaury build [--out dist] [--base /folder/]` | makes the final, optimized site in `dist/` (`--base`: for a site served from a folder) |
+| `kaury check [--json]` | checks the code and renders every page, without building (`--json` for AI assistants and editors) |
 | `kaury run program.kaury` | runs a program without pages |
 | `kaury compile site.kaury` | shows the generated JavaScript |
 | `kaury deploy --netlify` | builds then publishes |

@@ -1,0 +1,124 @@
+// Creative agency · brutalist
+// height 3500
+site "Nord Sud"
+  colors accent #D7FF3A, ink #101010, paper #F2F0E9
+  fonts "Space Grotesk", "Anton"
+  lang "en"
+  style background paper, color ink, radius 0
+  seo "Nord Sud", "A small studio for loud brands: identity, film and websites, made in Geneva."
+
+let work = [
+  { n: "01", name: "Halden Brewery", kind: "Identity, packaging", year: "2026" },
+  { n: "02", name: "Radio Lac", kind: "Campaign film", year: "2026" },
+  { n: "03", name: "Atelier Sève", kind: "Website, 3D", year: "2025" },
+  { n: "04", name: "Marché Noir", kind: "Identity, signage", year: "2025" }
+]
+let services = [
+  { title: "Brand", text: "Name, mark, type, voice. A system a team can use without us." },
+  { title: "Film", text: "Thirty seconds that people watch to the end." },
+  { title: "Web", text: "Sites that load fast and get remembered." }
+]
+let words = ["Identity", "Film", "Web", "3D", "Type", "Sound"]
+
+style shout
+  font "titles", size 210, line-height 0.82, uppercase, tracking -2
+  tablet size 130
+  mobile size 76
+
+style hollow
+  font "titles", size 210, line-height 0.82, uppercase, tracking -2, stroke 3 ink
+  tablet size 130
+  mobile size 76, stroke 2 ink
+
+style mono
+  font "mono", size 13, uppercase, weight 700
+
+style hire
+  background ink, color accent, shadow hard accent, padding 18 30, uppercase, weight 800
+  hover move -3 -3
+
+style tag
+  background ink, color accent, padding 6 12, font "mono", uppercase, size 13, tilt -3
+
+style band
+  background ink, color accent, padding 14 0, clip, full-width
+
+style word
+  font "titles", size 64, uppercase, padding 0 24, line-height 1
+
+style job
+  padding 26 0, border-top 3 ink, gap 24
+  hover background ink, color accent, padding 26 20
+  title font "titles", uppercase
+
+style service
+  background ink, color paper, padding 32, gap 12
+  hover background accent, color ink
+
+style mega
+  font "titles", size 150, uppercase, line-height 0.85
+  tablet size 96
+  mobile size 60
+
+animation slide, 20s, loop, linear
+  from move 0 0
+  to move -50% 0
+
+page "/"
+  section header, background accent, border-bottom 3 ink
+    logo "Nord Sud"
+    links Work, Services, Contact
+    button "Hire us ↗", small, hire, to "#contact"
+
+  section hero, background accent, padding 48 48 64
+    mobile padding 32 20 48
+    row
+      text "Studio for loud brands", mono
+      text "Geneva / est. 2019", mono, margin 0 0 0 auto
+    title "Make", shout
+    title "Noise.", hollow
+    row gap 24
+      text "Identity, film and websites for people with something to say.", tag
+      button "See the work ↓", hire, to "#work"
+
+  section ticker, band
+    row no-wrap, slide, gap 0
+      for w in words + words
+        text "{w} ✳", word
+
+  section work, padding 80 48
+    mobile padding 56 20
+    row
+      title "Selected work", font "titles", uppercase, size 64
+      text "2025 — 2026", mono, margin 0 0 0 auto
+    column gap 0
+      for j in work
+        row job
+          text j.n, mono
+          title j.name, size 44
+            mobile size 28
+          text j.kind, margin 0 0 0 auto
+            mobile hidden
+          text j.year, mono
+
+  section services, padding 0 48 80
+    mobile padding 0 20 56
+    grid columns 1.6 1 1, gap 12
+      tablet columns 1
+      for s in services
+        column service
+          title s.title, font "titles", uppercase, size 56
+          text s.text
+
+  section contact, background ink, color paper, padding 96 48
+    mobile padding 64 20
+    text "Two projects open for spring 2027", mono, color accent
+    title "Say it\nlouder.", mega, color accent
+    row gap 24
+      button "hello@nordsud.studio", large, background accent, color ink, shadow hard paper, uppercase, weight 800
+      text "Rue des Bains 31, 1205 Geneva"
+
+  footer background ink, color paper, padding 24 48, border-top 3 accent
+    mobile padding 24 20
+    text "© 2026 Nord Sud", mono
+    text "Made with Kaury", mono, margin 0 0 0 auto

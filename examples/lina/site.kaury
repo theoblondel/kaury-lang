@@ -1,0 +1,221 @@
+// Chez Lina: the home page of a neighbourhood restaurant.
+// Read as: a landing page for locals choosing where to eat tonight, led by photography,
+// in olive, brick and paper. Variance 7, motion 5, density 3.
+site "Chez Lina"
+  colors accent #A63C25, paper #EEF0E7, leaf #DCE3CD, ink #1C2118
+  fonts "Satoshi", "Cabinet Grotesk"
+  lang "en"
+  url "https://chezlina.example"
+  style background paper, color ink, radius 22, max-width 1240
+  seo "Chez Lina, Mediterranean kitchen in Vevey", "Seasonal plates to share and natural wines, on a stone terrace two steps from the lake. Open Tuesday to Sunday."
+
+state service = "lunch"
+state sent = false
+
+let dishes = [
+  { name: "Burrata, peach, basil", note: "From Puglia, with the first peaches of the valley", price: 18, when: "lunch" },
+  { name: "Grilled octopus, chickpeas, lemon", note: "Cooked over vine cuttings", price: 26, when: "lunch" },
+  { name: "Tagliolini, bottarga, zest", note: "Rolled every morning", price: 24, when: "lunch" },
+  { name: "Sea bream, fennel, olive oil", note: "Whole, for one", price: 34, when: "lunch" },
+  { name: "Artichokes, anchovy, breadcrumbs", note: "To share while you choose", price: 19, when: "dinner" },
+  { name: "Lamb shoulder, harissa, mint", note: "For two, six hours in the oven", price: 76, when: "dinner" },
+  { name: "Turbot on the bone, capers", note: "For two or three, carved at the table", price: 92, when: "dinner" },
+  { name: "Olive oil cake, apricot", note: "Still warm", price: 11, when: "dinner" }
+]
+let shown = dishes.filter(d -> d.when == service)
+
+let wines = [
+  { name: "Chasselas sur lie", from: "Lavaux", glass: 9 },
+  { name: "Gamay des collines", from: "Geneva", glass: 10 },
+  { name: "Orange muscat", from: "Valais", glass: 12 }
+]
+
+let hours = [
+  { days: "Tuesday to Saturday", time: "12:00 to 14:00, then 18:30 to 22:00" },
+  { days: "Sunday", time: "12:00 to 15:00" },
+  { days: "Monday", time: "Closed" }
+]
+
+style emphasis
+  italic, color accent
+
+style display
+  font "titles", size 92, line-height 0.98, tracking -3, weight 800
+  tablet size 64
+  mobile size 46, tracking -1
+
+style heading
+  font "titles", size 52, line-height 1.02, tracking -2, weight 800
+  mobile size 36
+
+style lead
+  size 20, line-height 1.5, width 470
+  mobile size 18
+
+style label
+  uppercase, tracking 2, size 12, weight 700, color accent
+
+style quiet
+  background transparent, color ink, border 2 ink
+  hover background ink, color paper
+
+style tab
+  background transparent, color ink, border 2 ink, padding 9 20, size 15, weight 600
+  selected background ink, color paper
+
+style dish
+  padding 22 0, border-top 1 line, gap 24
+  title size 23
+
+style tile
+  background white, padding 36, gap 12, radius 22
+  mobile padding 26
+
+style tinted
+  background leaf, padding 36, gap 12, radius 22
+  mobile padding 26
+
+style brick
+  background accent, padding 36, gap 12, radius 22
+  mobile padding 26
+
+style wordmark
+  font "titles", size 230, line-height 0.82, tracking -9, weight 800, color leaf
+  tablet size 140
+  mobile size 76, tracking -3
+
+animation rise, 0.9s, smooth
+  from move 0 28
+  to move 0 0
+
+animation settle, scroll
+  from grow 0.94, opacity 0.5
+  to grow 1, opacity 1
+
+page "/"
+  section header, sticky, padding 18 48
+    mobile padding 14 20
+    logo "Chez Lina"
+    links Menu, Kitchen, Find
+    button "Book a table", small, to "#book"
+
+  section hero, padding 40 48 96
+    mobile padding 24 20 64
+    grid columns 1 0.92, gap 72
+      tablet columns 1, gap 40
+      column gap 26, rise, middle
+        text "Mediterranean kitchen in Vevey", label
+        title "Long lunches,\nby the *lake*.", display
+        text "Seasonal plates to share and natural wines, on a stone terrace two steps from the water.", lead
+        row gap 12
+          button "Book a table", large, to "#book"
+          button "See the menu", large, quiet, to "#menu"
+      box front
+        image "terrace.jpg", "The stone terrace of Chez Lina at dusk, tables set under the lamps", cover, height 640
+          tablet height 460
+          mobile height 380
+        image "burrata.jpg", "Burrata with peaches and figs on a white plate", cover, width 210, height 210, pin bottom -34 left -46, border 8 paper, shadow strong
+          tablet hidden
+          mobile hidden
+
+  section menu, padding 0 48 96
+    mobile padding 0 20 64
+    grid columns 1.7 1, gap 56
+      tablet columns 1, gap 32
+      column gap 0
+        row gap 16
+          title "The menu", heading, level 2
+          row gap 8, margin 0 0 0 auto
+            button "Lunch", tab, selected (service == "lunch") -> service = "lunch"
+            button "Dinner", tab, selected (service == "dinner") -> service = "dinner"
+        spacer 28
+        for d in shown
+          row dish
+            column gap 4
+              subtitle d.name, level 3, size 23
+              text d.note, color muted
+            text "{d.price}", margin 0 0 0 auto, size 23, weight 600, font "titles"
+        text "Prices in Swiss francs. Tell us about allergies when you book.", color muted, size 15, padding 22 0 0 0, border-top 1 line
+      column
+        column tinted, sticky 96
+          text "Lina's table", label
+          title "Five plates, chosen by the kitchen.", size 30, line-height 1.1, font "titles", weight 800, level 3
+          text "What the market had this morning, served to the whole table. Tell us what you do not eat and leave the rest to us."
+          text "68 per person", size 23, weight 700, font "titles"
+          button "Book a table", to "#book"
+
+  section kitchen, padding 0 48 96
+    mobile padding 0 20 64
+    grid columns 1.35 1, gap 18
+      tablet columns 1
+      image "kitchen.jpg", "Bowls being plated on the pass of the kitchen", cover, height 560, settle
+        mobile height 300
+      column gap 18
+        image "table.jpg", "A table set outside with burrata, tomatoes and green glasses", cover, height 290
+          mobile height 240
+        column brick
+          title "Everything is made here, every morning.", size 30, line-height 1.1, font "titles", weight 800, level 2
+          text "The pasta, the bread, the harissa. Lina buys the fish at the port of Ouchy before seven."
+
+  section wine, padding 0 48 96
+    mobile padding 0 20 64
+    grid columns 0.8 1, gap 72
+      tablet columns 1, gap 32
+      image "glasses.jpg", "Two wine glasses on a wooden table in the afternoon sun", cover, height 520
+        mobile height 320
+      column gap 22, middle
+        title "Wines with nothing *added*.", heading, level 2
+        text "Forty bottles from growers we have met, most of them within a day's drive. Half are poured by the glass, so you can follow the meal instead of the list.", lead
+        column gap 0
+          for w in wines
+            row gap 16, padding 14 0, border-top 1 line
+              text w.name, weight 700
+              text w.from, color muted
+              text "{w.glass} a glass", margin 0 0 0 auto
+
+  section find, padding 0 48 96
+    mobile padding 0 20 64
+    grid columns 1.3 1, gap 18
+      tablet columns 1
+      column tinted
+        text "Find us", label
+        title "Quai Perdonnet 14,\n1800 Vevey", heading, level 2
+        text "On the lake side of the old town, five minutes on foot from the station. The terrace is the one with the vines.", width 430
+        link "021 555 01 42" "tel:+41215550142", size 20, weight 700
+      column tile
+        text "Open", label
+        for h in hours
+          column gap 2, padding 12 0, border-top 1 line
+            text h.days, weight 700
+            text h.time, color muted
+
+  section book, padding 0 48 110
+    mobile padding 0 20 72
+    grid columns 1 1.1, gap 72
+      tablet columns 1, gap 32
+      column gap 18
+        title "Come *hungry*.", heading, level 2
+        text "Tables for two to eight. For more, write to us and we keep the terrace for you.", lead
+        image "pour.jpg", "Wine poured into a glass in front of the trees", cover, height 300
+          tablet hidden
+          mobile hidden
+      column gap 16
+        if sent
+          title "See you soon, {name}.", size 34, font "titles", weight 800, level 3
+          text "We confirm your table by e-mail within the hour."
+        else
+          form mail "table@chezlina.example", subject "Table request" -> sent = true
+            field name "Ada Lovelace", required, label "Name"
+            field email "ada@example.com", type email, required, label "Email"
+            select guests "2 people", "3 to 4 people", "5 to 8 people", label "Table for"
+            select moment "Lunch", "Dinner", label "Service"
+            textarea message "A birthday, an allergy, a favourite table", label "A word for the kitchen"
+            button "Book a table", large
+
+  footer padding 56 48 0, gap 28, direction column
+    mobile padding 40 20 0
+    row gap 32
+      text "Quai Perdonnet 14, 1800 Vevey"
+      link "table@chezlina.example" "mailto:table@chezlina.example"
+      text "Made with Kaury", margin 0 0 0 auto, color muted
+    text "Chez Lina", wordmark, attr "aria-hidden" "true"

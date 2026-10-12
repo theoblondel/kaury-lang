@@ -103,17 +103,18 @@ test('named styles, states, parts, element defaults and animations: a site witho
   assert.match(html, /\.ks-card-dark\{background:#1c1a1a[^}]*padding:24px/i)
   assert.match(html, /\.ks-card-dark:hover\{[^}]*translateY\(-4px\)/)
   assert.ok(html.includes('.ks-card-dark :where(a:not(.k-logo,.k-button)){color:#f56e2e}'), 'link part of a named style')
-  assert.match(html, /\.ks-tab-pill\[aria-selected="?true"?\]\{background:#1c1a1a/i)
+  // selected: a tab of a list of tabs, or a button that is on
+  assert.match(html, /\.ks-tab-pill:is\(\[aria-selected="?true"?\],\[aria-pressed="?true"?\]\)\{background:#1c1a1a/i)
   assert.match(html, /@keyframes ks-slide\{0%\{transform:translate\(0[^)]*\)\}(100%|to)\{transform:translate\(-50%[^)]*\)\}\}/)
   assert.match(html, /\.ka-slide\{animation:ks-slide 30s linear 0s infinite/)
   assert.match(html, /class="k-box ks-card-dark/)
-  assert.match(html, /aria-selected="true"/)
+  assert.match(html, /aria-pressed="true"/) // written directly in a section: a button that is on, not a tab without its list
   assert.match(html, /<div class="k-box[^"]*" hidden>/)
   assert.match(html, /<details class="k-details[^"]*"><summary class="k-summary">Is it free\?<\/summary>/)
   assert.match(html, /<iframe class="k-embed[^"]*" data-src="\/play\/" title="Playground" loading="lazy">/) // loads near the screen
   assert.match(html, /grid-template-columns:minmax\(0, ?2fr\) ?minmax\(0, ?1fr\)/)
   assert.match(html, /gap:24px 56px/)
-  assert.match(html, /position:absolute;bottom:0(px)?;right:-20px/)
+  assert.match(html, /position:absolute!important;bottom:0(px)?;right:-20px/)
 })
 
 test('padding and margin take one to four values', async () => {

@@ -91,10 +91,11 @@ test('try / catch', async () => {
   const { output } = await run(k`
 try
   let x = none
-  print x.name.length
+  print x.name.upper()
 catch e
   print "caught"
 `)
+  // reading “x.name” on an empty value gives nothing; calling something on it is the mistake that is caught
   assert.deepEqual(output, ['caught'])
 })
 

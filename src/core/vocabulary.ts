@@ -18,7 +18,7 @@ const COLOR_ALIASES: Record<string, string> = {
   rouge: 'red', jaune: 'yellow', vert: 'green', bleu: 'blue', violet: 'purple', rose: 'pink', noir: 'black',
   blanc: 'white', gris: 'gray', grey: 'gray', creme: 'cream', marron: 'brown', turquoise: 'teal', dore: 'gold',
   argent: 'silver', marine: 'navy', corail: 'coral', menthe: 'mint', lavande: 'lavender', ciel: 'sky',
-  sable: 'sand', ardoise: 'slate', nuit: 'night',
+  sable: 'sand', ardoise: 'slate', nuit: 'night', ligne: 'line', encre: 'ink',
 }
 export function knownColor(word: string): string | undefined {
   const w = stripAccents(word).toLowerCase()
@@ -48,16 +48,18 @@ export const STYLES: Record<string, OptionSpec> = {
   size: o('n', ['taille'], 'text size (or object size)', 'taille du texte (ou de l\'objet)', 'size 24'),
   bold: o('', ['gras'], 'bold text', 'texte en gras', 'bold'),
   light: o('', ['leger', 'fin'], 'thin text', 'texte fin', 'light'),
-  weight: o('n', ['poids'], 'font weight (100 to 900)', 'épaisseur du texte (100 à 900)', 'weight 600'),
+  weight: o('n', ['poids', 'graisse', 'epaisseur'], 'font weight (100 to 900)', 'épaisseur du texte (100 à 900)', 'weight 600'),
   italic: o('', ['italique'], 'italic text', 'texte en italique', 'italic'),
+  upright: o('', ['droit', 'no-italic'], 'not italic (an emphasis shown by its color alone: style emphasis, then upright, color accent)', 'pas en italique (une emphase montrée par sa seule couleur : style emphasis, puis upright, color accent)', 'upright'),
   underline: o('', ['souligne'], 'underlined text', 'texte souligné', 'underline'),
   plain: o('', ['simple', 'no-underline'], 'no underline (links)', 'sans soulignement (liens)', 'link "Docs" "/docs/", plain'),
   uppercase: o('', ['majuscules', 'caps'], 'uppercase text', 'texte en majuscules', 'uppercase'),
   'line-height': o('n', ['interligne'], 'line height (1.5 = one and a half)', 'hauteur de ligne (1.5 = une fois et demie)', 'line-height 1.6'),
-  tracking: o('n', ['lettres', 'letter-spacing'], 'space between letters', 'espace entre les lettres', 'tracking 2'),
+  tracking: o('n', ['lettres', 'interlettrage', 'letter-spacing'], 'space between letters', 'espace entre les lettres', 'tracking 2'),
   align: o('m', ['aligne'], 'text alignment', 'alignement du texte', 'align center', ['left', 'center', 'right', 'justify']),
   center: o('', ['centre', 'centered'], 'centers the content', 'centre le contenu', 'center'),
-  radius: o('n', ['coins', 'rounded'], 'corner radius', 'arrondi des coins', 'radius 12'),
+  middle: o('', ['milieu'], 'sits in the middle of its row or of its grid line (a text next to a tall photo)', 'se place au milieu de sa ligne ou de sa rangée de grille (un texte à côté d’une grande photo)', 'column middle'),
+  radius: o('n', ['coins', 'rayon', 'arrondi', 'rounded'], 'corner radius', 'arrondi des coins', 'radius 12'),
   round: o('', ['rond', 'pill'], 'fully round corners', 'coins complètement ronds', 'round'),
   shadow: o('m?c?', ['ombre'], 'drop shadow (hard + a color: the offset shadow of brutalist designs)', 'ombre portée (hard + une couleur : l’ombre décalée des designs brutalistes)', 'shadow soft   /   shadow hard pink', ['soft', 'medium', 'strong', 'hard', 'none', 'inner']),
   glow: o('c?n?', ['lueur', 'neon'], 'neon light around the element, or around the letters of a text', 'lueur néon autour de l’élément, ou des lettres d’un texte', 'glow pink 30'),
@@ -76,13 +78,15 @@ export const STYLES: Record<string, OptionSpec> = {
   gap: o('nn?', ['espace', 'spacing'], 'space between children (one value, or rows then columns)', 'espace entre les enfants', 'gap 24'),
   width: o('n', ['largeur'], 'width', 'largeur', 'width 320'),
   height: o('n', ['hauteur'], 'height', 'hauteur', 'height 400'),
-  'max-width': o('n', ['max-largeur'], 'maximum width', 'largeur maximale', 'max-width 720'),
-  'min-height': o('n', ['min-hauteur'], 'minimum height', 'hauteur minimale', 'min-height 300'),
+  'max-width': o('n', ['max-largeur', 'largeur-max'], 'maximum width', 'largeur maximale', 'max-width 720'),
+  'min-height': o('n', ['min-hauteur', 'hauteur-min'], 'minimum height', 'hauteur minimale', 'min-height 300'),
   fullscreen: o('', ['plein-ecran', 'full'], 'fills the whole screen height', 'occupe toute la hauteur de l\'écran', 'fullscreen'),
   'full-width': o('', ['pleine-largeur', 'bleed'], 'fills the whole width, no margins', 'occupe toute la largeur, sans marges', 'full-width'),
   zoom: o('n', ['echelle'], 'shows it smaller (or bigger) with the same layout, like a thumbnail of a page: embed …, zoom 0.5', 'l’affiche plus petit (ou plus grand) sans changer la mise en page, comme une miniature', 'embed "/demo/", "Demo", zoom 0.5, height 1200'),
   opacity: o('n', ['opacite'], 'opacity from 0 to 1', 'opacité de 0 à 1', 'opacity 0.8'),
   blur: o('n', ['flou'], 'blur', 'flou', 'blur 8'),
+  grayscale: o('n?', ['noir-et-blanc', 'monochrome', 'greyscale'], 'black and white, from 0 to 1 (photos from different sources brought to one look; hover grayscale 0 gives the colors back)', 'noir et blanc, de 0 à 1 (des photos de sources différentes ramenées à un même rendu ; hover grayscale 0 rend les couleurs)', 'image "ada.jpg", "Ada, coach", grayscale'),
+  shade: o('nm?', ['voile', 'scrim', 'overlay'], 'darkens the background picture so the text in front stays readable (0 to 1; with a side, only toward that side)', 'assombrit l’image de fond pour que le texte posé dessus reste lisible (0 à 1 ; avec un côté, seulement vers ce côté)', 'section hero, background "hall.jpg", shade 0.6   /   shade 0.8 bottom', ['top', 'bottom', 'left', 'right']),
   glass: o('', ['verre'], 'frosted glass effect', 'effet verre dépoli', 'glass'),
   gradient: o('cc?c?n?', ['degrade'], 'gradient background (2 or 3 colors, angle)', 'fond en dégradé (2 ou 3 couleurs, angle)', 'gradient pink orange'),
   'text-gradient': o('cc?c?', ['texte-degrade'], 'gradient text', 'texte en dégradé', 'text-gradient pink purple'),
@@ -93,7 +97,7 @@ export const STYLES: Record<string, OptionSpec> = {
   front: o('', ['devant'], 'goes in front of other elements', 'passe devant les autres éléments', 'front'),
   cursor: o('m', ['curseur'], 'cursor shape', 'forme du curseur', 'cursor pointer', ['pointer', 'arrow', 'text', 'none']),
   hover: o('*', ['survol'], 'style when the mouse is over it', 'style quand la souris passe dessus', 'hover lift 4'),
-  lift: o('n', ['monte'], 'moves up', 'décale vers le haut', 'hover lift 4'),
+  lift: o('n', ['monte', 'leve', 'lever', 'souleve'], 'moves up', 'décale vers le haut', 'hover lift 4'),
   grow: o('n?', ['grossit', 'scale'], 'enlarges (1.1 = +10 %)', 'agrandit (1.1 = +10 %)', 'hover grow 1.05'),
   tilt: o('n', ['penche', 'rotate'], 'tilts (degrees)', 'incline (degrés)', 'tilt -3'),
   move: o('nn?', ['deplace', 'translate'], 'moves the element (x, y), for hover and animations', 'déplace l\'élément (x, y), pour le survol et les animations', 'move -50% 0'),
@@ -129,7 +133,10 @@ export const ELEMENT_OPTIONS: Record<string, Record<string, OptionSpec>> = {
   },
   link: { 'new-tab': o('', ['nouvel', 'blank'], 'opens in a new tab', 'ouvre dans un nouvel onglet', 'new-tab') },
   field: {
-    type: o('m', [], 'kind of field', 'genre de champ', 'type email', ['text', 'email', 'number', 'password', 'date', 'tel', 'url', 'search']),
+    type: o('m', [], 'kind of field', 'genre de champ', 'type email', ['text', 'email', 'number', 'range', 'password', 'date', 'time', 'tel', 'url', 'search']),
+    min: o('n', ['mini'], 'smallest value of a number or of a slider', 'plus petite valeur d’un nombre ou d’un curseur', 'field years, type range, min 5, max 40'),
+    max: o('n', ['maxi'], 'largest value of a number or of a slider', 'plus grande valeur d’un nombre ou d’un curseur', 'field years, type range, min 5, max 40'),
+    step: o('n', ['pas'], 'by how much the value moves', 'de combien la valeur avance', 'field rate, type range, min 0, max 10, step 0.05'),
     required: o('', ['requis'], 'mandatory', 'obligatoire', 'required'),
     label: o('t', ['etiquette'], 'text above the field', 'texte au-dessus du champ', 'label "Your email"'),
   },
@@ -138,7 +145,8 @@ export const ELEMENT_OPTIONS: Record<string, Record<string, OptionSpec>> = {
     label: o('t', ['etiquette'], 'text above', 'texte au-dessus', 'label "Message"'),
     rows: o('n', ['lignes'], 'height in lines', 'hauteur en lignes', 'rows 5'),
   },
-  select: { label: o('t', ['etiquette'], 'text above', 'texte au-dessus', 'label "Size"') },
+  select: { label: o('t', ['etiquette'], 'text above', 'texte au-dessus', 'label "Size"'), required: o('', ['requis'], 'a choice must be made', 'un choix est obligatoire', 'required') },
+  checkbox: { required: o('', ['requis'], 'must be ticked', 'doit être cochée', 'required') },
   section: {},
   seo: { image: o('t', [], 'share image (1200×630)', 'image de partage (1200×630)', 'image "share.jpg"') },
   // ---- immersion ----
@@ -285,6 +293,20 @@ export function elementOption(head: string, word: string): string | undefined {
 
 export function optionSpec(head: string, name: string): OptionSpec | undefined {
   return ELEMENT_OPTIONS[head]?.[name] ?? (UNIVERSAL_HEADS.has(head) ? UNIVERSAL_OPTIONS[name] : undefined) ?? STYLES[name]
+}
+
+/** Every option with its other words (the French ones first), each once: those of a style, then those of the elements. */
+export function optionWords(): [string, string[]][] {
+  const seen = new Map<string, string[]>()
+  for (const table of [STYLES, UNIVERSAL_OPTIONS, ...Object.values(ELEMENT_OPTIONS)]) {
+    for (const [name, s] of Object.entries(table)) if (!seen.has(name)) seen.set(name, s.aliases ?? [])
+  }
+  return [...seen]
+}
+
+/** Every word a style line can start an option with, in English and in French. */
+export function styleWords(): string[] {
+  return [...STYLE_ALIASES.keys()]
 }
 
 export function allOptions(head: string): string[] {

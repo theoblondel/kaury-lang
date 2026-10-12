@@ -44,7 +44,7 @@ page "/"
 
 ## Why it stays fast
 
-Three.js is loaded only on pages that have 3D, when the scene becomes visible and after the visitor's first gesture. Until then, the page is plain HTML. That is how the 3D example sites keep their 100 on Lighthouse.
+Three.js is loaded only on pages that have 3D, when the scene becomes visible and after the visitor's first gesture. Until then, the page is plain HTML. That is how a site with 3D stays fast: the perfume example scores 96 on a phone and 100 on a desktop on Lighthouse.
 
 When you have a real model, replace `"knot"` by `"chair.glb"`: the rest does not change.
 

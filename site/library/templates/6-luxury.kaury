@@ -1,0 +1,119 @@
+// Luxury house · luxury
+// height 3500
+site "Sève"
+  colors accent #C9CED6, night #0D0E11, smoke #17191E, ivory #F2F2EF
+  fonts "Satoshi", "Bodoni Moda"
+  lang "en"
+  style background night, color ivory, radius 0
+  seo "Sève, perfumes", "Three perfumes composed in Grasse, bottled by hand in Geneva. By appointment."
+
+state sent = false
+state name = ""
+let scents = [
+  { n: "I", name: "Pierre froide", notes: "Iris, wet stone, white musk", price: "240" },
+  { n: "II", name: "Bois tard", notes: "Cedar, smoke, dried fig", price: "240" },
+  { n: "III", name: "Sel", notes: "Sea salt, vetiver, bergamot", price: "260" }
+]
+
+style emphasis
+  italic, color accent
+
+style serif
+  font "titles", weight 400
+
+style kicker
+  uppercase, tracking 5, size 12, color accent
+
+style house
+  font "titles", weight 400, size 150, line-height 0.9, tracking -4, center
+  tablet size 104
+  mobile size 64, tracking -2
+
+style manifesto
+  font "titles", weight 400, size 54, line-height 1.15, tracking -1, width 900
+  tablet size 40
+  mobile size 28
+
+style quiet
+  background transparent, color ivory, border 1 accent, uppercase, tracking 3, padding 18 34, size 13
+  hover background ivory, color night
+
+style scent
+  padding 36 0, border-top 1 #F2F2EF2E, gap 32
+  hover color accent
+  mobile gap 10
+
+style numeral
+  font "titles", italic, size 28, color accent, width 60
+
+style scent-name
+  font "titles", weight 400, size 52, line-height 1, width 380
+  mobile size 34
+
+style salon
+  background smoke, padding 64 56, gap 20
+  mobile padding 36 24
+
+style wordmark
+  font "titles", weight 400, italic, size 300, line-height 0.8, color smoke, center
+  tablet size 180
+  mobile size 110
+
+page "/"
+  section header
+    logo "Sève"
+    links Perfumes, House, Visit
+    button "Appointment", small, quiet, to "#visit"
+
+  scene jewel, height 820, center, particles dust
+    mobile height 640
+    light studio
+    camera follows mouse
+    object gem "gem", glass, color accent, size 0.62, position 0 1.05 0
+      spin 20/s
+      float
+    column center, gap 20, margin 330 0 0 0
+      text "Perfumes · Grasse and Geneva", kicker
+      title "Skin, *remembered*.", house
+      button "Discover the three", quiet, to "#perfumes"
+
+  section house, padding 120 48
+    mobile padding 72 20
+    text "The house", kicker
+    text "We make three perfumes. Not thirty. Each one took two years, and none of them tries to please *everyone*.", manifesto
+      enters from bottom
+
+  section perfumes, padding 0 48 96
+    mobile padding 0 20 64
+    column gap 0
+      for s in scents
+        row scent
+          text s.n, numeral
+          text s.name, scent-name
+          text s.notes, color #F2F2EFB3
+          text "CHF {s.price}", margin 0 0 0 auto, font "mono", size 14
+
+  section visit, padding 0 48 96
+    mobile padding 0 20 64
+    grid columns 1.2 1, gap 16
+      tablet columns 1
+      column salon
+        text "The salon", kicker
+        title "Try them on *your* skin.", serif, size 56, line-height 1.05
+        text "Rue Étienne-Dumont 14, Geneva. One hour, one guest at a time, by appointment.", color #F2F2EFB3, width 420
+      column salon
+        if sent
+          title "Thank you, {name}.", serif, size 36
+          text "We write to you today with two dates.", color #F2F2EFB3
+        else
+          form -> sent = true
+            field name "Ada Lovelace", required, label "Name"
+            field email "ada@example.com", type email, required, label "Email"
+            button "Ask for an appointment", quiet
+
+  footer padding 48 48 0, gap 32, direction column
+    mobile padding 40 20 0
+    row gap 32
+      text "© 2026 Maison Sève", color #F2F2EF80
+      text "Made with Kaury", margin 0 0 0 auto, color #F2F2EF80
+    text "Sève", wordmark, attr "aria-hidden" "true"

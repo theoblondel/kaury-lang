@@ -2,12 +2,12 @@
 
 export { state, derived, effect, batch, root, untracked, reactive, raw, onCleanup, Cell, Derived } from './reactive.js'
 export {
-  t, print, load, send, sum, average, min, max, round, floor, ceil, abs, sqrt, random, pick, length, now, toText, toNumber,
+  t, print, load, send, sum, average, min, max, round, floor, ceil, abs, sqrt, random, pick, length, now, toText, toNumber, toDate, formatNumber,
   price, formatDate, shuffle, range, toList, delay, every, later, persist, copy, vibrate, scrollTo, share, equal, has, prop, m,
-  confetti, NetworkError, setLocale, jsonLd, plus,
+  confetti, NetworkError, setLocale, jsonLd, plus, base64, encodeUrl,
 } from './utils.js'
 export {
-  h, setText, text, attr, style, px, path, img, on, when, each, component, mark, rootNodes, rootClass, slot, bind, bindCheck,
+  h, setText, text, attr, style, px, path, img, on, when, each, component, mark, rootNodes, rootClass, slot, bind, bindSelect, bindCheck,
   options, form, card, frame, autoLink, resolveLinks, mobileMenu, installMenus, markdown, html, classes, imageSize, inBrowser, slug,
 } from './dom.js'
 export { serverCollection, clientCollection, rawItems } from './content.js'
@@ -40,3 +40,9 @@ export function report(e: unknown) {
 }
 setReporter(report)
 setReport(report)
+
+/** The build listens to what fails while it renders a page, to stop with the line instead of going on (null: back to normal). */
+export function onError(f: ((e: unknown) => void) | null) {
+  setReporter(f ?? report)
+  setReport(f ?? report)
+}

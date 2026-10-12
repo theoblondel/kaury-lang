@@ -1,0 +1,218 @@
+// Terre: the shop of a small ceramics studio.
+// Read as: a shop for people who buy handmade things, in a quiet gallery language:
+// paper, ink and one cobalt blue. Variance 6, motion 4, density 4.
+site "Terre"
+  colors accent #1F3FBF, paper #F6F4EF, mist #E9E6DC, ink #14161C
+  fonts "Supreme", "Chillax"
+  lang "en"
+  url "https://terre.example"
+  style background paper, color ink, radius 18, max-width 1280
+  seo "Terre, ceramics thrown in Vevey", "Cups, bowls and vases thrown by hand in a small studio in Vevey, fired twice and sent in three days. Each piece is made once."
+
+state kind = "all"
+state cart = []
+state ordered = false
+let total = sum cart, p -> p.price
+persist "cart", cart
+
+let pieces = [
+  { id: "stack", name: "Stacking cups", kind: "cups", price: 48, photo: "stack.jpg", about: "Three fluted cups, stacked, in pink and white", note: "Set of three, fluted, 180 ml each" },
+  { id: "indigo", name: "Indigo mug", kind: "cups", price: 38, photo: "indigo.jpg", about: "Two deep blue mugs on a white table", note: "Cobalt glaze, 300 ml" },
+  { id: "bowl", name: "Cream bowl", kind: "bowls", price: 44, photo: "bowl.jpg", about: "A cream bowl turned over with a pear on top, against a mustard wall", note: "Matt glaze, 16 cm across" },
+  { id: "lilac", name: "Lilac tumbler", kind: "cups", price: 32, photo: "lilac.jpg", about: "A lilac tumbler on a slice of wood", note: "No handle, 220 ml" },
+  { id: "vases", name: "Trio of vases", kind: "vases", price: 140, photo: "vases.jpg", about: "Three vases in black, blue and rust on a ribbed table", note: "Sold together, 18 to 32 cm tall" },
+  { id: "sprout", name: "Seedling cup", kind: "vases", price: 26, photo: "sprout.jpg", about: "A small cream cup with a seedling growing out of it", note: "For a cutting, or an espresso" }
+]
+let shown = pieces.filter(p -> kind == "all" or p.kind == kind)
+
+let kinds = [
+  { id: "all", name: "Everything" },
+  { id: "cups", name: "Cups" },
+  { id: "bowls", name: "Bowls" },
+  { id: "vases", name: "Vases" }
+]
+
+let facts = [
+  { name: "Clay", value: "Stoneware from Burgundy" },
+  { name: "Glazes", value: "Mixed here, lead-free" },
+  { name: "Dishwasher", value: "Yes, every piece" },
+  { name: "Sent", value: "In three days, in straw" }
+]
+
+function add piece
+  cart.add piece
+  ordered = false
+
+function held piece
+  cart.count(c -> c.id == piece.id)
+
+style title
+  weight 600
+
+style emphasis
+  upright, color accent
+
+style display
+  font "titles", size 112, line-height 0.9, tracking -4
+  tablet size 88
+  mobile size 56, tracking -2
+
+style heading
+  font "titles", size 60, line-height 0.98, tracking -2
+  mobile size 38, tracking -1
+
+style lead
+  size 20, line-height 1.5, max-width 440
+  mobile size 18
+
+style label
+  uppercase, tracking 2, size 12, weight 700
+
+style quiet
+  background transparent, color ink, border 2 ink
+  hover background ink, color paper
+
+style tab
+  background transparent, color ink, border 2 mist, padding 8 18, size 15, weight 600
+  hover border 2 ink
+  selected background ink, color paper, border 2 ink
+
+style piece
+  gap 10
+  image hover grow 1.02
+
+style frame
+  clip, radius 18
+
+style tinted
+  background mist, padding 32, gap 0, radius 18
+  mobile padding 24
+
+style blue
+  background accent, padding 32, gap 12, radius 18
+  mobile padding 24
+
+style basket-row
+  gap 16, padding 14 0, border-top 1 line
+
+animation rise, 0.9s, smooth
+  from move 0 28
+  to move 0 0
+
+component Top
+  section header, sticky, padding 18 48
+    mobile padding 14 20
+    logo "Terre"
+    links Shop, Studio
+    button "Basket ({cart.length})", small, to "/#basket"
+
+page "/"
+  Top
+
+  section hero, padding 56 48 40
+    mobile padding 28 20 24
+    grid columns 2.4 1, gap 56
+      tablet columns 1, gap 20
+      title "Made once.\nKept for *years*.", display, rise
+      column gap 16, middle
+        text "Cups, bowls and vases thrown by hand in Vevey. No two are the same, and none is made twice.", lead
+        text "Sent in three days", label
+
+  section shop, padding 0 48 96
+    mobile padding 0 20 64
+    row gap 8
+      for k in kinds
+        button k.name, tab, selected (kind == k.id) -> kind = k.id
+      text "{shown.length} pieces", color muted, margin 0 0 0 auto
+        mobile hidden
+    spacer 6
+    grid 3 columns, gap 24 20
+      tablet 2 columns
+      mobile columns 1
+      for p in shown
+        column piece
+          box frame
+            image p.photo, p.about, cover, height 380
+              mobile height 320
+          row gap 12
+            link p.name, "/piece/{p.id}", plain, weight 600, size 19
+            text price(p.price), margin 0 0 0 auto, weight 600
+          text p.note, color muted, size 15
+          button (if held(p) > 0 then "In the basket ({held(p)})" else "Add to the basket"), small, quiet -> add p
+
+  section studio, padding 0 48 96
+    mobile padding 0 20 64
+    grid columns 1.35 1, gap 20
+      tablet columns 1
+      image "wheel.jpg", "Two hands shaping a pot on a turning wheel", cover, height 560
+        mobile height 300
+      column gap 20
+        column blue
+          title "Thrown on the wheel, fired twice.", heading, level 2
+          text "One potter, one kiln, forty pieces a week. When a glaze runs out, the color is gone."
+        column tinted
+          for f in facts
+            row gap 16, padding 14 0, border-bottom 1 line
+              text f.name, label
+              text f.value, margin 0 0 0 auto
+
+  section basket, padding 0 48 110
+    mobile padding 0 20 72
+    grid columns 1 1.4, gap 56
+      tablet columns 1, gap 20
+      column gap 14
+        title "Your *basket*.", heading, level 2
+        text "It stays here when you come back: the basket is kept in your browser.", lead
+      column gap 0
+        if cart.length == 0
+          text "Nothing in it yet. Every piece above has a button.", color muted, padding 14 0, border-top 1 line
+        else
+          for item in cart
+            row basket-row
+              image item.photo, item.about, cover, width 64, height 64
+              text item.name, weight 600
+              text price(item.price), margin 0 0 0 auto
+              button "Remove", small, quiet -> cart.remove item
+          row basket-row
+            text "Total", label
+            text price(total), margin 0 0 0 auto, font "titles", size 30, weight 600
+          spacer 16
+          if ordered
+            text "Thank you. This is a demonstration: nothing was charged and nothing will be sent.", weight 600
+          else
+            button "Order", large -> ordered = true
+
+  footer padding 40 48, gap 24
+    mobile padding 32 20
+    text "Terre, Rue du Lac 12, 1800 Vevey"
+    link "hello@terre.example" "mailto:hello@terre.example"
+    text "Made with Kaury", color muted, margin 0 0 0 auto
+
+page "/piece/{p.id}" for p in pieces
+  seo "{p.name}, Terre", "{p.name}: {p.note}. Thrown by hand in Vevey, fired twice, sent in three days."
+  Top
+  section piece, padding 40 48 110
+    mobile padding 20 20 72
+    grid columns 1.1 1, gap 64
+      tablet columns 1, gap 28
+      box frame
+        image p.photo, p.about, cover, height 640
+          mobile height 380
+      column gap 18, middle
+        link "All the pieces" "/#shop", label, plain
+        title p.name, heading
+        text p.note, lead
+        text price(p.price), font "titles", size 44, weight 600
+        row gap 12
+          button (if held(p) > 0 then "In the basket ({held(p)})" else "Add to the basket"), large -> add p
+          button "See the basket", large, quiet, to "/#basket"
+        column tinted
+          for f in facts
+            row gap 16, padding 12 0, border-bottom 1 line
+              text f.name, label
+              text f.value, margin 0 0 0 auto
+  footer padding 40 48, gap 24
+    mobile padding 32 20
+    text "Terre, Rue du Lac 12, 1800 Vevey"
+    link "hello@terre.example" "mailto:hello@terre.example"
+    text "Made with Kaury", color muted, margin 0 0 0 auto

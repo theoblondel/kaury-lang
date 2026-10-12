@@ -20,11 +20,12 @@ export function newSiteTemplate(name: string, spec?: string, template = 'starter
 
 This project is written in **Kaury**, a language for websites (\`.kaury\` files). It is not JavaScript, HTML or CSS.
 
-1. Read \`kaury-ai.md\` (in this folder) before writing any Kaury: it is the complete specification.
+1. Read \`kaury-ai.md\` (in this folder) before writing any Kaury: it is the complete specification. Its last section gives the Kaury form of what you know from HTML, CSS and JavaScript.
 2. The whole site is in \`site.kaury\`; texts may live in \`content/\` (YAML, Markdown). Images and 3D models go in \`public/\`.
-3. After every change, run \`kaury check --json\` and fix every problem it reports (each one has the line, the column and a fix).
+3. After every change, run \`kaury check --json\` and fix every problem it reports (each one has the line, the column and a fix), until \`"ok": true\`. It also renders every page: what only fails on display is in the list.
 4. Never add CSS, HTML or JavaScript files: named styles (\`style name\`), animations (\`animation name\`), the ready-made blocks (\`Hero\`, \`Pricing\`, \`Contact\`…) and the elements of the spec cover everything.
 5. Preview with \`kaury dev\`; build with \`kaury build\`.
+6. A page that compiles is not yet a page worth showing: follow “How it should look” at the top of the spec (real photographs in \`public/\`, one accent, named styles, no layout used twice), and for a landing page or a portfolio the skill https://dev.kaury.studio/skills/kaury-taste/SKILL.md.
 `,
   }
   if (spec) files['kaury-ai.md'] = spec
@@ -41,11 +42,11 @@ function readme(title: string, template: string): string {
   const mail = template === 'landing' || template === 'portfolio'
   return `# ${title}
 
-A site written in [Kaury](https://kaury.dev): logic, structure, style and 3D in \`site.kaury\`.
+A site written in [Kaury](https://dev.kaury.studio): logic, structure, style and 3D in \`site.kaury\`.
 
 \`\`\`bash
 kaury dev      # live preview on http://localhost:3000
-kaury check    # checks the code without building
+kaury check    # checks the code and renders every page, without building
 kaury build    # the final, optimized site in dist/
 \`\`\`
 
@@ -173,23 +174,22 @@ hero:
 logos: [logo-1.svg, logo-2.svg, logo-3.svg]
 
 features:
-  - icon: "⚡"
-    title: Fast
+  - title: Fast
     text: Ready in two minutes, from any device.
-  - icon: "🔒"
-    title: Private
+  - title: Private
     text: Your data stays yours. Nothing is sold, ever.
-  - icon: "💬"
-    title: Human
+  - title: Human
     text: A real person answers within a day.
+  - title: Everywhere
+    text: Phone, tablet and computer, always in step.
 
 stats:
-  - value: 12k
-    label: happy users
-  - value: "4.9"
-    label: average rating
   - value: 2 min
-    label: to start
+    label: to set up
+  - value: "0"
+    label: account to create
+  - value: 14 days
+    label: free on Pro
 
 steps:
   - title: Sign up
@@ -202,7 +202,7 @@ steps:
 plans:
   - name: Free
     price: 0 CHF
-    features: [1 calendar, E-mail support]
+    features: [1 calendar, E-mail support, No card needed]
   - name: Pro
     price: 9 CHF
     per: / month

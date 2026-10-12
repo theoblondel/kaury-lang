@@ -1,0 +1,146 @@
+// Nuit: the launch page of a niche perfume.
+// Read as: a launch page for people who collect small-batch perfume, led by one object
+// in three dimensions, in near-black, smoke and silver. Variance 7, motion 7, density 2.
+site "Nuit"
+  colors accent #D5DBE0, night #0A0B0D, smoke #15171B, silver #D5DBE0
+  fonts "Switzer", "Melodrama"
+  lang "en"
+  url "https://nuit.example"
+  style background night, color silver, radius 2, max-width 1280
+  seo "Nuit Blanche, eau de parfum", "Iris, incense and cedar, made in Grasse in a single batch of five hundred numbered bottles. Released on 21 November."
+
+state note = "iris"
+state sent = false
+
+let notes = [
+  { id: "iris", name: "Iris", place: "The opening", text: "Cold and powdery, like silk taken out of a drawer. Pressed from roots that waited six years in Tuscany.", photo: "iris.jpg", about: "The petal of an iris seen very close, violet in the dark" },
+  { id: "incense", name: "Incense", place: "The heart", text: "Olibanum from Oman, burnt slowly. The smoke of a church after everyone has left.", photo: "smoke.jpg", about: "A thin line of white smoke rising in the dark" },
+  { id: "cedar", name: "Cedar", place: "What stays", text: "Dry Atlas cedar and a little vetiver. It is still on your coat the next evening.", photo: "cedar.jpg", about: "Fir trees fading into green fog" }
+]
+let shown = notes.find(n -> n.id == note)
+
+let facts = [
+  { name: "Concentration", value: "Eau de parfum, 22 percent" },
+  { name: "Bottle", value: "50 ml, hand-cut glass" },
+  { name: "Batch", value: "500 bottles, numbered 001 to 500" },
+  { name: "Made in", value: "Grasse, by Hélène Aubry" },
+  { name: "Price", value: "CHF 240" }
+]
+
+style title
+  weight 300
+
+style emphasis
+  italic
+
+style logo
+  font "titles", size 36, weight 400
+
+style display
+  font "titles", size 176, line-height 0.86, tracking -3
+  tablet size 120
+  mobile size 76, tracking -1
+
+style heading
+  font "titles", size 84, line-height 0.95, tracking -2
+  tablet size 64
+  mobile size 44, tracking -1
+
+style lead
+  size 19, line-height 1.6, width 440
+
+style label
+  uppercase, tracking 3, size 11, weight 500, color muted
+
+style quiet
+  background transparent, color silver, border 1 silver
+  hover background silver, color night
+
+style name
+  background transparent, color silver, font "titles", size 104, weight 300, line-height 1, padding 0, opacity 0.45
+  hover opacity 0.75
+  selected opacity 1
+  tablet size 72
+  mobile size 52
+
+// the first words of the page move in but do not fade in: what fades in is read late
+animation rise, 1.1s, smooth
+  from move 0 36
+  to move 0 0
+
+page "/"
+  section header, padding 22 48
+    mobile padding 16 20
+    logo "Nuit"
+    links Notes, Bottle
+    button "Join the list", small, quiet, to "#list"
+
+  scene hero, height 86vh, particles dust, background night
+    light dramatic
+    object "gem", color silver, glass, size 1.45, position 1.7 0.1 0, alt "The bottle of Nuit Blanche, cut like a dark stone", fallback "bottle.jpg"
+      spin slow
+      follows mouse, smooth
+    column gap 26, rise, width 100%, max-width 1312, padding 0 16, align left
+      mobile padding 0
+      text "Eau de parfum, N°1", label
+      title "Nuit\n*Blanche*.", display
+      text "Iris, incense and cedar, for the hours when the city finally goes quiet.", lead
+      row gap 20
+        button "Join the list", large, to "#list"
+        text "Released 21 November.\n500 numbered bottles.", size 14, line-height 1.5, color muted
+
+  section notes, padding 120 48
+    mobile padding 72 20
+    grid columns 1 1, gap 72
+      tablet columns 1, gap 36
+      column gap 8, middle
+        text "Three notes, in the order you meet them", label
+        spacer 12
+        for n in notes
+          button n.name, name, selected (note == n.id) -> note = n.id
+            on hover -> note = n.id
+        spacer 20
+        text shown.place, label
+        text shown.text, lead
+      image shown.photo, shown.about, cover, height 640
+        mobile height 420
+
+  section batch, background "light.jpg", shade 0.45, padding 170 48, center
+    mobile padding 96 20
+    title "One batch. When it is gone, it is *gone*.", heading, level 2, width 900
+    text "We mix once a year, in November, and we do not restock.", lead, color silver
+
+  section bottle, padding 120 48
+    mobile padding 72 20
+    grid columns 0.8 1, gap 88
+      tablet columns 1, gap 40
+      image "bottle.jpg", "A dark glass bottle standing on a round table, lit from behind", cover, height 680
+        mobile height 440
+      column gap 28, middle
+        title "Fifty millilitres,\ncut by *hand*.", heading, level 2
+        text "The glass is blown in the Jura and cut so that no two bottles catch the light the same way. Yours carries its number under the base.", lead
+        column gap 0
+          for f in facts
+            row gap 16, padding 16 0, border-top 1 line
+              text f.name, label
+              text f.value, margin 0 0 0 auto
+
+  section list, background smoke, padding 130 48, center
+    mobile padding 80 20
+    if sent
+      title "You are on the list.", heading, level 2
+      text "We write once, on 21 November at nine in the morning.", lead
+    else
+      title "Be told *first*.", heading, level 2
+      text "The list opens the sale one hour before everyone else. One e-mail, then silence.", lead
+      spacer 8
+      form mail "list@nuit.example", subject "The list" -> sent = true
+        row gap 12, center
+          field email "ada@example.com", type email, required, label "Email", width 320
+          button "Join the list", large, margin auto 0 0 0
+
+  footer padding 40 48, gap 24
+    mobile padding 32 20
+    text "Nuit, Grasse"
+    link "Instagram" "https://www.instagram.com/"
+    text "Made with Kaury", color muted, margin 0 0 0 auto

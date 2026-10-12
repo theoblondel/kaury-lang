@@ -6,7 +6,7 @@ site "3D on scroll"
   style background night, color white
 
 page "/"
-  scene shapes, fullscreen, center, immediate, particles dust
+  scene shapes, fullscreen, center, particles dust
     light neon
     camera follows mouse
     object "torus", color violet, metal, size 0.9, position -2.4 0.6 0

@@ -29,6 +29,8 @@ export const KAURY_FUNCTIONS: Record<string, GlobalSpec> = {
   'to-text': g('toText', 'converts to text', ['en-texte', 'str']),
   'to-number': g('toNumber', 'converts to a number', ['en-nombre', 'num']),
   price: g('price', 'formats a price: price 12.5 → "CHF 12.50"', ['prix', 'money']),
+  'format-number': g('formatNumber', 'a number as people read it: format-number 23490 → "23,490" (in the language of the site); format-number 3.14159, 2 → "3.14"', ['formate-nombre']),
+  'to-date': g('toDate', 'a date from a text: to-date "2027-06-12 14:00" (one date minus another: the milliseconds between them)', ['en-date']),
   'format-date': g('formatDate', 'formats a date: format-date now()', []),
   shuffle: g('shuffle', 'shuffles a list', ['melange']),
   'image-size': g('imageSize', 'real size of an image of the site: image-size "photo.jpg" → { width, height }', ['taille-image']),
@@ -43,6 +45,8 @@ export const KAURY_FUNCTIONS: Record<string, GlobalSpec> = {
   share: g('share', 'opens the phone share sheet', ['partage']),
   'json-ld': g('jsonLd', 'structured data for Google and AIs, given to head: head json-ld { "@type": "FAQPage" }', ['donnees-structurees']),
   slug: g('slug', 'text → address-friendly form: slug "Hello world" → "hello-world"', []),
+  base64: g('base64', 'text → base64, for links that carry code or data: base64 "Hello"', []),
+  'encode-url': g('encodeUrl', 'text made safe inside an address: encode-url "a b" → "a%20b"', ['encode-adresse']),
 }
 
 /** Global reactive values. */
@@ -84,6 +88,14 @@ export function globalSpec(canonical: string): GlobalSpec | undefined {
 
 export function globalNames(): string[] {
   return [...INDEX.keys(), ...JS_GLOBALS]
+}
+
+/**
+ * The names Kaury itself provides: what a “did you mean …?” may propose (never a JavaScript global such as btoa).
+ * Their short aliases (num, str, len…) are left out: nobody means them. `aliases`: the French words too.
+ */
+export function kauryNames(aliases = false): string[] {
+  return aliases ? [...INDEX.keys()] : [...Object.keys(KAURY_FUNCTIONS), ...Object.keys(KAURY_VALUES)]
 }
 
 /** List/text/object methods (compiled to $k.m). canonical ← aliases */

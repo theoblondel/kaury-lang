@@ -54,7 +54,7 @@
     },
     {
       "name": "entity.name.tag.kaury",
-      "match": "^\\s*(alternates|formulaire|ordinateur|personnage|separateur|sous-titre|traduction|transition|alternate|animation|character|enveloppe|checkbox|children|couleurs|espaceur|hreflang|language|lighting|markdown|subtitle|tablette|textarea|adresse|colonne|contenu|desktop|details|divider|element|favicon|integre|lumiere|polices|section|wrapper|bouton|button|camera|colors|column|deplie|entete|footer|grille|header|iframe|langue|mobile|object|police|select|spacer|tablet|audio|boite|carte|champ|choix|embed|field|fonts|icone|image|input|liens|light|ligne|links|liste|model|objet|scene|sound|style|texte|title|titre|video|base|card|case|font|form|grid|head|icon|item|lang|lien|link|list|logo|menu|pied|slot|tete|text|zone|box|nav|row|seo|son|url|md)(?![\\w-])"
+      "match": "^\\s*(liste-deroulante|case-a-cocher|zone-de-texte|pied-de-page|alternates|formulaire|ordinateur|personnage|separateur|sous-titre|traduction|transition|zone-texte|alternate|animation|character|enveloppe|checkbox|children|couleurs|espaceur|hreflang|language|lighting|markdown|subtitle|tablette|textarea|adresse|colonne|contenu|desktop|details|divider|element|en-tete|favicon|integre|lumiere|polices|section|wrapper|bouton|button|camera|colors|column|deplie|entete|footer|grille|header|iframe|langue|mobile|object|police|rangee|select|spacer|tablet|audio|boite|carte|champ|choix|embed|field|fonts|icone|image|input|liens|light|ligne|links|liste|model|objet|scene|sound|style|texte|title|titre|video|base|card|case|font|form|grid|head|icon|item|lang|lien|link|list|logo|menu|pied|slot|tete|text|zone|box|nav|row|seo|son|url|md)(?![\\w-])"
     },
     {
       "name": "support.function.immersion.kaury",

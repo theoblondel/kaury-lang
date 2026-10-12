@@ -41,6 +41,55 @@ test('blocks: only those used are added, a component of the site wins, styles ar
   assert.doesNotMatch(own.css, /kb-hero/)
 })
 
+// The look of the blocks is the look of most sites an assistant writes: they follow the same rules as a designed page.
+const page = (line: string, site = '') => compile(`${site}${DATA}\npage "/"\n  ${line}\n`)
+
+test('the blocks are not centered by default: the Hero and the headings sit on the edge of the content', () => {
+  const hero = page('Hero "Flowers that *speak*.", "Delivered the same day.", "Order", "#shop", "bouquet.jpg"')
+  assert.ok(hero.ok, hero.errors.map((e) => e.message).join('; '))
+  assert.doesNotMatch(hero.css, /\.ks-kb-hero[^{]*\{[^}]*text-align:center/)
+  // with a picture, the text and the picture share the screen, unequally
+  assert.match(hero.css, /grid-template-columns:minmax\(0, 1\.1fr\) minmax\(0, 0\.9fr\)/)
+  for (const line of ['Features features, "Why us"', 'Steps steps, "How it works"', 'Pricing plans, "Prices"', 'Testimonials reviews, "They loved it"', 'Team people, "The team"']) {
+    const r = page(line)
+    assert.ok(r.ok, `${line}: ${r.errors.map((e) => e.message).join('; ')}`)
+    assert.match(r.css, /\.ks-kb-heading\{/, line)
+    assert.doesNotMatch(r.css, /\.ks-kb-heading\{[^}]*text-align:center/, line)
+  }
+})
+
+test('three equal cards are not laid twice on a page: Features is a list, Testimonials opens with one large quote', () => {
+  const features = page('Features features, "Why us"')
+  assert.doesNotMatch(features.js, /k-card/, 'no card in Features')
+  assert.match(features.css, /\.ks-kb-feature\{[^}]*border-top:1px solid var\(--k-line\)/)
+  const quotes = page('Testimonials reviews, "They loved it"')
+  assert.doesNotMatch(quotes.js, /k-card/, 'no card in Testimonials')
+  assert.match(quotes.css, /\.ks-kb-quote-big\{/)
+})
+
+test('the featured plan is filled with the accent color, and nothing in a plan is a fixed grey', () => {
+  const r = page('Pricing plans, "Prices"')
+  assert.match(r.css, /\.ks-kb-plan-best\{[^}]*background:var\(--k-accent\)/)
+  // what is soft in a plan is soft by opacity: readable on the card and on the accent alike
+  assert.doesNotMatch(r.css, /\.ks-kb-plan[^{]*\{[^}]*color:var\(--k-muted\)/)
+})
+
+test('every block can be read with a dark or a light accent, on a light or a dark site', () => {
+  const sites = [
+    'site "A"\n  colors accent #1F3A8A, paper #F4F4F1, ink #15171C\n  style background paper, color ink\n',
+    'site "B"\n  colors accent #C8F03C, night #0C0D0A, bone #ECEAE2\n  style background night, color bone\n',
+    'site "C"\n  colors accent #F56E2E, cream #F6F1E7, ink #1C1A1A\n  style background cream, color ink\n',
+    'site "D"\n  colors accent #D5DBE0, night #0A0B0D, silver #D5DBE0\n  style background night, color silver\n',
+  ]
+  for (const site of sites) {
+    for (const [name, b] of Object.entries(BLOCKS)) {
+      const r = page(b.example.replace(/\s*\/\/.*$/, ''), site + '\n')
+      assert.ok(r.ok, `${name}: ${r.errors.map((e) => e.message).join('; ')}`)
+      assert.deepEqual(r.warnings.filter((w) => /hard to read/.test(w.message)).map((w) => `${name}: ${w.message}`), [])
+    }
+  }
+})
+
 test('a component called with too few or too many values says what it takes', () => {
   const few = compile('page "/"\n  Pricing\n')
   assert.ok(!few.ok)

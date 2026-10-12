@@ -18,7 +18,7 @@ page "/"
         text "Your week", bold
         text "38 h", huge
         text "of deep work. +12% vs last week.", color #FFFFFFB3
-        object "torus", color sun, metal, height 200, immediate
+        object "torus", color sun, metal, height 200
           spin slow
       column gap 16
         column tile, background sun, min-height 202
@@ -28,7 +28,7 @@ page "/"
           text "Focus", bold
           text "92%", huge
       column gap 16
-        column tile, background coral, color white, min-height 202
+        column tile, background coral, color ink, min-height 202
           text "Meetings", bold
           text "4", huge
         column tile, background ink, color cream, min-height 202

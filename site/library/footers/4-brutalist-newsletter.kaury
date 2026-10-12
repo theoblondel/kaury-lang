@@ -19,7 +19,7 @@ page "/"
           field email "you@mail.com", type email, required
           button "Subscribe", background ink, color acid, radius 0, shadow none, uppercase
         if joined
-          text "You are in. ✳", color pink, weight 800
+          text "You are in. ✳", color #C2367A, weight 800
     row border-top 3 ink, padding 18 0 0 0
       text "KILN—STUDIO © 2026", font "mono"
       text "BERLIN / ONLINE", font "mono", margin 0 0 0 auto

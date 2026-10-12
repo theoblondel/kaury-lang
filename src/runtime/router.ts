@@ -4,11 +4,11 @@
 //  - a dynamic page adopts the server HTML (hydration), or is rebuilt if it differs.
 // Navigation is between real pages, with native view transitions.
 
-import { root, batch, takeDynamic } from './reactive.js'
-import { inBrowser, resolveLinks, setPaths, setHydrating, HydrationMismatch, checkLeftovers, installMenus } from './dom.js'
+import { root, batch, takeDynamic, adopted } from './reactive.js'
+import { inBrowser, resolveLinks, setPaths, setHydrating, HydrationMismatch, checkLeftovers, installMenus, withBase } from './dom.js'
 import { startGlobals, route } from './motion.js'
 import { setLocale } from './utils.js'
-import { rawItems, takeUsedCollections } from './content.js'
+import { rawItems, takeUsedCollections, peek } from './content.js'
 
 type Route = { path: string; params: Record<string, string>; item?: any }
 export interface KauryPage {
@@ -31,11 +31,26 @@ let releaseCurrent: (() => void) | null = null
 
 const clean = (p: string) => p.replace(/\/index\.html$/, '/').replace(/(.)\/$/, '$1') || '/'
 
+/**
+ * The items of a page written with “for”. In the browser the content may still be on its way
+ * (a page that does not use it does not carry it): the list is then empty, never an error.
+ * On the server the data is complete, so an error there is a real one and stops the build.
+ */
+function itemsOf(p: KauryPage): any[] {
+  try {
+    return rawItems(p.each!())
+  } catch (e) {
+    if (!inBrowser()) throw e
+    return []
+  }
+}
+
 /** Every address a module can build (pages with “for” are expanded). */
 export function allPaths(m: KauryModule): string[] {
   const out: string[] = []
   for (const p of m.$pages) {
-    if (p.each && p.pathOf) for (const item of rawItems(p.each())) out.push(clean(p.pathOf(item)))
+    // the list of addresses never makes the browser download content
+    if (p.each && p.pathOf) for (const item of peek(() => itemsOf(p))) out.push(clean(p.pathOf(item)))
     else out.push(p.path)
   }
   return out
@@ -51,7 +66,7 @@ export function findPage(pages: KauryPage[], path: string): { page: KauryPage; p
         const item = JSON.parse(inline.textContent)
         if (clean(page.pathOf(item)) === target) return { page, params: {}, item }
       }
-      for (const item of rawItems(page.each())) if (clean(page.pathOf(item)) === target) return { page, params: {}, item }
+      for (const item of itemsOf(page)) if (clean(page.pathOf(item)) === target) return { page, params: {}, item }
       continue
     }
     const names: string[] = []
@@ -124,6 +139,8 @@ export function renderPage(m: KauryModule, path: string, target: any, hydrate = 
       releaseCurrent?.()
       releaseCurrent = null
       if (!(e instanceof HydrationMismatch)) console.error(e)
+      // while developing: said quietly, with the reason (a page rebuilt in the browser shows a little later)
+      else if ((globalThis as any).__kauryDev) console.info(`Kaury: the page "${path}" was rebuilt in the browser, its HTML differed from the one made at build time (${e.message}).`)
     } finally {
       setHydrating(false)
     }
@@ -149,15 +166,28 @@ export function start(m: KauryModule, selector = '#app') {
   const container = document.querySelector(selector) ?? document.body
   const html = document.documentElement
   if (m.$site.transition) html.dataset.kTransition = m.$site.transition
-  startGlobals()
   // static page: the server HTML is final, no page code runs
   if (html.dataset.kPage === 'static') {
+    startGlobals()
+    adopted()
     html.dataset.kRender = 'static'
   } else {
     // a site served from a folder (<html data-k-base="/demo/">): its pages are read from there
     const base = html.dataset.kBase
     const path = base && location.pathname.startsWith(base) ? '/' + location.pathname.slice(base.length) : location.pathname
-    const info = renderPage(m, path, container, container.firstChild !== null)
+    // A page that comes with its HTML adopts it with what the server had (a wide screen, nothing saved), then takes
+    // the real size of the screen and the saved states: the page follows them, instead of being rebuilt whole
+    // (on every phone for “screen.mobile”, for every returning visitor with “persist”).
+    const served = container.firstChild !== null
+    if (!served) {
+      startGlobals()
+      adopted()
+    }
+    const info = renderPage(m, path, container, served)
+    if (served) {
+      startGlobals()
+      adopted()
+    }
     html.dataset.kRender = info.hydrated ? 'hydrated' : 'rendered'
     if (!container.firstChild || !info.found) document.title = info.title
   }
@@ -166,7 +196,7 @@ export function start(m: KauryModule, selector = '#app') {
 
 /** Goes to another page (a real navigation, with the native transition). */
 export function go(path: string) {
-  if (inBrowser()) location.href = path
+  if (inBrowser()) location.href = withBase(path)
 }
 
 /** SEO setting coming from inside a page. */

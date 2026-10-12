@@ -1,0 +1,153 @@
+// Local craftsman · minimal
+// height 3300
+site "Morel"
+  colors accent #B44E2A, slate #232B35, paper #F2F1EC, stone #E4E2DA
+  fonts "Satoshi", "Cabinet Grotesk"
+  lang "en"
+  style background paper, color slate, radius 10, max-width 1160
+  seo "Morel, carpenters in Vevey", "Kitchens, stairs and built-in furniture, made in our workshop in Vevey. Free quote within three days."
+
+state sent = false
+state name = ""
+state project = "A kitchen"
+let jobs = [
+  { title: "Kitchens", text: "Solid wood or lacquer, drawn to the millimetre around the way you cook." },
+  { title: "Stairs", text: "New flights and careful repairs of old ones." },
+  { title: "Built-in furniture", text: "Wardrobes, libraries and benches that use the awkward corner." },
+  { title: "Doors and windows", text: "Made to match what the house already has." }
+]
+let steps = [
+  { title: "We come and measure", text: "A visit of an hour, free, anywhere between Lausanne and Aigle." },
+  { title: "You get a drawing and a price", text: "Within three working days. The price does not move afterwards." },
+  { title: "We build and fit", text: "In our workshop, then at your home, by the people you met." }
+]
+
+style emphasis
+  color accent
+
+style display
+  font "titles", size 96, line-height 0.96, tracking -3, weight 800
+  tablet size 66
+  mobile size 44, tracking -2
+
+style head
+  font "titles", size 48, line-height 1, tracking -2, weight 800
+  mobile size 34
+
+style lead
+  size 20, line-height 1.55, width 520, color #232B35C7
+
+style label
+  uppercase, tracking 2, size 12, weight 700, color accent
+
+style primary
+  background accent, color white, weight 700, padding 18 28
+  hover lift 2, shadow medium
+
+style call
+  background transparent, color slate, border 2 slate, weight 700, padding 16 26
+  hover background slate, color paper
+
+style promise
+  background stone, padding 26, gap 6
+  text color #232B35C7
+
+style job
+  padding 28 0, border-top 2 slate, gap 32
+  mobile gap 8
+
+style job-title
+  font "titles", size 32, weight 800, tracking -1, width 300
+
+style step
+  background white, padding 30, gap 12
+
+style count
+  font "titles", size 56, weight 800, color accent, line-height 1
+
+style quote
+  background slate, color paper, padding 64 56, gap 22
+  mobile padding 40 24
+
+style contact
+  background white, padding 40, gap 14
+  mobile padding 24
+
+page "/"
+  section header, border-bottom 1 #232B3526
+    logo "Morel"
+    links Work, Method, Quote
+    button "021 000 00 00", small, call
+
+  section hero, padding 72 0 56
+    mobile padding 40 0
+    text "Carpenters in Vevey since 1987", label
+    title "Furniture made for\n*your* walls.", display
+      enters from bottom
+    text "Kitchens, stairs and built-in pieces, drawn for your home and made in our workshop, fifteen minutes away.", lead
+    row gap 12
+      button "Ask for a free quote", large, primary, to "#quote"
+      button "Call the workshop", large, phone
+    spacer 20
+    grid 3 columns, gap 12
+      tablet columns 1
+      column promise
+        text "Free visit", weight 700, color slate
+        text "We measure at your home."
+      column promise
+        text "Price in three days", weight 700, color slate
+        text "Fixed, in writing."
+      column promise
+        text "Ten-year guarantee", weight 700, color slate
+        text "On everything we build."
+
+  section work, padding 56 0
+    title "What we make", head
+    column gap 0
+      for j in jobs
+        row job
+          text j.title, job-title
+          text j.text, color #232B35C7, width 520
+
+  section method, padding 56 0
+    title "How it goes", head
+    grid 3 columns, gap 12
+      tablet columns 1
+      for s, i in steps
+        column step
+          text "{i + 1}", count
+          subtitle s.title, level 3, size 22
+          text s.text, color #232B35C7
+
+  section word, padding 56 0
+    column quote
+      text "“They found sixty centimetres of storage nobody else had seen, and the kitchen was fitted in two days.”", font "titles", size 34, line-height 1.25, tracking -1, width 760
+      text "Claire and Marc, La Tour-de-Peilz", color #F2F1ECB3
+
+  section quote, padding 56 0 96
+    grid columns 1 1.1, gap 56
+      tablet columns 1
+      column gap 16
+        title "Tell us about the room.", head
+        text "A few lines are enough. We call you back to fix the visit.", lead
+        column gap 4
+          text "Workshop", label
+          text "Chemin du Bois 4, 1800 Vevey"
+        column gap 4
+          text "Phone", label
+          text "021 000 00 00, Monday to Friday"
+      column contact
+        if sent
+          subtitle "Thank you, {name}.", level 3, size 28
+          text "We call you within one working day."
+        else
+          form -> sent = true
+            field name "Ada Lovelace", required, label "Name"
+            field phone "079 000 00 00", required, label "Phone"
+            select project "A kitchen", "Stairs", "Built-in furniture", "Something else", label "Project"
+            textarea message "The room, the idea, the deadline", label "A few words"
+            button "Ask for a free quote", large, primary
+
+  footer padding 28 48, border-top 1 #232B3526
+    text "© 2026 Morel Menuiserie Sàrl", color #232B3599
+    text "Made with Kaury", margin 0 0 0 auto, color #232B3599

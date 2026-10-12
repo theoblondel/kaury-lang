@@ -28,6 +28,6 @@ page "/"
       for f in features
         column feature
           text f.n, font "mono", color lime
-          subtitle f.title, level 3, size 26
+          subtitle f.title, size 26
           text f.text
           enters from bottom

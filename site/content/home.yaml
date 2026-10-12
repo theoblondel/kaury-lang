@@ -1,6 +1,6 @@
 faq:
   - q: What is Kaury?
-    a: Kaury is an open-source programming language for websites. One .kaury file holds the logic, the structure, the style and the 3D of a site; the compiler turns it into server-rendered HTML, CSS and JavaScript that score 100 on all four Lighthouse categories.
+    a: Kaury is an open-source programming language for websites. One .kaury file holds the logic, the structure, the style and the 3D of a site; the compiler turns it into server-rendered HTML, CSS and JavaScript that are fast by default. In Lighthouse, the pages of this site score 100 on a desktop and 97 to 100 on a phone for performance, and 100 for accessibility, best practices and SEO.
   - q: Is Kaury free?
     a: Yes. The compiler, the runtime, the command line and the VS Code extension are open source under the MIT license.
   - q: Do I need to know JavaScript, React or Three.js?
@@ -19,8 +19,8 @@ promises:
     d: One line, one idea. Errors that tell you the fix.
     c: 'button "+1" -> count += 1'
   - n: "02"
-    t: 100 on Lighthouse
-    d: Server rendering, inlined CSS, WebP, self-hosted fonts. By default.
+    t: Fast by default
+    d: Server rendering, inlined CSS, light pictures, fonts served by the site. 100 on a desktop, measured.
     c: kaury build → dist/
   - n: "03"
     t: 3D is a word
@@ -53,3 +53,13 @@ ai:
     d: A full site fits in one answer.
   - t: Errors for machines
     d: "kaury check --json: line, word, fix."
+steps:
+  - t: Write
+    d: One file, in words you can read aloud. The editor colors it and names every mistake with its fix.
+    c: kaury dev
+  - t: Check
+    d: The compiler renders every page and tells you what a visitor could not use, a dead link, a text too pale.
+    c: kaury check
+  - t: Ship
+    d: A folder of plain files, fast everywhere. Host it where you like, or in a folder of another site.
+    c: kaury build

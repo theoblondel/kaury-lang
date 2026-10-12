@@ -1,6 +1,6 @@
 ---
 title: A landing page in 30 lines
-description: Hero, features, pricing and a contact form, server-rendered and Lighthouse 100, in one Kaury file you can read in a minute.
+description: Hero, features, pricing and a contact form, server-rendered and fast by default, in one Kaury file you can read in a minute.
 date: 2026-10-06
 minutes: 4
 tag: Tutorial

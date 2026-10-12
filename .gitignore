@@ -8,6 +8,8 @@ tests/.tmp/
 site/dist/
 site/.kaury-cache/
 site/public/play/
+site/public/star.svg
+site/public/skills/
 site/public/docs/
 site/public/blog/
 site/public/blog/
@@ -21,3 +23,9 @@ site/content/examples.yaml
 site/content/library.yaml
 site/public/lib/
 site/content/release.yaml
+site/public/showcase/
+site/content/showcase.yaml
+site/content/showcase-code.yaml
+site/content/pieces/
+site/content/templates.yaml
+site/public/shots/

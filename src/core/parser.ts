@@ -4,10 +4,12 @@
 import { KauryError, closest, msg, q } from './errors.js'
 import { tokenize, type Token } from './lexer.js'
 import { canon, stripAccents } from './keywords.js'
-import { styleOption } from './vocabulary.js'
+import { styleOption, elementOption, ELEMENTS } from './vocabulary.js'
+import { kauryGlobal, JS_GLOBALS } from './globals.js'
+import { elementHabit, lineHabit, wordHabit } from './habits.js'
 
 /** Parts inside an element that a named style can describe: “link color rust”. */
-export const STYLE_PARTS = ['title', 'subtitle', 'text', 'link', 'image', 'button', 'icon', 'code', 'block', 'list', 'item', 'table', 'cell', 'quote', 'summary', 'emphasis', 'logo']
+export const STYLE_PARTS = ['title', 'subtitle', 'text', 'link', 'image', 'button', 'icon', 'code', 'block', 'list', 'item', 'table', 'cell', 'quote', 'summary', 'emphasis', 'logo', 'field', 'label']
 
 /** States a named style can describe (French aliases included). */
 export const STYLE_STATES: Record<string, string> = {
@@ -49,8 +51,13 @@ const FREE: Flags = { implicit: true, item: false }
 const ITEM: Flags = { implicit: false, item: true }
 const SIMPLE: Flags = { implicit: false, item: false }
 
-export function parse(source: string): Stmt[] {
-  return new Parser(tokenize(source)).program()
+/**
+ * `notes` receives what is worth saying without stopping (an indentation that is not 2 spaces). With `errors`, a
+ * mistake of writing does not stop the reading: its line (and its block) is left out, the next ones are read, and
+ * every mistake of the file is found in one go.
+ */
+export function parse(source: string, notes?: KauryError[], errors?: KauryError[]): Stmt[] {
+  return new Parser(tokenize(source, notes, errors), errors).program()
 }
 
 /** Parses a single expression (used for {…} interpolations inside texts). */
@@ -81,7 +88,58 @@ function parseInterpolation(code: string, line: number, column: number): Expr {
 
 class Parser {
   private i = 0
-  constructor(private tokens: Token[]) {}
+  private head?: Token // first word of the line being read: a habit of another language is answered by name
+  constructor(private tokens: Token[], private errors?: KauryError[]) {}
+
+  /** One line of a block. With `errors`, a mistake is kept and the reading goes on after its line and its block. */
+  private line(body: Stmt[]) {
+    if (!this.errors) {
+      body.push(this.statement())
+      return
+    }
+    const start = this.i
+    const first = this.peek()
+    try {
+      body.push(this.statement())
+    } catch (e) {
+      if (!(e instanceof KauryError)) throw e
+      this.errors.push(e)
+      this.leave(start, first.t === 'word' ? first.v : undefined)
+    }
+  }
+
+  /** After a mistake: goes past the end of its line, the block indented below, and the “else” that belonged to it. */
+  private leave(start: number, head?: string) {
+    while (!['newline', 'indent', 'dedent', 'eof'].includes(this.peek().t)) this.next()
+    if (this.peek().t === 'newline') this.next()
+    this.dropBlock(head)
+    while (this.isWord('else')) {
+      while (!['newline', 'indent', 'dedent', 'eof'].includes(this.peek().t)) this.next()
+      if (this.peek().t === 'newline') this.next()
+      this.dropBlock()
+    }
+    if (this.i === start && this.peek().t !== 'eof') this.next()
+  }
+
+  /**
+   * The block of a refused line is left out, but still read for the mistakes it holds — except under “style” and
+   * “animation”, whose lines are rules and not lines of a page.
+   */
+  private dropBlock(head?: string) {
+    if (this.peek().t !== 'indent') return
+    if (!this.errors || ['style', 'animation'].includes(canon(head ?? '') ?? '')) return this.skipBlock()
+    this.block('')
+  }
+
+  private skipBlock() {
+    if (this.peek().t !== 'indent') return
+    let depth = 0
+    do {
+      const t = this.next()
+      if (t.t === 'indent') depth++
+      else if (t.t === 'dedent') depth--
+    } while (depth > 0 && this.peek().t !== 'eof')
+  }
 
   // ---------- helpers ----------
   peek(d = 0): Token {
@@ -127,6 +185,28 @@ class Parser {
     if (t.t !== 'word') throw this.error(t, msg(`a name is needed for ${role} (I see ${this.describe(t)}).`, `il faut un nom pour ${role} (je vois ${this.describe(t)}).`), fix)
     return this.next()
   }
+  /** “?”, “{” and “:” where JavaScript, CSS or Python would put them: the Kaury form is given. */
+  private foreignSign(t: Token): KauryError | undefined {
+    if (t.t !== 'op') return undefined
+    const inColors = !!this.head && this.head.t === 'word' && canon(this.head.v) === 'colors'
+    if (t.v === '?') {
+      return this.error(t, msg('a choice inside a value is written with “if … then … else …”.', 'un choix dans une valeur s\'écrit avec « si … alors … sinon … ».'),
+        msg('if x > 2 then "big" else "small"', 'si x > 2 alors "grand" sinon "petit"'))
+    }
+    if (t.v === '{') {
+      return this.error(t, msg('blocks are made by indentation, without { }.', 'les blocs se font par l\'indentation, sans { }.'),
+        msg('remove “{” and “}”, and indent the lines of the block by 2 spaces.', 'retire « { » et « } », et indente de 2 espaces les lignes du bloc.'))
+    }
+    if (inColors && (t.v === ':' || t.v === '=')) {
+      return this.error(t, msg(`each color is written “name #code”, without ${q(t.v)}.`, `chaque couleur s'écrit « nom #code », sans ${q(t.v)}.`), 'colors pink #FF4F8B, cream #FFF4E8')
+    }
+    if (t.v === ':') {
+      return this.error(t, msg(`Kaury writes no ${q(':')} here.`, `Kaury n'écrit pas de ${q(':')} ici.`),
+        msg('a name, a space, its value: color red   ·   style card   ·   Card "Strawberry"', 'un nom, un espace, sa valeur : color red   ·   style carte   ·   Carte "Fraise"'))
+    }
+    return undefined
+  }
+
   private endOfLine(fix?: string) {
     const t = this.peek()
     if (t.t === 'newline') {
@@ -134,9 +214,14 @@ class Parser {
       return
     }
     if (t.t === 'eof' || t.t === 'dedent') return
+    const foreign = this.foreignSign(t)
+    if (foreign) throw foreign
     if (t.t === 'op' && t.v === '=') {
       throw this.error(t, msg('“=” cannot be here.', '« = » ne peut pas être ici.'), msg('to compare two values, write “==”.', 'pour comparer deux valeurs, écris « == ».'))
     }
+    // a line started with a word of HTML: a "Contact" "/contact"
+    const habit = this.head?.t === 'word' ? lineHabit(this.head.v) : undefined
+    if (habit) throw this.error(this.head!, msg(`${q(this.head!.v)} is not a Kaury word.`, `${q(this.head!.v)} n'est pas un mot de Kaury.`), habit)
     throw this.error(t, msg(`I did not expect ${this.describe(t)} here.`, `je ne m'attendais pas à ${this.describe(t)} ici.`),
       fix ?? msg('start a new line, or separate the options with commas.', 'passe à la ligne, ou sépare les options par des virgules.'))
   }
@@ -151,15 +236,20 @@ class Parser {
         continue
       }
       if (t.t === 'indent') {
-        throw this.error(t, msg('this line is indented but belongs to no block.', 'cette ligne est indentée alors qu\'elle n\'appartient à aucun bloc.'),
+        const e = this.error(t, msg('this line is indented but belongs to no block.', 'cette ligne est indentée alors qu\'elle n\'appartient à aucun bloc.'),
           msg('remove the spaces at the start of the line, or put it under a line that opens a block (page, if, for…).', 'retire les espaces au début de la ligne, ou place-la sous une ligne qui ouvre un bloc (page, si, pour…).'))
+        if (!this.errors) throw e
+        this.errors.push(e)
+        this.skipBlock()
+        continue
       }
-      body.push(this.statement())
+      this.line(body)
     }
     return body
   }
 
-  private block(what: string): Stmt[] {
+  /** “direct”: the lines of this block sit right under an element (or in “site”): an option alone on a line is its style. */
+  private block(what: string, direct: string | false = false): Stmt[] {
     if (this.peek().t !== 'indent') {
       throw this.error(this.peek(), msg(`${what} expects an indented block below.`, `${what} attend un bloc indenté en dessous.`),
         msg('start a new line and indent the block content by 2 spaces.', 'passe à la ligne et indente de 2 espaces le contenu du bloc.'))
@@ -172,21 +262,50 @@ class Parser {
         continue
       }
       if (this.peek().t === 'indent') {
-        throw this.error(this.peek(), msg('this line is indented too much.', 'cette ligne est trop indentée.'), msg('align it with the line above.', 'aligne-la avec la ligne au-dessus.'))
+        const e = this.error(this.peek(), msg('this line is indented too much.', 'cette ligne est trop indentée.'), msg('align it with the line above.', 'aligne-la avec la ligne au-dessus.'))
+        if (!this.errors) throw e
+        this.errors.push(e)
+        this.skipBlock()
+        continue
       }
-      body.push(this.statement())
+      this.direct = direct
+      this.line(body)
     }
+    this.direct = false
     if (this.peek().t === 'dedent') this.next()
     return body
   }
 
-  private optionalBlock(): Stmt[] {
-    return this.peek().t === 'indent' ? this.block(msg('this line', 'cette ligne')) : []
+  private optionalBlock(direct: string | false = false): Stmt[] {
+    return this.peek().t === 'indent' ? this.block(msg('this line', 'cette ligne'), direct) : []
   }
+
+  /** Set by “block” for the line it is about to read, and read once by “statement”. */
+  private direct: string | false = false
 
   // ---------- statements ----------
   private statement(inlineAction = false): Stmt {
     const t = this.peek()
+    this.head = t
+    const direct = this.direct
+    this.direct = false
+    if (t.t === 'error') {
+      // a line the lexer refused (its mistake is already kept): the line and its block are left out
+      this.next()
+      if (this.peek().t === 'newline') this.next()
+      this.dropBlock(t.v)
+      while (this.isWord('else')) {
+        while (!['newline', 'indent', 'dedent', 'eof'].includes(this.peek().t)) this.next()
+        if (this.peek().t === 'newline') this.next()
+        this.dropBlock()
+      }
+      return { k: 'js', code: '', pos: this.pos(t) }
+    }
+    if (t.t === 'op' && t.v === '<' && this.peek(1).t === 'word') {
+      // <h1>Title</h1>
+      throw this.error(t, msg('Kaury has no tags.', 'Kaury n\'a pas de balises.'),
+        elementHabit(this.peek(1).v) ?? msg('an element is a word at the start of a line, then its content: title "…", text "…", box', 'un élément est un mot en début de ligne, puis son contenu : title "…", text "…", box'))
+    }
     if (t.t === 'word') {
       const c = canon(t.v)
       switch (c) {
@@ -196,8 +315,20 @@ class Parser {
           break
         case 'function':
           return this.functionDecl()
-        case 'if':
+        case 'if': {
+          // “if a then b else c” whole on one line is a value (the last line of a function gives it back)
+          let k = 1
+          let then = false
+          let both = false
+          for (; !['newline', 'eof', 'indent', 'dedent'].includes(this.peek(k).t); k++) {
+            const w = this.peek(k)
+            if (w.t !== 'word') continue
+            if (canon(w.v) === 'then') then = true
+            else if (then && canon(w.v) === 'else') both = true
+          }
+          if (both && this.peek(k).t !== 'indent') break
           return this.ifStmt()
+        }
         case 'else':
           throw this.error(t, msg('“else” without an “if” right above.', '« sinon » sans « si » juste au-dessus.'),
             msg('put “else” at the same level as its “if”, right after the “if” block.', 'place « sinon » au même niveau que son « si », juste après le bloc du « si ».'))
@@ -273,12 +404,26 @@ class Parser {
           break
         case 'page':
           if (this.peek(1).t === 'text') return this.page()
+          if (!this.assignmentFollows() && (this.peek(1).t === 'word' || this.isOp('/', 1))) {
+            // page about, page /about
+            const w = this.peek(1).t === 'word' ? this.peek(1) : this.peek(2)
+            throw this.error(this.peek(1), msg('the address of a page is a text that starts with “/”.', 'l\'adresse d\'une page est un texte qui commence par « / ».'),
+              `${t.v} "/${w.t === 'word' ? w.v : ''}"`)
+          }
           break
         case 'site':
           if (!this.assignmentFollows()) return this.site()
           break
       }
       if (this.isUiHead()) return this.command()
+      // the reflex of CSS: “padding 80 48” alone under its element (or “radius 20” in “site”) is its style
+      if (direct && this.isStyleLine(direct)) {
+        const line = this.commandRest(t, 'style')
+        // under an element, an option goes back to the line of that element (every option then works there: attr, to,
+        // large…); “hover …” and a word alone stay lines of their own, and “site” keeps its style lines
+        line.inline = direct !== 'site' && (!!styleOption(t.v) || !!elementOption(direct, t.v)) && styleOption(t.v) !== 'hover'
+        return line
+      }
       // « hover lift 4 » alone on its line: it belongs to the element, or to a style
       if (canon(t.v) === 'hover' && this.peek(1).t === 'word') {
         throw this.error(t, msg('“hover” is an option of the element, not a line of its own.', '« survol » est une option de l\'élément, pas une ligne à part.'),
@@ -290,6 +435,10 @@ class Parser {
     const op = this.peek()
     if (op.t === 'op' && ASSIGN_OPS.has(op.v)) {
       if (e.k !== 'name' && e.k !== 'member' && e.k !== 'index') {
+        // var x = 3, set x = 3: the declaration words of other languages
+        if (e.k === 'call' && e.fn.k === 'name' && wordHabit(e.fn.name)) {
+          throw new KauryError({ ...e.pos, length: e.fn.name.length }, msg(`${q(e.fn.name)} is not a Kaury word.`, `${q(e.fn.name)} n'est pas un mot de Kaury.`), wordHabit(e.fn.name))
+        }
         throw this.error(op, msg('nothing can be stored on the left of this “=”.', 'on ne peut rien ranger à gauche de ce « = ».'),
           msg('the left of “=” must be a name: total = 3.', 'à gauche d\'un « = », il faut un nom : total = 3.'))
       }
@@ -298,17 +447,24 @@ class Parser {
       this.endOfLine()
       return { k: 'assign', target: e, op: op.v, value, pos: this.pos(t) }
     }
+    // often a misspelled element: “secion” instead of “section”, “buton "Ok" -> …” instead of “button”
+    const word = e.k === 'name' ? e.name : e.k === 'call' && e.fn.k === 'name' ? e.fn.name : undefined
+    const sug = word ? closest(word, [...UI_HEADS, 'component', 'function', 'page', 'site', 'for', 'if']) : undefined
+    const habit = word ? lineHabit(word) : undefined
+    const known = !!habit || !!sug
+    const misspelled = () => new KauryError({ ...e.pos, length: word!.length }, msg(`${q(word!)} is not a Kaury word.`, `${q(word!)} n'est pas un mot de Kaury.`),
+      habit ?? msg(`did you mean ${q(sug!)}?`, `tu voulais dire ${q(sug!)} ?`))
     if (op.t === 'op' && op.v === '->') {
+      if (word && known) throw misspelled()
       throw this.error(op, msg('“->” must follow a UI element or a parameter.', '« -> » doit suivre un élément d\'interface ou un paramètre.'),
         msg('examples: button "Ok" -> count += 1   or   sum list, a -> a.price', 'exemples : bouton "Ok" -> compteur += 1   ou   somme liste, a -> a.prix'))
     }
     if (!inlineAction && (this.peek().t === 'indent' || (this.peek().t === 'newline' && this.peek(1).t === 'indent'))) {
-      // often a misspelled element: “secion” instead of “section”
-      const word = e.k === 'name' ? e.name : e.k === 'call' && e.fn.k === 'name' ? e.fn.name : undefined
-      const sug = word ? closest(word, [...UI_HEADS, 'component', 'function', 'page', 'site', 'for', 'if']) : undefined
-      if (word && sug) {
+      if (word && known) throw misspelled()
+      // a word with lines under it, which no value reads or stores: meant as an element that holds others
+      if (word && e.k !== 'name' && !kauryGlobal(word) && !JS_GLOBALS.has(word)) {
         throw new KauryError({ ...e.pos, length: word.length }, msg(`${q(word)} is not a Kaury word.`, `${q(word)} n'est pas un mot de Kaury.`),
-          msg(`did you mean ${q(sug)}?`, `tu voulais dire ${q(sug)} ?`))
+          msg('the elements that hold others: section, row, column, grid, box (and your own components, written with a capital: Card).', 'les éléments qui en contiennent d\'autres : section, ligne, colonne, grille, boite (et tes composants, écrits avec une majuscule : Carte).'))
       }
       throw this.error(this.peek(), msg('this indented block belongs to nothing.', 'ce bloc indenté n\'appartient à rien.'),
         msg('only page, section, if, for, function… open a block. Remove the indentation.', 'seuls page, section, si, pour, fonction… ouvrent un bloc. Retire l\'indentation.'))
@@ -321,6 +477,20 @@ class Parser {
   private assignmentFollows(): boolean {
     const s = this.peek(1)
     return s.t === 'op' && (ASSIGN_OPS.has(s.v) || ((s.v === '.' || s.v === '(' || s.v === '[') && !s.spaceBefore))
+  }
+
+  /** A line that starts with an option (padding, gap, radius, hover…) and is not a value being stored or read. */
+  private isStyleLine(head: string): boolean {
+    const t = this.peek()
+    if (t.t !== 'word') return false
+    const s = this.peek(1)
+    // an option of that very element, which is not its look: attr "role" "progressbar", to "#prices", large
+    if (!styleOption(t.v) && head !== 'site' && elementOption(head, t.v)) return !(s.t === 'op' && !['-', '('].includes(s.v))
+    // a word alone on its line: one of your styles (“wide” under its section); the checker says so if it is not
+    if (!styleOption(t.v)) return s.t === 'newline' && this.peek(2).t !== 'indent' && !canon(t.v) && /^\p{Ll}/u.test(t.v)
+    if (s.t === 'op' && !['-', '('].includes(s.v)) return false
+    if (s.t === 'op' && s.v === '(' && !s.spaceBefore) return false
+    return true
   }
 
   private isUiHead(): boolean {
@@ -354,10 +524,16 @@ class Parser {
     return { k: 'let', name: name.v, value, reactive, pos: this.pos(t) }
   }
 
-  private params(end: (t: Token) => boolean): Param[] {
+  private params(end: (t: Token) => boolean, form = 'function double x then x * 2'): Param[] {
     const params: Param[] = []
     while (!end(this.peek())) {
       const p = this.peek()
+      if (p.t === 'op' && p.v === '(') {
+        throw this.error(p, msg('parameters are written without parentheses.', 'les paramètres s\'écrivent sans parenthèses.'), form)
+      }
+      if (p.t === 'op' && p.v === ':') {
+        throw this.error(p, msg('Kaury has no types to write: a parameter is only a name.', 'Kaury n\'a pas de types à écrire : un paramètre n\'est qu\'un nom.'), form)
+      }
       if (p.t !== 'word') throw this.error(p, msg(`a parameter must be a name (I see ${this.describe(p)}).`, `un paramètre doit être un nom (je vois ${this.describe(p)}).`), 'function double x then x * 2')
       this.next()
       let def: Expr | undefined
@@ -374,7 +550,7 @@ class Parser {
   private functionDecl(): Stmt {
     const t = this.next()
     const name = this.expectName(msg('the function', 'la fonction'), 'function double x then x * 2')
-    const params = this.params((j) => j.t === 'newline' || j.t === 'eof' || (j.t === 'word' && canon(j.v) === 'then'))
+    const params = this.params((j) => j.t === 'newline' || j.t === 'eof' || (j.t === 'word' && canon(j.v) === 'then'), `${t.v} ${name.v} a, b`)
     let body: Stmt[]
     if (this.isWord('then')) {
       const p = this.next()
@@ -522,7 +698,7 @@ class Parser {
       throw this.error(name, msg(`a component starts with a capital letter: ${q(name.v)}.`, `un composant commence par une majuscule : ${q(name.v)}.`),
         `${t.v} ${name.v[0].toUpperCase() + name.v.slice(1)}`)
     }
-    const params = this.params((j) => j.t === 'newline' || j.t === 'eof')
+    const params = this.params((j) => j.t === 'newline' || j.t === 'eof', `${t.v} ${name.v} name`)
     this.endOfLine()
     const body = this.block(msg(`the component ${q(name.v)}`, `le composant ${q(name.v)}`))
     return { k: 'component', name: name.v, params, body, pos: this.pos(t) }
@@ -553,7 +729,7 @@ class Parser {
     let name: Expr | undefined
     if (this.peek().t !== 'newline') name = this.expression(SIMPLE)
     this.endOfLine()
-    const body = this.optionalBlock()
+    const body = this.optionalBlock('site')
     return { k: 'site', name, body, pos: this.pos(t) }
   }
 
@@ -651,14 +827,14 @@ class Parser {
     const items: Item[] = []
     let action: Stmt[] | undefined
     let children: Stmt[] = []
+    // an element takes the options written alone under it; a component, a style or an event does not
+    const styled = head in ELEMENTS && !['style', 'mobile', 'tablet', 'desktop'].includes(head)
     while (true) {
       const v = this.peek()
       if (v.t === 'newline' || v.t === 'eof' || v.t === 'indent' || v.t === 'dedent') break
       if (v.t === 'op' && v.v === '->') break
       if (v.t === 'op' && v.v === ',') {
-        if (!items.length && !head.includes('-')) {
-          throw this.error(v, msg('unexpected comma right after the head word.', 'virgule inattendue juste après le mot de tête.'), `${t.v} "content", option`)
-        }
+        // “row, gap 16”: the comma right after the element is taken as written without it
         this.next()
         continue
       }
@@ -678,16 +854,23 @@ class Parser {
         throw this.error(arrow, msg('“->” must be followed by an action.', '« -> » doit être suivi d\'une action.'), `${t.v} -> count += 1`)
       } else {
         action = [this.statement(true)]
-        children = this.optionalBlock()
+        children = this.optionalBlock(styled ? head : false)
       }
     } else {
       this.endOfLine()
-      children = this.optionalBlock()
+      children = this.optionalBlock(styled ? head : false)
       // « on click » with the action indented below, no « -> » needed
       if (head.startsWith('on-') && !items.length && children.length) {
         action = children
         children = []
       }
+    }
+    if (styled && children.some((x) => x.k === 'command' && x.inline)) {
+      // before the first “hover” of the line: what follows it there is for the pointer only
+      const hover = items.findIndex((it) => it.atoms[0]?.k === 'name' && styleOption(it.atoms[0].name) === 'hover')
+      const given = children.filter((x): x is Command => x.k === 'command' && !!x.inline).flatMap((x) => x.items)
+      items.splice(hover < 0 ? items.length : hover, 0, ...given)
+      children = children.filter((x) => !(x.k === 'command' && x.inline))
     }
     return { k: 'command', head, rawHead: t.v, items, action, children, pos: this.pos(t) }
   }
@@ -791,6 +974,11 @@ class Parser {
     if (this.isWord('if')) {
       const t = this.next()
       const cond = this.or(f)
+      if (f.item && !this.isWord('then') && (this.peek().t === 'newline' || this.peek().t === 'eof' || this.isOp(','))) {
+        // text "x", if count > 0: a condition written like an option (v-if)
+        throw this.error(t, msg('a condition is not an option: it goes on its own line, above.', 'une condition n\'est pas une option : elle va sur sa propre ligne, au-dessus.'),
+          msg('if count > 0   then, on the next line and indented by 2 spaces, the element', 'si compteur > 0   puis, sur la ligne suivante et indenté de 2 espaces, l\'élément'))
+      }
       this.expectWord('then', 'if age >= 18 then "adult" else "child"')
       const then = this.or(f)
       this.expectWord('else', 'if age >= 18 then "adult" else "child"')
@@ -1024,6 +1212,8 @@ class Parser {
         break
       }
     }
+    const foreign = this.foreignSign(t)
+    if (foreign) throw foreign
     throw this.error(t, msg(`I expected a value, but I see ${this.describe(t)}.`, `je m'attendais à une valeur, mais je vois ${this.describe(t)}.`),
       t.t === 'indent' ? msg('this line may be indented too much.', 'cette ligne est peut-être trop indentée.') : msg('a number, a "text", a name, a [list] or an {object}.', 'un nombre, un "texte", un nom, une [liste] ou un {objet}.'))
   }

@@ -3,7 +3,7 @@
 // adapter that applies the transform (CSS or Three.js).
 
 import { reactive, state, onCleanup, batch, markDynamic } from './reactive.js'
-import { inBrowser, h } from './dom.js'
+import { inBrowser, h, withBase } from './dom.js'
 
 // ---------------- global reactive values ----------------
 export const mouse = reactive({ x: 0, y: 0, pixelX: 0, pixelY: 0 })
@@ -324,6 +324,14 @@ export interface ObjectOptions {
   options: Record<string, any>
 }
 
+/** The shapes Kaury draws itself (object "gem"): a name, not a file. */
+export const SHAPE = /^\/?(sphere|cube|torus|knot|cone|cylinder|capsule|gem|pyramid|tore|noeud|cylindre|gemme|pyramide)$/i
+
+/** Where an object comes from: the name of a shape as it is, a file under the folder of the site. */
+export function objectSource(src: string): string {
+  return SHAPE.test(src) ? src : withBase(src)
+}
+
 export function object(parent: any, d: ObjectOptions): any {
   markDynamic()
   const el = h(parent, 'div', `k-object k-${d.kind}`)
@@ -343,13 +351,13 @@ export function object(parent: any, d: ObjectOptions): any {
   }
   if (EXT_3D.test(src)) {
     el.classList.add('k-3d')
-    el.setAttribute('data-src', src)
+    el.setAttribute('data-src', objectSource(src))
     label()
     if (o.fallback) {
       const im = h(el, 'img', 'k-fallback')
-      im.setAttribute('src', o.fallback)
+      im.setAttribute('src', withBase(String(o.fallback)))
       im.setAttribute('alt', o.alt ?? '')
-    }
+    } else if (SHAPE.test(src)) poster(scene ? parent : el, src, o)
     if (!scene) {
       // a "touch": an object alone in the page gets its own small scene
       if (o.height) el.style.height = typeof o.height === 'number' ? `${o.height}px` : o.height
@@ -357,13 +365,13 @@ export function object(parent: any, d: ObjectOptions): any {
     } else scene.objects.push(el)
   } else if (EXT_LOTTIE.test(src)) {
     el.classList.add('k-lottie')
-    el.setAttribute('data-src', src)
+    el.setAttribute('data-src', objectSource(src))
     label()
     mountWhenVisible(el, () => import('../immersion/index.js').then((m) => m.mountLottie(el)), 'none')
     if (scene) scene.layers.push(el)
   } else {
     const im = h(el, 'img', 'k-object-image')
-    im.setAttribute('src', src)
+    im.setAttribute('src', objectSource(src))
     im.setAttribute('alt', o.alt ?? '')
     im.setAttribute('draggable', 'false')
     im.setAttribute('decoding', 'async')
@@ -380,11 +388,37 @@ export function object(parent: any, d: ObjectOptions): any {
   return el
 }
 
+const SHAPE_NAMES: Record<string, string> = { tore: 'torus', noeud: 'knot', cylindre: 'cylinder', gemme: 'gem', pyramide: 'pyramid' }
+
+/**
+ * The waiting picture of a built-in shape: its silhouette, drawn by the page itself in the color, at the size and at
+ * the place the 3D will have. It is there from the first paint (the 3D starts at the visitor's first gesture), it
+ * leaves when the 3D is ready (.k-ready), and it stays where a device cannot do 3D.
+ * The numbers are those of the scene: a camera of 35° at 6.5, an object fitted to 2.2 (immersion/index.ts).
+ */
+function poster(host: any, src: string, o: Record<string, any>) {
+  const shape = (src.startsWith('/') ? src.slice(1) : src).toLowerCase()
+  const p = h(host, 'span', `k-poster k-poster-${SHAPE_NAMES[shape] ?? shape}`)
+  p.setAttribute('aria-hidden', 'true')
+  const at = Array.isArray(o.position) ? o.position.map((x: unknown) => Number(x) || 0) : [0, 0, 0]
+  // nearer to the camera: bigger, and further from the middle
+  const near = 6.5 / Math.max(1, 6.5 - (at[2] ?? 0))
+  const n = (x: number) => String(Math.round(x * 1000) / 1000)
+  p.style.setProperty('--k-pc', String(o.color ?? o.tint ?? 'var(--k-accent)'))
+  p.style.setProperty('--k-ps', n(Number(o.size ?? 1) * near))
+  p.style.setProperty('--k-px', n((at[0] ?? 0) * near))
+  p.style.setProperty('--k-py', n((at[1] ?? 0) * near))
+}
+
 export function scene(parent: any, o: Record<string, any> = {}): any {
   markDynamic()
   const el = h(parent, 'div', 'k-scene')
   el.$kScene = { objects: [] as any[], layers: [] as any[], settings: { ...o } as Record<string, any> }
-  if (o.height) el.style.height = typeof o.height === 'number' ? `${o.height}px` : o.height
+  if (o.height) {
+    el.style.height = typeof o.height === 'number' ? `${o.height}px` : o.height
+    // the least height of a scene is for when nothing is written: a written height is the height
+    el.style.minHeight = '0'
+  }
   if (o.background && typeof o.background === 'string') el.style.background = o.background
   return el
 }
@@ -417,14 +451,31 @@ export function setting(el: any, name: string, value: string, options: Record<st
  */
 let interacted = false
 let waiters: (() => void)[] = []
+const GESTURES = ['pointermove', 'pointerdown', 'scroll', 'keydown', 'touchstart', 'wheel']
+
+/**
+ * Where a gesture is listened for: the page itself, and, when it is shown in a frame of the same site
+ * (a preview in a gallery), the page around it — the visitor moving over the gallery wakes its previews.
+ */
+export function gestureTargets(win: any): any[] {
+  const targets = [win]
+  try {
+    if (win.parent && win.parent !== win && win.parent.location.origin === win.location.origin) targets.push(win.parent)
+  } catch {
+    // a page of another site around it: its gestures are not ours to hear
+  }
+  return targets
+}
+
 if (typeof window !== 'undefined' && !(globalThis as any).__kaurySSR) {
+  const targets = gestureTargets(window)
   const wake = () => {
     if (interacted) return
     interacted = true
-    for (const e of ['pointermove', 'pointerdown', 'scroll', 'keydown', 'touchstart', 'wheel']) removeEventListener(e, wake)
+    for (const t of targets) for (const e of GESTURES) t.removeEventListener(e, wake)
     waiters.splice(0).forEach((f) => f())
   }
-  for (const e of ['pointermove', 'pointerdown', 'scroll', 'keydown', 'touchstart', 'wheel']) addEventListener(e, wake, { passive: true })
+  for (const t of targets) for (const e of GESTURES) t.addEventListener(e, wake, { passive: true })
 }
 function afterLoad(immediate = false): Promise<void> {
   return new Promise((done) => {

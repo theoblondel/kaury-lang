@@ -30,6 +30,7 @@ export interface Result {
   site: { name?: string; lang?: string; base?: string }
   assets: string[]
   mails: string[]
+  own?: { prefix: string; pages: { path: string; from: number; to: number; looks: string[] }[]; named: string[] }
   map: { generated: number; source: number }[]
 }
 
@@ -41,21 +42,29 @@ export interface CompileOptions {
 
 export function compile(source: string, options: CompileOptions = {}): Result {
   const empty: Result = { ok: false, js: '', css: '', errors: [], warnings: [], fonts: [], site: {}, assets: [], mails: [], map: [] }
-  let ast: Stmt[]
+  let ast: Stmt[] = []
+  const notes: KauryError[] = []
+  // mistakes of writing: all of them in one go (the first of each line), so that one round of fixes is enough
+  const written: KauryError[] = []
   try {
-    ast = parse(source)
+    ast = parse(source, notes, written)
   } catch (e) {
-    if (e instanceof KauryError) {
-      e.file = options.file
-      return { ...empty, errors: [e] }
-    }
-    throw e
+    if (!(e instanceof KauryError)) throw e
+    written.push(e)
+  }
+  if (written.length) {
+    const lines = new Set<number>()
+    const errors = written.sort((a, b) => a.line - b.line || a.column - b.column).filter((e) => !lines.has(e.line) && !!lines.add(e.line)).slice(0, 30)
+    for (const e of errors) e.file = options.file
+    return { ...empty, errors }
   }
   ast = withBlocks(ast)
-  const { errors, warnings, info } = check(ast, { file: options.file })
+  const { errors, warnings: found, info } = check(ast, { file: options.file })
+  for (const n of notes) n.file = options.file
+  const warnings = [...notes, ...found]
   if (errors.length || options.checkOnly) return { ...empty, ok: !errors.length, errors, warnings, info, ast }
   const out: Output = generate(ast, info, { file: options.file, runtime: options.runtime })
-  return { ok: true, js: out.js, css: out.css, errors: [], warnings, info, ast, fonts: out.fonts, site: out.site, assets: out.assets, mails: out.mails, map: out.map }
+  return { ok: true, js: out.js, css: out.css, errors: [], warnings, info, ast, fonts: out.fonts, site: out.site, assets: out.assets, mails: out.mails, own: out.own, map: out.map }
 }
 
 /**

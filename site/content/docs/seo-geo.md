@@ -1,6 +1,6 @@
 ---
 title: SEO, GEO & performance
-description: What Kaury generates for Google and for AI assistants, and why the sites it builds score 100 on Lighthouse.
+description: What Kaury generates for Google and for AI assistants, and why the sites it builds score 100 for SEO on Lighthouse.
 order: 7
 group: Guide
 ---

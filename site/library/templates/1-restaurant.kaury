@@ -1,0 +1,146 @@
+// Restaurant · warm
+// height 3300
+site "Braise"
+  colors accent #EE7650, forest #14261F, moss #1D352B, bone #F1EBDD, ember #B5421F
+  fonts "Satoshi", "Gambetta"
+  lang "en"
+  style background forest, color bone, radius 6
+  seo "Braise", "Wood-fire restaurant in Lausanne. Twelve dishes, one oven, a menu that follows the season."
+
+let dishes = [
+  { part: "To start", name: "Leek, burnt butter, hazelnut", price: 16 },
+  { part: "To start", name: "Smoked trout, apple, dill", price: 19 },
+  { part: "From the fire", name: "Half chicken, lemon, wild thyme", price: 34 },
+  { part: "From the fire", name: "Celeriac in the embers, miso", price: 29 },
+  { part: "From the fire", name: "Rib of beef for two", price: 96 },
+  { part: "To finish", name: "Burnt cream, pear, pepper", price: 13 }
+]
+let words = ["Tuesday to Saturday", "Wood fire", "Natural wine", "Twelve dishes", "No shortcuts"]
+state sent = false
+state name = ""
+state guests = "2 people"
+
+style emphasis
+  italic, color accent
+
+style giant
+  font "titles", size 136, line-height 0.9, tracking -4, weight 400
+  tablet size 88
+  mobile size 54, tracking -2
+
+style serif
+  font "titles", weight 400, tracking -1
+
+style label
+  uppercase, tracking 3, size 12, color accent, weight 600
+
+style book
+  background accent, color forest, padding 18 30, weight 700
+  hover grow 1.04
+
+style line
+  background transparent, color bone, border 1 bone, padding 17 29
+  hover background bone, color forest
+
+style dish
+  padding 20 0, border-top 1 #F1EBDD26, gap 20
+  hover color accent
+
+style band
+  background accent, color forest, padding 16 0, clip, full-width
+
+style word
+  font "titles", size 40, padding 0 26, line-height 1, italic
+
+style panel
+  background bone, color forest, padding 44, gap 14
+  mobile padding 28
+
+style quiet
+  background moss, padding 44, gap 14
+  mobile padding 28
+
+style wordmark
+  font "titles", size 260, line-height 0.8, tracking -8, weight 400, color moss, center
+  tablet size 150
+  mobile size 92, tracking -3
+
+animation slide, 26s, loop, linear
+  from move 0 0
+  to move -50% 0
+
+page "/"
+  section header, border-bottom 1 #F1EBDD26
+    logo "Braise"
+    links Menu, Find, Book
+    button "Book a table", small, book, to "#book"
+
+  section hero, padding 80 48 64
+    mobile padding 48 20
+    text "Wood fire · Lausanne · since 2019", label
+    title "Everything\ntouches the *fire*.", giant
+      enters from bottom
+    grid columns 1.3 1, gap 48
+      tablet columns 1
+      text "Twelve dishes, one oven, and whatever the farms bring on Tuesday. The menu changes when the season does.", size 21, line-height 1.5, width 520
+      row gap 12
+        button "Book a table", large, book, to "#book"
+        button "Read the menu", large, line, to "#menu"
+
+  section ticker, band
+    row no-wrap, slide, gap 0
+      for w in words + words
+        text "{w} ·", word
+
+  section menu, padding 80 48
+    mobile padding 56 20
+    row gap 24
+      title "Tonight", serif, size 72
+      text "Five courses chosen by the kitchen: 74.", margin 0 0 0 auto, color #F1EBDDB3
+    column gap 0
+      for d in dishes
+        row dish
+          text d.part, label, width 130
+            mobile hidden
+          text d.name, serif, size 24
+          text "{d.price}", margin 0 0 0 auto, font "mono"
+
+  section find, padding 0 48 80
+    mobile padding 0 20 56
+    grid columns 1.5 1, gap 16
+      tablet columns 1
+      column panel
+        text "Find us", label, color ember
+        title "Rue de la Tour 8,\n1004 Lausanne", serif, size 48, line-height 1.05
+        text "Five minutes from the station, behind the market hall. The door is the green one.", width 440
+      column quiet
+        text "Open", label
+        text "Tuesday to Saturday", size 20, weight 600
+        text "Dinner from 18:30. Last orders at 22:00.", color #F1EBDDB3
+        text "Closed Sunday and Monday.", color #F1EBDDB3
+
+  section book, padding 0 48 96
+    mobile padding 0 20 64
+    grid columns 1 1.2, gap 56
+      tablet columns 1
+      column gap 14
+        title "Come *hungry*.", serif, size 72, line-height 1
+        text "Tables of two to eight. For more, write and we close the room for you.", color #F1EBDDB3, width 380
+      column gap 14
+        if sent
+          title "See you soon, {name}.", serif, size 36
+          text "We confirm by e-mail within the hour."
+        else
+          form -> sent = true
+            field name "Ada Lovelace", required, label "Name"
+            field email "ada@example.com", type email, required, label "Email"
+            select guests "2 people", "3 to 4 people", "5 to 8 people", label "Table for"
+            button "Ask for a table", large, book
+
+  footer padding 56 48 0, gap 32, direction column
+    mobile padding 40 20 0
+    row gap 32
+      text "Rue de la Tour 8, Lausanne"
+      text "021 000 00 00"
+      text "Made with Kaury", margin 0 0 0 auto, color #F1EBDD80
+    text "Braise", wordmark, attr "aria-hidden" "true"

@@ -8,7 +8,7 @@ style emphasis
   italic, color gold
 
 page "/"
-  scene jewel, fullscreen, center, immediate, particles dust
+  scene jewel, fullscreen, center, particles dust
     light studio
     camera follows mouse
     object gem "gem", glass, color gold, size 1.2, position 0 0.4 0

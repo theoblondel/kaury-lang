@@ -17,6 +17,9 @@ export interface Binding {
   used?: boolean
   mutated?: boolean
   collection?: boolean // import posts from "./content/*.md": data that arrives (reactive)
+  /** what comes from content files: the files it is read from, and whether this name is one entry (post) or the list (posts) */
+  content?: { source: string; entry: boolean }
+  params?: { names: string[]; required: number } // a function: the values it takes
 }
 
 // ---------- Expressions ----------
@@ -87,6 +90,7 @@ export interface Command {
   children: Stmt[]
   pos: Pos
   state?: string // inside a named style: “selected background noir” applies only in that state
+  inline?: boolean // an option written alone under its element: the parser hands it back to the line of that element
   part?: string // inside a named style: “link color rust” styles the links inside
   // filled in by the checker
   meaning?: Meaning

@@ -71,3 +71,13 @@ test('every example of the vocabulary compiles', async () => {
   }
   assert.equal(failures.length, 0, failures.join('\n\n'))
 })
+
+test('the French words of the specification are those of the compiler, all of them', async () => {
+  // asked for a file in French, an assistant guessed its words: the specification gave four of them
+  const { frenchWords } = await import('../scripts/french-words.js')
+  const spec = readFileSync(resolve('docs/kaury-ai.md'), 'utf8')
+  const w = frenchWords()
+  assert.ok(spec.includes(w.keywords), 'run: npx tsx scripts/french-words.ts, and paste its two lines in section 8')
+  assert.ok(spec.includes(w.options), 'run: npx tsx scripts/french-words.ts, and paste its two lines in section 8')
+  for (const word of ['row = ligne / rangee', 'radius = coins / rayon', 'state = etat', 'none = rien / aucun']) assert.ok(spec.includes(word), word)
+})

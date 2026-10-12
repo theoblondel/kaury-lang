@@ -33,6 +33,8 @@ They take the colors, fonts and radius of your site. A block with a heading is t
 | `Features` | items, heading | `icon`, `title`, `text` |
 | `Steps` | items, heading | `title`, `text` — numbered |
 | `Stats` | items | `value`, `label` |
+| `Table` | rows, columns, heading | columns: `label`, `field`, `format` (`"price"`, `"date"`, `"number"`), `align` — a real table, sorted by a click on a column |
+| `Chart` | items, heading, unit, scale | `label`, `value` — bars; `unit` follows each figure; `scale` is the value of a full bar, to compare two lists |
 | `Pricing` | plans, heading | `name`, `price`, `per`, `text`, `features`, `button`, `link`, `featured` |
 | `Testimonials` | items, heading | `quote`, `name`, `role`, `photo` |
 | `Team` | people, heading | `name`, `role`, `photo` (initial when no photo) |

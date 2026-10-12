@@ -10,7 +10,10 @@ export const inBrowser = () => typeof window !== 'undefined' && !(globalThis as 
 // ---------------- hydration ----------------
 let hydrating = false
 const touched = new Set<any>()
-export class HydrationMismatch extends Error {}
+export class HydrationMismatch extends Error {
+  /** Read by the reactive core: this one is not a mistake to report, the page has to be rebuilt (see renderPage). */
+  rebuild = true
+}
 export function setHydrating(v: boolean) {
   hydrating = v
   if (v) touched.clear()
@@ -95,8 +98,8 @@ export function frame(el: any, fn: () => unknown) {
   let near = false
   effect(() => {
     const v = String(fn() ?? '')
-    if (near) el.setAttribute('src', v)
-    else el.setAttribute('data-src', v)
+    if (near) el.setAttribute('src', withBase(v))
+    else el.setAttribute('data-src', withBase(v))
   })
   if (typeof IntersectionObserver === 'undefined' || !inBrowser()) return
   const io = new IntersectionObserver((entries) => {
@@ -109,11 +112,23 @@ export function frame(el: any, fn: () => unknown) {
   io.observe(el)
 }
 
+/** The attributes that hold an address: under a folder, an address of the site starts with it. */
+const ADDRESS = new Set(['href', 'src', 'action', 'poster'])
+
+/**
+ * The part of an address after “#” is the name of a section, and a section named with an accent (réalisations) has
+ * its id without it: “#réalisations” leads there too.
+ */
+export function plainHash(url: string): string {
+  const at = url.indexOf('#')
+  return at < 0 ? url : url.slice(0, at) + url.slice(at).normalize('NFD').replace(/[̀-ͯ]/g, '')
+}
+
 export function attr(el: any, name: string, fn: () => unknown) {
   effect(() => {
     const v = fn()
     if (v === false || v === null || v === undefined || (v === '' && name === 'id')) el.removeAttribute(name)
-    else el.setAttribute(name, v === true ? '' : String(v))
+    else el.setAttribute(name, v === true ? '' : ADDRESS.has(name) ? withBase(name === 'href' ? plainHash(String(v)) : String(v)) : String(v))
     if (name === 'disabled') el.disabled = !!v
   })
 }
@@ -126,6 +141,18 @@ export function style(el: any, prop: string, fn: () => unknown) {
 }
 
 export const px = (v: unknown) => (typeof v === 'number' ? `${v}px` : String(v ?? ''))
+
+/**
+ * A site served from a folder (kaury build --base /demo/, or <html data-k-base="/demo/">): its own addresses
+ * start with that folder. Addresses of other sites, “#names” and addresses already there are left alone.
+ * `set`: a list of files and widths (srcset), each one moved.
+ */
+export function withBase(url: string, set = false): string {
+  const base: string | undefined = (globalThis as any).__kauryBase ?? (typeof document !== 'undefined' ? (document as any).documentElement?.dataset?.kBase : undefined)
+  if (!base) return url
+  const own = (u: string) => (u.startsWith('/') && !u.startsWith('//') && !u.startsWith(base) ? base + u.slice(1) : u)
+  return set ? url.split(',').map((part) => part.replace(/^\s*(\S+)/, (m, u: string) => m.replace(u, own(u)))).join(',') : own(url)
+}
 
 /** "photo.jpg" → "/photo.jpg" */
 export function path(s: unknown): string {
@@ -142,26 +169,29 @@ const images = (): Record<string, { w: number; h: number; srcset?: string }> =>
 /**
  * An image with good defaults: real width/height (no layout jump), responsive srcset,
  * eager + high priority for the first image of the page, lazy for the others.
- * priority: 2 = first image of the page, 1 = near the top, 0 = further down.
+ * priority: 2 = first image of the page (the only one loaded at once), 1 = near the top (lazy, sized as such), 0 = further down.
+ * width: the width written for it, in pixels: the place it takes, so the file to pick.
  */
-export function img(el: any, src: string | (() => unknown), priority = 0) {
+export function img(el: any, src: string | (() => unknown), priority = 0, width?: number) {
+  // the build gave its first place to a background picture that opens the page (data-k-wait): it keeps waiting
+  if (priority === 2 && el.hasAttribute('data-k-wait')) priority = 1
   // attributes written by hand (attr "loading" …, attr "sizes" …) win over the automatic ones
   const own = (n: string) => el.hasAttribute(n) && !hydrating
   const ownLoading = own('loading')
-  if (!ownLoading) el.setAttribute('loading', priority ? 'eager' : 'lazy')
+  if (!ownLoading) el.setAttribute('loading', priority === 2 ? 'eager' : 'lazy')
   if (!own('decoding')) el.setAttribute('decoding', 'async')
   if (priority === 2 && !ownLoading && !own('fetchpriority')) el.setAttribute('fetchpriority', 'high')
   const ownSizes = own('sizes')
   const apply = (s: unknown) => {
     const p = path(s)
-    el.setAttribute('src', p)
+    el.setAttribute('src', withBase(p))
     const info = images()[p]
     if (!info) return
     el.setAttribute('width', String(info.w))
     el.setAttribute('height', String(info.h))
     if (info.srcset) {
-      el.setAttribute('srcset', info.srcset)
-      if (!ownSizes) el.setAttribute('sizes', priority ? '(max-width: 640px) 100vw, 60vw' : 'auto, (max-width: 640px) 100vw, 50vw')
+      el.setAttribute('srcset', withBase(info.srcset, true))
+      if (!ownSizes) el.setAttribute('sizes', width ? `(max-width: ${width}px) 100vw, ${width}px` : priority ? '(max-width: 640px) 100vw, 60vw' : 'auto, (max-width: 640px) 100vw, 50vw')
     }
   }
   if (typeof src === 'function') effect(() => apply(src()))
@@ -353,6 +383,29 @@ export function bind(el: any, read: () => unknown, write: (v: unknown) => void, 
   if (inBrowser()) el.addEventListener('input', () => batch(() => write(kind === 'number' ? toNumber(el.value) : el.value)))
 }
 
+/** A list of choices: when nothing is chosen yet, the state takes the first choice (what the list shows). */
+export function bindSelect(el: any, read: () => unknown, write: (v: unknown) => void) {
+  markDynamic()
+  effect(() => {
+    const v = read()
+    let s = v === null || v === undefined ? '' : String(v)
+    const first = el.firstChild ? el.firstChild.value ?? el.firstChild.getAttribute?.('value') : undefined
+    if (s === '' && first !== undefined && first !== null && String(first) !== '') {
+      s = String(first)
+      untracked(() => batch(() => write(s)))
+    }
+    if (el.value !== s) el.value = s
+    if (!inBrowser()) {
+      for (let o = el.firstChild; o; o = o.nextSibling) {
+        if (!o.setAttribute) continue
+        if (String(o.value ?? o.getAttribute('value')) === s) o.setAttribute('selected', '')
+        else o.removeAttribute?.('selected')
+      }
+    }
+  })
+  if (inBrowser()) el.addEventListener('input', () => batch(() => write(el.value)))
+}
+
 export function bindCheck(el: any, read: () => unknown, write: (v: boolean) => void) {
   markDynamic()
   effect(() => {
@@ -414,22 +467,23 @@ export function card(el: any, values: (() => unknown)[]) {
 }
 
 // ---------------- automatic links ----------------
-const pendingLinks: { a: any; word: string }[] = []
+const pendingLinks: { a: any; word: string; elsewhere?: string }[] = []
 let knownPaths: string[] = []
 export function setPaths(c: string[]) {
   knownPaths = c
 }
 
-export function autoLink(a: any, word: string) {
+/** `elsewhere`: where the section of that name is when it is on another page (“/#about”), known by the compiler. */
+export function autoLink(a: any, word: string, elsewhere?: string) {
   if (/^(https?:|mailto:|tel:|\/|#)/.test(word)) {
-    a.setAttribute('href', word)
+    a.setAttribute('href', withBase(word))
     if (/^https?:/.test(word)) {
       a.setAttribute('target', '_blank')
       a.setAttribute('rel', 'noopener')
     }
     return
   }
-  pendingLinks.push({ a, word })
+  pendingLinks.push({ a, word, elsewhere })
 }
 
 export function slug(s: string): string {
@@ -444,7 +498,7 @@ export function resolveLinks(pageRoot: any) {
     for (const e of n.childNodes ?? []) walk(e)
   }
   walk(pageRoot)
-  for (const { a, word } of pendingLinks.splice(0)) {
+  for (const { a, word, elsewhere } of pendingLinks.splice(0)) {
     const s = slug(word)
     let href = '#'
     if (['home', 'accueil', 'index'].includes(s)) href = '/'
@@ -453,9 +507,10 @@ export function resolveLinks(pageRoot: any) {
     else if (knownPaths.some((c) => slug(c) === s)) href = knownPaths.find((c) => slug(c) === s)!
     else {
       const near = [...ids].find((id) => id.startsWith(s) || s.startsWith(id))
-      href = near ? '#' + near : '#' + s
+      // not in this page: the page that has a section of that name (“/#about”), else the name as it is
+      href = near ? '#' + near : elsewhere ?? '#' + s
     }
-    a.setAttribute('href', href)
+    a.setAttribute('href', withBase(href))
   }
 }
 
@@ -499,7 +554,7 @@ let markedLoader: Promise<(s: string) => string> | null = null
  * Markdown rendered as rich text. On the server it is rendered at build time; while hydrating,
  * the server HTML is kept; a later change in the browser loads the Markdown library on demand.
  */
-export function markdown(el: any, fn: () => unknown) {
+export function markdown(el: any, fn: () => unknown, under = false) {
   let first = hydrating && !!el.firstChild
   effect(() => {
     const v = String(fn() ?? '')
@@ -507,15 +562,21 @@ export function markdown(el: any, fn: () => unknown) {
       first = false
       return
     }
-    renderMarkdown(el, v)
+    renderMarkdown(el, v, under)
   })
 }
-function renderMarkdown(el: any, v: string) {
+/** Under the title of a page, a text that brings its own main heading goes one level down: one <h1> per page. */
+export function underTitle(html: string): string {
+  if (!/<h1[\s>]/.test(html)) return html
+  return html.replace(/<(\/?)h([1-6])(?=[\s>])/g, (_, close, level) => `<${close}h${Math.min(6, Number(level) + 1)}`)
+}
+function renderMarkdown(el: any, v: string, under: boolean) {
   const g = globalThis as any
+  const show = (html: string) => (el.innerHTML = under ? underTitle(html) : html)
   if (g.__kauryMarkdown) {
-    el.innerHTML = g.__kauryMarkdown(v)
+    show(g.__kauryMarkdown(v))
     return
   }
   markedLoader ??= import('./markdown.js').then((m) => m.parseMarkdown)
-  markedLoader.then((parse) => (el.innerHTML = parse(v)))
+  markedLoader.then((parse) => show(parse(v)))
 }

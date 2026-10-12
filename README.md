@@ -7,14 +7,14 @@
 <p align="center">
   <strong>The programming language for immersive websites.</strong><br>
   One file holds the logic, the structure, the style and the 3D of a site.<br>
-  The compiler turns it into server-rendered HTML that scores 100 on Lighthouse.
+  The compiler turns it into server-rendered HTML that is fast by default: 100 on Lighthouse on a desktop, 95 to 99 on a phone on the examples.
 </p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@kaury/cli"><img src="https://img.shields.io/npm/v/@kaury/cli?color=F56E2E&label=npm" alt="npm version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1C1A1A" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A518-3D5C3D" alt="Node 18 or newer">
-  <img src="https://img.shields.io/badge/Lighthouse-100-3D5C3D" alt="Lighthouse 100">
+  <img src="https://img.shields.io/badge/Lighthouse-95%20to%20100-3D5C3D" alt="Lighthouse 95 to 100">
 </p>
 
 <p align="center">
@@ -80,9 +80,9 @@ Open `http://localhost:3000`, edit `site.kaury`, save: the page reloads by itsel
 | Styles | CSS or a CSS framework | **words**: `style card`, `hover lift 4`, `mobile padding 12` |
 | Animations | keyframes, a motion library | `animation slide, 30s, loop` · `enters from bottom` |
 | 3D | Three.js code | `object "knot", metal` · `scene`, `light`, `camera` |
-| Performance | to tune by hand | **100 on Lighthouse by default** |
+| Performance | to tune by hand | **fast by default** (100 on a desktop, 95 to 99 on a phone, measured on the examples) |
 | SEO and AI visibility | plugins | sitemap, Open Graph, JSON-LD, `llms.txt` built in |
-| Errors | a stack trace | the line, the word and the fix: `did you mean "count"?` |
+| Errors | a stack trace | the line, the word and the fix: `did you mean "count"?` · `in Kaury: size 20` |
 
 ## What is inside
 
@@ -108,7 +108,9 @@ Kaury is short, regular and checked by a compiler that explains its errors — w
 
 - [`docs/kaury-ai.md`](docs/kaury-ai.md) is the whole language in one file: give it to Claude, ChatGPT, Gemini or Cursor and ask for a site.
 - `kaury new` puts an `AGENTS.md` and the spec in every project, so an assistant opened in it knows what to do.
-- `kaury check --json` returns each problem with its line, column and fix: an agent can correct itself in a loop.
+- `kaury check --json` returns each problem with its line, column and fix: an agent can correct itself in a loop. It also renders every page, so what only fails on display is in the list.
+- Habits from HTML, CSS and JavaScript get the Kaury form: `font-size 20` answers `in Kaury: size 20`, `h1 "Title"` answers `in Kaury: title "…"`, `&&` answers `"&&" is written "and"`.
+- Nothing passes in silence: a wrong value, a missing comma or a page that fails while it is built stops the build with its line.
 - The built sites publish `llms.txt`, and the language's site an [ARD](https://agenticresourcediscovery.org/spec/) `ai-catalog.json`.
 
 ## Commands
@@ -117,7 +119,7 @@ Kaury is short, regular and checked by a compiler that explains its errors — w
 |---|---|
 | `kaury new my-site` | creates a ready-to-use project (`--template landing`, `blog`, `portfolio`) |
 | `kaury dev` | live preview, reloads on every change |
-| `kaury check [--json]` | checks the code without building |
+| `kaury check [--json]` | checks the code and renders every page, without building |
 | `kaury build` | the final, optimized site in `dist/` |
 | `kaury deploy --netlify` | builds then publishes (`--vercel` too) |
 | `kaury run file.kaury` | runs a program without pages |
@@ -140,7 +142,7 @@ Every Kaury example of these pages is compiled by the test suite: the docs canno
 
 ## Status
 
-Kaury is young (0.4). It already builds complete multi-page sites with 3D, ready-made blocks, forms that send e-mails and four templates, and its own site is written in it. On the way: a language server for every editor and the published VS Code extension (its source is in [`editors/vscode`](editors/vscode)).
+Kaury 1.0. It builds complete multi-page sites with 3D, ready-made blocks (a table and a chart among them), forms that send e-mails and four templates. It was tested with assistants that had never seen it: given the specification alone and no compiler, the last sixteen of them wrote sixteen sites that compiled at the first try. Its own site is written in it. On the way: a language server for every editor and the published VS Code extension (its source is in [`editors/vscode`](editors/vscode)).
 
 Ideas, bugs, questions: [open an issue](https://github.com/theoblondel/kaury-lang/issues).
 
@@ -158,7 +160,7 @@ Ideas, bugs, questions: [open an issue](https://github.com/theoblondel/kaury-lan
 | `src/immersion/` | 3D (Three.js), shapes, Lottie, particles |
 | `src/cli/` | the `kaury` command, build, images, fonts, content collections |
 | `site/` | the site of the language, written in Kaury |
-| `examples/` | Crush (complete immersive site), hello |
+| `examples/` | Crush (complete immersive site), five designed sites (Lina, a restaurant; Forge, a gym; Nuit, a perfume launch in 3D; Terre, a shop; Relay, a product page with live charts), hello |
 | `docs/` | the specification for AI assistants |
 | `editors/vscode/` | VS Code extension |
 | `playground/` | the in-browser playground |

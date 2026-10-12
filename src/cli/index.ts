@@ -7,7 +7,7 @@ import { createServer } from 'node:http'
 import { join, resolve, extname, dirname, relative } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { compile, formatErrors, msg, setLanguage } from '../core/index.js'
-import { build, run, findEntry, CompileFailure, packageRoot } from './project.js'
+import { build, run, findEntry, CompileFailure, packageRoot, renderCheck } from './project.js'
 import { newSiteTemplate, TEMPLATES } from './template.js'
 import { devMailHandler, readEnvFile } from './mail.js'
 
@@ -30,13 +30,13 @@ ${c.bold(msg('Commands', 'Commandes'))}
   kaury new ${c.gray('my-site')}          ${msg('creates a ready-to-use project', 'crée un projet prêt à l\'emploi')} ${c.gray('(--template starter|landing|blog|portfolio)')}
   kaury dev ${c.gray('[file]')}           ${msg('shows the site and reloads it on every change', 'affiche le site et le recharge à chaque modification')}
   kaury build ${c.gray('[file]')}         ${msg('makes the final, optimized site in dist/', 'produit le site final, optimisé, dans dist/')}
-  kaury check ${c.gray('[files]')}        ${msg('checks the code without building', 'vérifie le code sans construire')} ${c.gray('(--json)')}
+  kaury check ${c.gray('[files]')}        ${msg('checks the code and renders every page, without building', 'vérifie le code et affiche chaque page, sans construire')} ${c.gray('(--json)')}
   kaury run ${c.gray('file.kaury')}       ${msg('runs a program (no page)', 'exécute un programme (sans page)')}
   kaury compile ${c.gray('file.kaury')}   ${msg('shows the generated JavaScript', 'montre le JavaScript produit')}
   kaury deploy ${c.gray('[--netlify|--vercel]')}  ${msg('builds then publishes', 'construit puis met en ligne')}
 
-${c.gray(msg('Options: --lang fr|en (messages), --port 3000, --out dist', 'Options : --lang fr|en (messages), --port 3000, --out dist'))}
-${c.gray('Docs: https://kaury.dev   ·   AI spec: docs/kaury-ai.md')}
+${c.gray(msg('Options: --lang fr|en (messages), --port 3000, --out dist, --base /folder/ (a site served from a folder)', 'Options : --lang fr|en (messages), --port 3000, --out dist, --base /dossier/ (un site servi depuis un dossier)'))}
+${c.gray('Docs: https://dev.kaury.studio   ·   AI spec: docs/kaury-ai.md')}
 `)
 }
 
@@ -47,7 +47,7 @@ async function main() {
   const args = argv.filter((a, i) => !(a === '--lang' || argv[i - 1] === '--lang'))
   const [cmd, ...rest] = args
   const flags = new Set(rest.filter((a) => a.startsWith('--')))
-  const positional = rest.filter((a, i) => !a.startsWith('--') && !['--port', '--out', '--template', '-t'].includes(rest[i - 1]))
+  const positional = rest.filter((a, i) => !a.startsWith('--') && !['--port', '--out', '--sortie', '--base', '--template', '-t'].includes(rest[i - 1]))
   const here = process.cwd()
   switch (cmd) {
     case undefined: case 'help': case 'aide': case '--help': case '-h':
@@ -59,7 +59,7 @@ async function main() {
     case 'dev':
       return dev(here, positional[0], Number(value(rest, '--port') ?? 3000))
     case 'build': case 'construis':
-      return buildCmd(here, positional[0], value(rest, '--out') ?? value(rest, '--sortie'))
+      return buildCmd(here, positional[0], value(rest, '--out') ?? value(rest, '--sortie'), value(rest, '--base'))
     case 'check': case 'verifie':
       return check(here, positional, flags.has('--json'))
     case 'run': case 'lance':
@@ -121,11 +121,11 @@ function newProject(name: string, template: string) {
 }
 
 // ---------------------------------------------------------------- build
-async function buildCmd(here: string, file?: string, out?: string) {
+async function buildCmd(here: string, file?: string, out?: string, base?: string) {
   try {
     const entry = findEntry(here, file)
     console.log(c.gray(msg(`Building ${relative(here, entry)}…`, `Construction de ${relative(here, entry)}…`)))
-    const r = await build(entry, { out })
+    const r = await build(entry, { out, base })
     for (const { e, source } of r.collected.warnings) console.log(c.yellow(e.format(source)))
     console.log(`${c.green('✓')} ${r.pages.length} page${r.pages.length > 1 ? 's' : ''} (${r.pages.join(', ')}), ${r.images} image${r.images === 1 ? '' : 's'} ${msg('optimized', 'optimisée' + (r.images > 1 ? 's' : ''))}, ${r.duration} ms → ${relative(here, r.dir) || '.'}`)
     if (r.collected.immersion) console.log(c.gray(msg('  immersion: the 3D library loads only on pages that need it, after the page is displayed.', '  immersion : la 3D se charge seulement sur les pages qui en ont besoin, après l\'affichage.')))
@@ -147,22 +147,53 @@ function kauryFiles(d: string): string[] {
   return r
 }
 
-function check(here: string, files: string[], json: boolean) {
+async function check(here: string, files: string[], json: boolean) {
   const list = files.length ? files.flatMap((f) => (statSync(resolve(here, f)).isDirectory() ? kauryFiles(resolve(here, f)) : [resolve(here, f)])) : kauryFiles(here)
   const all: any[] = []
   let errors = 0
+  const withPages = new Set<string>()
   for (const f of list) {
     const src = readFileSync(f, 'utf8')
     const r = compile(src, { file: relative(here, f).replace(/\\/g, '/'), checkOnly: true })
     errors += r.errors.length
+    if (r.info?.pages.length) withPages.add(f)
     if (json) all.push(...[...r.errors, ...r.warnings].map((e) => e.toJSON()))
     else {
       const m = formatErrors(r, src)
       if (m) console.log((r.errors.length ? c.red : c.yellow)(m) + '\n')
     }
   }
-  if (json) console.log(JSON.stringify({ ok: errors === 0, files: list.length, problems: all }, null, 2))
-  else if (errors === 0) console.log(`${c.green('✓')} ${list.length} ${msg('file' + (list.length > 1 ? 's' : '') + ' checked, no error.', 'fichier' + (list.length > 1 ? 's vérifiés' : ' vérifié') + ', aucune erreur.')}`)
+  // then the pages are rendered, without writing the site: some mistakes only show when a page is displayed.
+  // The site of the folder, or the files given by name.
+  let pages = 0
+  if (errors === 0) {
+    let sites: string[] = []
+    if (files.length) sites = files.map((f) => resolve(here, f)).filter((f) => withPages.has(f))
+    else {
+      try {
+        const entry = findEntry(here)
+        if (withPages.has(entry)) sites = [entry]
+      } catch {}
+    }
+    for (const entry of sites) {
+      try {
+        const r = await renderCheck(entry)
+        pages += r.pages
+        errors += r.failed.length
+        for (const { e, source } of [...r.failed, ...r.warnings]) {
+          e.file = relative(here, resolve(dirname(entry), e.file ?? '')).replace(/\\/g, '/')
+          if (json) all.push(e.toJSON())
+          else console.log((e.severity === 'error' ? c.red : c.yellow)(e.format(source)) + '\n')
+        }
+      } catch (e) {
+        errors++
+        if (json) all.push(...(e instanceof CompileFailure ? e.errors.map((x) => x.e.toJSON()) : [{ severity: 'error', message: (e as Error)?.message ?? String(e) }]))
+        else showFailure(e)
+      }
+    }
+  }
+  if (json) console.log(JSON.stringify({ ok: errors === 0, files: list.length, pages, problems: all }, null, 2))
+  else if (errors === 0) console.log(`${c.green('✓')} ${list.length} ${msg('file' + (list.length > 1 ? 's' : '') + ' checked', 'fichier' + (list.length > 1 ? 's vérifiés' : ' vérifié'))}${pages ? msg(`, ${pages} page${pages > 1 ? 's' : ''} rendered`, `, ${pages} page${pages > 1 ? 's' : ''} affichée${pages > 1 ? 's' : ''}`) : ''}, ${msg('no error.', 'aucune erreur.')}`)
   else console.log(c.red(`${errors} ${msg('error', 'erreur')}${errors > 1 ? 's' : ''}.`))
   if (errors) process.exitCode = 1
 }

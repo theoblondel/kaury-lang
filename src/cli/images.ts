@@ -11,7 +11,9 @@ export interface ImageInfo {
 }
 
 const RASTER = /\.(png|jpe?g|webp|avif)$/i
-const WIDTHS = [320, 640, 960, 1600]
+const WIDTHS = [320, 640, 800, 960, 1280, 1600]
+// the quality of the WebP versions: what the eye does not tell from the original on a photograph, at the usual weight
+const QUALITY = 75
 
 function walk(dir: string, out: string[] = []): string[] {
   if (!existsSync(dir)) return out
@@ -65,7 +67,8 @@ export async function optimizeImages(dist: string, cacheDir: string): Promise<Re
     }
     if (!RASTER.test(file) || !sharp) continue
     const st = statSync(file)
-    const key = `${st.size}-${st.mtimeMs}`
+    // the widths are part of the key: an image kept from a build that made other widths is made again
+    const key = `${st.size}-${st.mtimeMs}-${WIDTHS.join('.')}-${QUALITY}`
     const c = cache[url]
     if (c && c.key === key && c.files.every((f) => existsSync(join(cacheDir, 'img', f)))) {
       for (const f of c.files) copyFileSync(join(cacheDir, 'img', f), join(outDir, f))
@@ -82,14 +85,14 @@ export async function optimizeImages(dist: string, cacheDir: string): Promise<Re
     const set: string[] = []
     for (const width of WIDTHS.filter((x) => x < w)) {
       const f = `${name}-${width}-${hash}.webp`
-      await sharp(file).resize({ width }).webp({ quality: 78 }).toFile(join(cacheDir, 'img', f))
+      await sharp(file).resize({ width }).webp({ quality: QUALITY }).toFile(join(cacheDir, 'img', f))
       copyFileSync(join(cacheDir, 'img', f), join(outDir, f))
       files.push(f)
       set.push(`/_kaury/img/${f} ${width}w`)
     }
     // the largest version too (re-encoded in WebP, often much lighter than the original)
     const fullName = `${name}-${w}-${hash}.webp`
-    await sharp(file).webp({ quality: 80 }).toFile(join(cacheDir, 'img', fullName))
+    await sharp(file).webp({ quality: QUALITY + 2 }).toFile(join(cacheDir, 'img', fullName))
     const fullSize = statSync(join(cacheDir, 'img', fullName)).size
     if (fullSize < st.size || !/\.webp$/i.test(file)) {
       copyFileSync(join(cacheDir, 'img', fullName), join(outDir, fullName))

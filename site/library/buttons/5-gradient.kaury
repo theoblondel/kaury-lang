@@ -9,7 +9,7 @@ style sunset
   hover lift 4, grow 1.03
 
 style sunset-ghost
-  background transparent, color coral, radius 18, padding 18 26, weight 800, size 18, shadow none
+  background transparent, color #B8404B, radius 18, padding 18 26, weight 800, size 18, shadow none
   hover background #FF5F6D1A
 
 page "/"

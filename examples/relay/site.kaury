@@ -1,0 +1,259 @@
+// Relay: the landing page of a delivery tool for bike couriers.
+// Read as: a product page for people who run a small delivery team, in a clear, exact language:
+// paper, ink and one green. The picture of the page is the product itself, drawn in Kaury and alive.
+// Variance 6, motion 5, density 5.
+site "Relay"
+  colors accent #0B7A5B, paper #F4F5F1, panel #FFFFFF, ink #101412, soft #E4E7E0
+  fonts "General Sans", "Clash Grotesk"
+  lang "en"
+  url "https://relay.example"
+  style background paper, color ink, radius 16, max-width 1280
+  seo "Relay, deliveries on time for bike couriers", "Relay plans the routes of a team of bike couriers, tells each customer when the parcel is close, and shows what was late and why. Free for three riders."
+
+state range = "week"
+state team = "small"
+state sent = false
+
+let periods = [
+  { id: "today", name: "Today" },
+  { id: "week", name: "This week" },
+  { id: "month", name: "This month" }
+]
+
+let numbers = {
+  today: { parcels: "184", ontime: "97%", minutes: "21", riders: [
+    { name: "Ines", done: 52, bar: "100%" },
+    { name: "Marc", done: 47, bar: "90%" },
+    { name: "Sana", done: 44, bar: "85%" },
+    { name: "Théo", done: 41, bar: "79%" }
+  ] },
+  week: { parcels: "1,236", ontime: "96%", minutes: "23", riders: [
+    { name: "Sana", done: 331, bar: "100%" },
+    { name: "Ines", done: 318, bar: "96%" },
+    { name: "Marc", done: 302, bar: "91%" },
+    { name: "Théo", done: 285, bar: "86%" }
+  ] },
+  month: { parcels: "5,410", ontime: "95%", minutes: "24", riders: [
+    { name: "Ines", done: 1422, bar: "100%" },
+    { name: "Sana", done: 1390, bar: "98%" },
+    { name: "Théo", done: 1311, bar: "92%" },
+    { name: "Marc", done: 1287, bar: "91%" }
+  ] }
+}
+let seen = numbers[range]
+
+let stops = [
+  { place: "Rue du Lac 12", time: "10:42", state: "Delivered" },
+  { place: "Avenue de la Gare 3", time: "10:58", state: "Delivered" },
+  { place: "Quai Perdonnet 14", time: "11:10", state: "Two stops away" },
+  { place: "Rue des Moulins 7", time: "11:25", state: "Planned" }
+]
+
+let teams = [
+  { id: "small", name: "1 to 3 riders", price: "0", per: "for ever", note: "Everything, for a team that starts." },
+  { id: "medium", name: "4 to 10 riders", price: "49", per: "per month", note: "Routes for the whole team, and the weekly report." },
+  { id: "large", name: "11 riders and more", price: "129", per: "per month", note: "Several depots, and someone to call." }
+]
+let plan = teams.find(t -> t.id == team)
+
+let questions = [
+  { q: "Do my riders need a new phone?", a: "No. Relay runs in the browser of any phone from the last six years. Nothing to install." },
+  { q: "What does the customer receive?", a: "One text when the parcel leaves, one when the rider is two stops away, with a link to follow it." },
+  { q: "Can I bring my addresses?", a: "Yes. Paste a list or drop a spreadsheet: Relay reads the addresses and orders the stops." },
+  { q: "What happens after three riders?", a: "Nothing changes for them. You choose a plan when the fourth one joins." }
+]
+
+style title
+  weight 600
+
+style emphasis
+  upright, color accent
+
+style display
+  font "titles", size 92, line-height 0.94, tracking -3
+  tablet size 76
+  mobile size 50, tracking -1.5
+
+style heading
+  font "titles", size 56, line-height 1, tracking -1.5
+  mobile size 36, tracking -1
+
+style lead
+  size 20, line-height 1.5, max-width 460
+  mobile size 18
+
+style label
+  font "mono", uppercase, tracking 1, size 12
+
+style quiet
+  background transparent, color ink, border 2 ink
+  hover background ink, color paper
+
+style tab
+  background transparent, color ink, border 1 soft, padding 7 14, size 14, weight 500
+  hover border 1 ink
+  selected background ink, color paper, border 1 ink
+
+style panel
+  background panel, radius 20, padding 22, gap 18, border 1 soft, shadow soft
+  mobile padding 16
+
+style tile
+  background paper, radius 14, padding 16, gap 4
+  mobile padding 10
+
+style figure
+  font "titles", size 40, weight 600, line-height 1, tracking -1
+  mobile size 24
+
+style track
+  background soft, radius 999, height 10, clip
+
+style fill
+  background accent, radius 999, height 10
+
+style sheet
+  background panel, radius 20, padding 28, gap 14, border 1 soft
+  mobile padding 22
+
+style green
+  background accent, radius 20, padding 28, gap 14
+  mobile padding 22
+
+style stop
+  gap 12, padding 12 0, border-top 1 soft
+
+style chip
+  font "mono", size 11, padding 4 9, radius 999, background soft
+
+style bubble
+  background soft, radius 16, padding 14 16, size 15, line-height 1.45, max-width 300
+
+// the first words of the page move in but do not fade in: what fades in is read late
+animation rise, 0.9s, smooth
+  from move 0 28
+  to move 0 0
+
+animation grow, 0.9s, smooth
+  from opacity 0, move -40 0
+  to opacity 1, move 0 0
+
+page "/"
+  section header, sticky, padding 16 48
+    mobile padding 12 20
+    logo "Relay"
+    links Product, Prices, Questions
+    button "Start free", small, to "#start"
+
+  section hero, padding 48 48 96
+    mobile padding 24 20 64
+    grid columns 1.15 1, gap 56
+      tablet columns 1, gap 36
+      column gap 24, middle, rise
+        text "For bike couriers", label
+        title "Every parcel,\n*on time*.", display
+        text "Relay plans the routes, tells each customer when the parcel is close, and shows what was late and why.", lead
+        row gap 12
+          button "Start free", large, to "#start"
+          button "Prices", large, quiet, to "#prices"
+      column panel
+        row gap 8
+          for p in periods
+            button p.name, tab, selected (range == p.id) -> range = p.id
+        grid 3 columns, gap 10
+          mobile columns 3, gap 6
+          column tile
+            text "Parcels", label
+            text seen.parcels, figure
+          column tile
+            text "On time", label
+            text seen.ontime, figure
+          column tile
+            text "Minutes each", label
+            text seen.minutes, figure
+        column gap 0
+          for r in seen.riders
+            grid columns 1 4 0.8, gap 12, padding 10 0, border-top 1 soft
+              mobile columns 1.2 3 0.9
+              text r.name, weight 500
+              box track, middle
+                box fill, grow, width r.bar
+              text "{r.done}", label, align right, middle
+        text "Live: change the period above.", label, color muted, margin auto 0 0 0
+
+  section product, padding 0 48 96
+    mobile padding 0 20 64
+    grid columns 1.3 1, gap 40
+      tablet columns 1, gap 12
+      title "Three things, *done well*.", heading, level 2
+      text "No map to stare at all day, no board to keep up to date. Relay does the dull part and leaves you the calls.", lead, middle
+    spacer 20
+    grid columns 1.2 1 1, gap 16
+      tablet columns 1
+      column sheet
+        text "Routes", label
+        subtitle "The order of the stops fixes itself.", level 3, size 26, line-height 1.1
+        column gap 0
+          for s in stops
+            row stop
+              text s.time, label
+              text s.place, weight 500
+              text s.state, chip, margin 0 0 0 auto
+      column sheet
+        text "Customers", label
+        subtitle "A text when it is close.", level 3, size 26, line-height 1.1
+        text "Your parcel is two stops away. Sana will ring in about eight minutes.", bubble
+        text "Fewer missed doors, fewer second trips.", color muted
+      column green
+        text "Reports", label
+        text "23", font "titles", size 120, weight 600, line-height 0.9, tracking -4
+        text "minutes per parcel this week, one less than last week. You see why on Monday morning."
+
+  section prices, padding 0 48 96
+    mobile padding 0 20 64
+    grid columns 1 1.2, gap 64
+      tablet columns 1, gap 24
+      column gap 16
+        title "One price,\nby the *team*.", heading, level 2
+        text "Every plan has everything. You pay for the number of riders, not for features.", lead
+      column sheet
+        row gap 8
+          for t in teams
+            button t.name, tab, selected (team == t.id) -> team = t.id
+        row gap 12
+          text "CHF {plan.price}", font "titles", size 88, weight 600, line-height 0.9, tracking -3
+          text plan.per, label, margin auto 0 10 0
+        text plan.note, size 18
+        button "Start free", large, to "#start", margin 6 0 0 0
+
+  section questions, padding 0 48 96
+    mobile padding 0 20 64
+    grid columns 1 1.7, gap 56
+      tablet columns 1, gap 12
+      title "Before you *ask*.", heading, level 2
+      column gap 4
+        for f in questions
+          details f.q
+            text f.a, color muted
+
+  section start, padding 0 48 110
+    mobile padding 0 20 72
+    column green
+      grid columns 1.2 1, gap 48
+        tablet columns 1, gap 20
+        column gap 12
+          title "Three riders, free, for ever.", heading, level 2
+          text "Leave an address: you get a link, and your first route is planned in ten minutes."
+        column gap 12, middle
+          if sent
+            text "Check your inbox: the link is on its way.", weight 600, size 20
+          else
+            form mail "hello@relay.example", subject "A new team" -> sent = true
+              field email "you@yourteam.ch", type email, required, label "Email"
+              button "Send me the link", large, background ink, color paper
+
+  footer padding 40 48, gap 24
+    mobile padding 32 20
+    text "Relay, Vevey"
+    link "hello@relay.example" "mailto:hello@relay.example"
+    text "Made with Kaury", color muted, margin 0 0 0 auto

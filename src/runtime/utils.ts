@@ -1,6 +1,6 @@
 // Built-in functions available in every Kaury program.
 
-import { raw, batch, Cell, effect, onCleanup } from './reactive.js'
+import { raw, batch, Cell, effect, onCleanup, afterAdoption } from './reactive.js'
 
 const inBrowser = () => typeof window !== 'undefined' && !(globalThis as any).__kaurySSR
 
@@ -101,6 +101,10 @@ export function length(x: any): number {
 }
 export const now = () => new Date()
 export const toText = (x: unknown) => t(x)
+/** base64 "text": for links that carry code or data (accents included). */
+export const base64 = (x: unknown) => btoa(unescape(encodeURIComponent(t(x))))
+/** encode-url "a b" → "a%20b": a text made safe inside an address. */
+export const encodeUrl = (x: unknown) => encodeURIComponent(t(x))
 export const toNumber = (x: unknown) => {
   const n = typeof x === 'string' ? Number(x.replace(/[\s']/g, '').replace(',', '.')) : Number(x)
   return Number.isNaN(n) ? 0 : n
@@ -110,6 +114,17 @@ export function price(x: number, currency = 'CHF'): string {
     return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(Number(x) || 0)
   } catch {
     return `${currency} ${(Number(x) || 0).toFixed(2)}`
+  }
+}
+/** A date from what is written: "2027-06-12", "2027-06-12 14:00", with or without a time zone; a date stays itself. */
+export const toDate = (x: unknown): Date => (x instanceof Date ? x : new Date(typeof x === 'string' ? x.trim().replace(/^(\d{4}-\d{2}-\d{2})\s+(?=\d)/, '$1T') : (x as number)))
+/** A number as people read it: the separators of the language of the site, at most “decimals” digits after the point. */
+export function formatNumber(x: unknown, decimals = 0): string {
+  const n = Number(x) || 0
+  try {
+    return new Intl.NumberFormat(locale, { maximumFractionDigits: Math.max(0, Number(decimals) || 0) }).format(n)
+  } catch {
+    return String(n)
   }
 }
 export function formatDate(d: Date | string | number, style: 'long' | 'short' | 'time' = 'long'): string {
@@ -160,20 +175,24 @@ export function later(ms: number, fn: () => void): () => void {
 /** Keeps a state in the browser: it survives a page reload. */
 export function persist(key: string, cell: Cell) {
   if (!inBrowser() || !(cell instanceof Cell)) return
-  try {
-    const s = localStorage.getItem('kaury:' + key)
-    if (s !== null) cell.v = JSON.parse(s)
-  } catch {
-    /* storage unavailable */
-  }
-  effect(() => {
-    // read through reactivity: every item and the length are tracked
-    const v = JSON.stringify(cell.v)
+  // once the page has adopted its HTML (made with the first value): restored before, the saved value would make
+  // the page differ from that HTML. The saving starts after the restoring, so the first value never overwrites it.
+  afterAdoption(() => {
     try {
-      localStorage.setItem('kaury:' + key, v)
+      const s = localStorage.getItem('kaury:' + key)
+      if (s !== null) cell.v = JSON.parse(s)
     } catch {
-      /* storage full or blocked */
+      /* storage unavailable */
     }
+    effect(() => {
+      // read through reactivity: every item and the length are tracked
+      const v = JSON.stringify(cell.v)
+      try {
+        localStorage.setItem('kaury:' + key, v)
+      } catch {
+        /* storage full or blocked */
+      }
+    })
   })
 }
 
@@ -184,7 +203,8 @@ export function vibrate(ms = 30) {
   navigator.vibrate?.(ms)
 }
 export function scrollTo(id: string) {
-  const el = document.getElementById(String(id).replace(/^#/, ''))
+  // (a section named with an accent has its id without it)
+  const el = document.getElementById(String(id).replace(/^#/, '').normalize('NFD').replace(/[̀-ͯ]/g, ''))
   el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 export async function share(data: { title?: string; text?: string; url?: string } = {}) {

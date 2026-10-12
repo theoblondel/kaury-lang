@@ -11,7 +11,7 @@ Kaury was designed so that a language model can write it well: one way to do eac
 ## The prompt
 
 ```text
-Read https://kaury.dev/kaury-ai.md — the full specification of the Kaury language.
+Read https://dev.kaury.studio/kaury-ai.md — the full specification of the Kaury language.
 Then write a complete Kaury site (one site.kaury file) for: a bakery in Lisbon,
 with a 3D croissant, the menu, opening hours and a contact form.
 ```
@@ -34,6 +34,8 @@ kaury check --json
 ```
 
 4. Repeat until `kaury check` is green, then `kaury dev`.
+
+The checker also renders every page, so what only fails when a page is displayed is in the list too. And when the assistant writes HTML, CSS or JavaScript by habit, the fix is the Kaury form: `font-size 20` answers `in Kaury: size 20`, `&&` answers `"&&" is written "and"`.
 
 An agent such as Claude Code or Cursor can run this loop on its own.
 

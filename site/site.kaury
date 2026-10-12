@@ -1,4 +1,4 @@
-// kaury.dev — the site of the Kaury language, written in Kaury. No CSS, no HTML, no JavaScript.
+// dev.kaury.studio — the site of the Kaury language, written in Kaury. No CSS, no HTML, no JavaScript.
 // Look: the Kaury Studio identity (beige, black, orange; Cabinet Grotesk and Satoshi).
 // Before building: npx tsx scripts/site-prepare.ts (reference, examples, files for AI assistants).
 
@@ -8,6 +8,12 @@ import ref from "./content/reference.yaml"
 import release from "./content/release.yaml"
 import examples from "./content/examples.yaml"
 import home from "./content/home.yaml"
+import library from "./content/library.yaml"
+import showcase from "./content/showcase.yaml"
+import sources from "./content/showcase-code.yaml"
+import families from "./content/pieces/*.yaml"
+import homepages from "./content/templates.yaml"
+import measures from "./content/measures.yaml"
 import spec from "../docs/kaury-ai.md"
 
 site "Kaury"
@@ -15,22 +21,65 @@ site "Kaury"
   colors code-bg #1C1A1A, code-text #F1E8CB, code-comment #8C8577, code-string #A9C89A, code-interp #FFC48A, code-number #F7A072, code-keyword #F56E2E, code-element #F1E8CB, code-option #CDBE92, code-component #9FD3C7
   fonts "Satoshi", "Cabinet Grotesk"
   lang "en"
-  url "https://kaury.dev"
+  url "https://dev.kaury.studio"
   favicon "mark.svg"
   head "<link rel=ai-catalog href=/.well-known/ai-catalog.json>"
   style background beige, color noir, grain, radius 24, max-width 1400
   transition fade
-  seo "Kaury", "The programming language for immersive websites: one file for logic, structure, style and 3D. Open source, Lighthouse 100."
+  seo "Kaury", "The programming language for immersive websites: one file for logic, structure, style and 3D. Open source, fast by default.", image "share.jpg"
 
 // ---------------- data ----------------
 let install = "npm install -g @kaury/cli"
 let repo = "https://github.com/theoblondel/kaury-lang"
 let guide = docs.sort(d -> d.order)
 let articles = posts.sort(p -> p.date).reverse()
-let prompt = "Read https://kaury.dev/kaury-ai.md — the full specification of the Kaury language. Then write a complete Kaury site (one site.kaury file) for: "
+let prompt = "Read https://dev.kaury.studio/kaury-ai.md — the full specification of the Kaury language. Then write a complete Kaury site (one site.kaury file) for: "
+let skill-prompt = "Read https://dev.kaury.studio/skills/kaury-taste/SKILL.md and follow it for every site you design in Kaury."
+let lib-cats = library.categories
+let lib-star = lib-cats.find(c -> c.id == "heroes")
+let lib-rest = lib-cats.filter(c -> c.id != "heroes")
+let tpl-items = homepages.items
+let sites = showcase.list
+state mood = ""
 state tab = 0
-state likes = 0
 state copied = ""
+
+style lib-card
+  background paper, radius 24, padding 14 14 24, gap 14
+  hover lift 4, shadow hard
+  text color soft
+  link color rust, weight 500, plain
+
+style lib-frame
+  background beige, radius 16, clip, height 230, border 1 faint
+
+style lib-frame-wide
+  background beige, radius 16, clip, height 440, border 1 faint
+  mobile height 240
+
+style tpl-frame
+  background beige, radius 16, clip, height 750, border 1 faint
+  mobile height 520
+
+style lib-label
+  padding 0 10
+
+style tag
+  font "mono", size 12, uppercase, tracking 1, color rust
+
+style chip
+  font "mono", size 13, padding 8 14, radius 999, border 2 faint, plain, color noir
+  hover border 2 noir
+  current background noir, color beige, border 2 noir
+
+style piece
+  gap 16, padding 28 0 44, border-top 2 noir
+
+style piece-embed
+  min-height 0
+
+style piece-frame
+  radius 20, clip, border 2 noir, background white
 
 function copy-it what
   copy what
@@ -41,14 +90,14 @@ function copy-it what
 let language-ld = {
   "@context": "https://schema.org",
   "@graph": [
-    { "@type": "WebSite", "@id": "https://kaury.dev/#site", name: "Kaury", url: "https://kaury.dev/", inLanguage: "en" },
+    { "@type": "WebSite", "@id": "https://dev.kaury.studio/#site", name: "Kaury", url: "https://dev.kaury.studio/", inLanguage: "en" },
     {
       "@type": "ComputerLanguage",
-      "@id": "https://kaury.dev/#language",
+      "@id": "https://dev.kaury.studio/#language",
       name: "Kaury",
       alternateName: ".kaury",
-      url: "https://kaury.dev/",
-      description: "Kaury is an open-source programming language that compiles a single .kaury file into a complete website: logic, structure, style and 3D, server-rendered, Lighthouse 100.",
+      url: "https://dev.kaury.studio/",
+      description: "Kaury is an open-source programming language that compiles a single .kaury file into a complete website: logic, structure, style and 3D, server-rendered and fast by default.",
       license: "https://opensource.org/license/mit",
       sameAs: [repo]
     },
@@ -59,7 +108,7 @@ let language-ld = {
       operatingSystem: "Windows, macOS, Linux",
       softwareVersion: release.version,
       downloadUrl: "https://www.npmjs.com/package/@kaury/cli",
-      installUrl: "https://kaury.dev/docs/getting-started/",
+      installUrl: "https://dev.kaury.studio/docs/getting-started/",
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
       license: "https://opensource.org/license/mit"
     },
@@ -157,31 +206,8 @@ style copy-pill
   background beige, color noir, border 2 beige
   hover background orange
 
-style code-card
-  background noir, radius 24, border 2 noir, shadow strong, clip, tilt -1.5
-  tablet tilt 0
-
-style code-bar
-  padding 14 22, border-bottom 1 haze, gap 12
-
-style file
-  font "mono", size 13, color beige
-
-style meta
-  font "mono", size 12, color #8C8577
-
 style code-pane
   block radius 0, padding 26 28, size 14
-
-style result-card
-  background beige, border 2 noir, radius 24, padding 0 22 22, shadow hard, tilt 2, gap 14, width 330
-  mobile width 280
-
-style mini-bar
-  background paper, border-bottom 2 noir, padding 10 16, gap 10, margin 0 -22 4, font "mono", size 11
-
-style sticker
-  font "mono", size 12.5, color rust, tilt -3
 
 style ticker
   background orange, border-top 2 noir, border-bottom 2 noir, padding 0, clip
@@ -214,27 +240,18 @@ style pane-foot
 style preview
   radius 0, min-height 440
 
-style pipeline
-  background paper, border 2 noir, radius 24, padding 32
-
 style card-paper
   background paper, radius 24, padding 32, gap 14
   hover lift 4, shadow hard
   text color soft
 
 style number
-  font "Cabinet Grotesk", weight 800, size 56, color orange, line-height 1
+  font "Cabinet Grotesk", weight 800, size 56, color rust, line-height 1
 
 style feature
   background paper, radius 24, padding 22, gap 18
   hover lift 4, tilt -0.6, shadow hard, background beige
   text color soft, size 15
-
-style score
-  padding 32 16, border 1 haze, radius 24, gap 16, align center
-
-style ring
-  width 118, height 118, round, border 10 orange, font "Cabinet Grotesk", weight 800, size 38, color beige, center
 
 style ai-card
   background orange, border 2 noir, radius 32, padding 64, gap 48
@@ -292,31 +309,11 @@ animation scroll-left, 40s, loop, linear
   from move 0 0
   to move -50% 0
 
-animation types-in, 2.2s, steps 12, delay 0.3s
-  from reveal 0%
-  to reveal 100%
-
-animation rise, 0.9s
-  from move 0 40, tilt -4
-  to move 0 0, tilt -1.5
-
-animation drop-in, 0.9s, bounce, delay 1.9s
-  from opacity 0, move 0 -24, tilt 6
-  to opacity 1, move 0 0, tilt 2
-
-animation pop, 0.6s, delay 2.6s
-  from opacity 0, grow 0.8
-  to opacity 1, grow 1
-
-animation fill-up, scroll
-  from grow 0.4, opacity 0, tilt -90
-  to grow 1, opacity 1, tilt 0
-
 // ---------------- components ----------------
 component Header
   section header, sticky
     logo "mark.svg" "Kaury"
-    links "Docs", "Blog", "Playground", "Reference", "For AI"
+    links "Showcase", "Docs", "Library", "Playground", "For AI"
     link "GitHub", repo, new-tab
       mobile hidden
     button "Get started", small, pill-orange, to "/docs/getting-started/"
@@ -336,7 +333,10 @@ component Footer
       logo "mark.svg" "Kaury"
       text "The programming language for immersive websites. Open source, MIT. Made in Switzerland by Kaury Studio.", max-width 380
     row gap 28
+      link "Showcase" "/showcase/"
       link "Docs" "/docs/"
+      link "Library" "/library/"
+      link "Templates" "/templates/"
       link "Playground" "/playground/"
       link "Blog" "/blog/"
       link "Reference" "/reference/"
@@ -356,7 +356,7 @@ component PostCard post
     row gap 10
       text post.tag, eyebrow
       text "{post.minutes} min", mono, color soft
-    subtitle post.title, level 3, size 26
+    subtitle post.title, level 2, size 26
     text post.description, color soft
     link "Read →", "/blog/{post.slug}/"
     enters from bottom
@@ -373,37 +373,102 @@ component DocsNav current
     link "Playground" "/playground/", nav-item
 
 // ---------------- home ----------------
+// The journey: see it (a dark first screen with one object in 3D), believe it (real sites running in the page),
+// understand it (the code beside its result), trust it (what was measured), start (one command).
+state shown = 0
+
+style hero-scene
+  min-height 640
+
+style hero-copy
+  gap 26, width 100%, max-width 1400, padding 0 16, align left
+  mobile padding 0
+
+style hero-title
+  size 124, line-height 0.9, tracking -4, color beige, max-width 900
+  emphasis color orange
+  tablet size 88
+  mobile size 54, tracking -2
+
+style hero-lead
+  size 21, line-height 1.5, color mist, max-width 520
+  mobile size 18, max-width 232
+
+style orb
+  width 560, height 560, round, background orange, blur 130, opacity 0.3
+  mobile width 320, height 320
+
+style stage
+  background noir, radius 24, border 2 noir, clip, shadow strong
+
+style stage-frame
+  background noir, clip, height 640
+  mobile height 520
+
+style stage-info
+  background paper, radius 24, padding 30, gap 16
+  text color soft
+  mobile padding 22
+
+style stage-title
+  font "Cabinet Grotesk", weight 800, size 52, line-height 0.95, tracking -2, color noir
+
+style figure
+  font "Cabinet Grotesk", weight 800, size 64, line-height 0.9, tracking -2, color noir
+
+style show-chip
+  font "mono", size 12, padding 5 11, radius 999, border 1 faint, color noir
+
+style steps-card
+  background paper, radius 24, padding 30, gap 12
+  text color soft
+
+style step-n
+  font "Cabinet Grotesk", weight 800, size 44, line-height 1, color rust
+
+style meter
+  gap 24, padding 26 0, border-top 1 haze
+
+style meter-name
+  font "Cabinet Grotesk", weight 800, size 30, color beige
+
+style track
+  background haze, radius 999, height 16, clip
+
+style fill
+  background orange, radius 999, height 16
+
+style fill-soft
+  background beige, radius 999, height 16
+
+style score-n
+  font "mono", size 14, color beige, align right
+
+animation grow-in, 1.2s, smooth
+  from opacity 0, move -60 0
+  to opacity 1, move 0 0
+
 page "/"
-  seo "Kaury — the language for immersive websites", "Kaury is an open-source programming language: one .kaury file becomes a complete, server-rendered website with 3D built in. Lighthouse 100, SEO and llms.txt by default."
+  seo "Kaury — the language for immersive websites", "Kaury is an open-source programming language: one .kaury file becomes a complete, server-rendered website with 3D built in. See real sites running, read their code, start in one command."
   head json-ld(language-ld, faq-ld)
 
   Header
 
-  section hero
-    grid columns 1.1 0.9, gap 64
-      tablet columns 1
-      column gap 26
-        Eyebrow "Kaury {release.version} · open source · MIT"
-        title "One file.\nAn *immersive* website.", display
-        text "Logic, style and 3D in one file. Lighthouse 100 out of the box.", lead
-        Install
-        row gap 12
-          button "Read the docs", large, pill-orange, to "/docs/getting-started/"
-          button "Try it live", large, pill-line, to "/playground/"
-      box front, padding 8 0 56 0
-        column code-card, rise, width 88%
-          row code-bar
-            text "site.kaury", file
-            text "11 lines", meta
-          markdown (examples.list[0].code), code-pane
-        column result-card, drop-in, pin bottom 0 right 0
-          row mini-bar
-            text "● ● ●", opacity 0.5
-            text "localhost:3000"
-          title "Hello, world", level 2, size 40, text-gradient orange rust
-          text "The double computes itself: {likes * 2}", size 14, color soft
-          button "I like it ({likes})", pill-orange -> likes += 1
-        text "↑ real, click it", sticker, pop, pin bottom -34 right 24
+  scene hero, height 88vh, particles dust, background noir, hero-scene
+    light studio
+    camera follows mouse
+    object knot "knot", color orange, metal, size 1.2, position 2.3 0.1 0, alt "An orange metal knot turning slowly"
+      spin slow
+      follows mouse, smooth
+    box orb, pin top 12% right 6%, attr "aria-hidden" "true"
+    column hero-copy
+      text "Kaury {release.version} · open source · MIT", eyebrow, color orange
+      title "Websites,\nwritten in *words*.", hero-title
+      text "One file holds the logic, the look and the 3D. The compiler turns it into a fast, complete site.", hero-lead
+      Install
+      row gap 12
+        button "See what it makes", large, pill-orange, to "#showcase"
+        button "Read the docs", large, pill-light, to "/docs/getting-started/"
 
   section words, full-width, ticker
     row no-wrap, scroll-left, attr "aria-hidden" "true"
@@ -412,18 +477,43 @@ page "/"
       for w in home.words
         text "{w}   ✳", word
 
-  section how
+  section showcase
     row section-head
-      SectionHead "01" "How it works" "Write words. *Ship a site.*"
-      text "One command turns your file into a fast, static site.", lead
-    image "ill/pipeline.svg", "A .kaury file goes through kaury build and becomes HTML, CSS and JS scoring 100 on Lighthouse", pipeline
-      enters from bottom
+      SectionHead "01" "Made with Kaury" "Real sites. *One file each.*"
+      text "Not screenshots: the site below is running, here, now. Scroll inside it, click, fill its form.", lead
+    row gap 8
+      for s, i in sites
+        button s.title, small, tab-pill, selected (shown == i) -> shown = i
+    grid columns 2.5 1, gap 18
+      tablet columns 1
+      column gap 0, stage
+        row chrome
+          text "● ● ●", opacity 0.5
+          text "dev.kaury.studio{sites[shown].path}"
+        box stage-frame
+          embed (sites[shown].path), "The site, running", zoom 0.66, height 970
+      column stage-info
+        text sites[shown].kind, eyebrow
+        subtitle sites[shown].title, level 3, stage-title
+        text sites[shown].text
+        row gap 6
+          for t in sites[shown].shows
+            text t, show-chip
+        spacer 6
+        text "{sites[shown].lines}", figure
+        text "lines of Kaury. The compiler turns them into {sites[shown].elements} elements and {sites[shown].rules} style rules: none was written by hand."
+        row gap 10, margin auto 0 0 0
+          button "Open it ↗", pill-orange, to sites[shown].path
+          button "Read its code", pill-line, to "/showcase/#{sites[shown].id}"
+    row gap 12
+      button "All the sites", large, pill-dark, to "/showcase/"
+      button "Six more homepages", large, pill-line, to "/templates/"
 
   section examples
     row section-head
-      SectionHead "02" "Live examples" "The code. *The real site.*"
-      text "The right panel runs the compiler in your browser.", lead
-    row gap 8, attr "role" "tablist"
+      SectionHead "02" "How it reads" "The code. *The real site.*"
+      text "Change the tab: the right panel runs the compiler in your browser.", lead
+    row gap 8
       for ex, i in examples.list
         button ex.name, small, tab-pill, selected (tab == i) -> tab = i
     grid 2 columns, gap 0, split
@@ -440,9 +530,46 @@ page "/"
           text "localhost:3000"
         embed (examples.list[tab].preview), "Result of the example", preview
 
+  section how
+    row section-head
+      SectionHead "03" "How it works" "Three steps. *No setup.*"
+      text "Nothing to configure, no framework to choose, no stylesheet to keep in step.", lead
+    grid 3 columns, gap 16
+      tablet columns 1
+      for st, i in home.steps
+        column steps-card
+          text "{i + 1}", step-n
+          subtitle st.t, level 3, size 28
+          text st.d
+          text st.c, mono, color rust
+          enters from bottom
+
+  section measured, dark
+    row section-head
+      SectionHead "04" "Measured" "Fast *by default*."
+      text "Lighthouse on the sites above, as they are built: nothing was tuned by hand. Orange is a phone on a slow network, beige a desktop.", lead, color mist
+    column gap 0
+      for m in measures.list
+        grid columns 1 5, meter
+          mobile columns 1, gap 8
+          text m.name, meter-name
+          column gap 8, middle
+            grid columns 24 1, gap 14
+              mobile columns 7 1
+              box track
+                box fill, grow-in, width m.phone-bar
+              text "{m.phone}", score-n
+            grid columns 24 1, gap 14
+              mobile columns 7 1
+              box track
+                box fill-soft, grow-in, width m.desktop-bar
+              text "{m.desktop}", score-n
+    text "Performance score, measured on {measures.date}. Accessibility, best practices and SEO: {measures.others} on every one.", color mist, size 15
+
   section why
-    SectionHead "03" "Why Kaury" "Three promises, *kept by the compiler*."
+    SectionHead "05" "Why Kaury" "Three promises, *kept by the compiler*."
     grid 3 columns, gap 20
+      tablet columns 1
       for p in home.promises
         column card-paper
           text p.n, number
@@ -451,25 +578,8 @@ page "/"
           text p.c, mono, color rust
           enters from bottom
 
-  scene shapes, height 620, particles dust
-    light studio
-    camera follows mouse
-    object knot "knot", color orange, metal, size 1.1, position -2.6 -0.2 0, alt "An orange metal knot"
-      spin slow
-      follows mouse, smooth
-    object gem "gem", glass, color orange, size 0.6, position 0.4 1.7 -2.5, alt "A glass gem"
-      float
-      spin 40/s
-    object ring "torus", color noir, matte, size 0.9, position 2.6 -0.3 0, alt "A black ring"
-      spin on scroll
-      on click -> jump
-    Eyebrow "04 · Immersion"
-    subtitle "3D is *a word*.", big, align center
-    text "These three objects are 12 lines of Kaury. No file to load, no Three.js to write.", lead, center
-    button "See how", pill-line, to "/docs/immersion/"
-
   section built-in
-    SectionHead "05" "Built in" "Nothing *to install*."
+    SectionHead "06" "Built in" "Nothing *to install*."
     grid 3 columns, gap 16
       tablet 2 columns
       for f in home.features
@@ -479,18 +589,6 @@ page "/"
             subtitle f.t, level 3, size 22
             text f.d
           enters from bottom
-
-  section performance, dark
-    row section-head
-      SectionHead "06" "Measured" "100 · 100 · 100 · 100"
-      text "Lighthouse, mobile and desktop, on the 3D example site Crush.", lead, color mist
-    grid 4 columns, gap 16
-      tablet 2 columns
-      for s in ["Performance", "Accessibility", "Best practices", "SEO"]
-        column score
-          column ring, fill-up
-            text "100"
-          text s
 
   section ai
     grid columns 1.1 0.9, ai-card
@@ -508,19 +606,11 @@ page "/"
           text "→ site.kaury", mono, color #CDBE92
           text "✓ compiles", mono, ok
 
-  section latest
-    row section-head
-      SectionHead "08" "Blog" "Learn by *building*."
-      button "All posts", pill-line, to "/blog/"
-    grid 3 columns, gap 16
-      for post in articles.take(3)
-        PostCard post
-
   section faq
     grid columns 0.8 1.2, gap 56
       tablet columns 1
       column gap 12, sticky 110
-        Eyebrow "09 · Questions"
+        Eyebrow "08 · Questions"
         subtitle "Kaury, in *plain answers*.", big
       column faq
         for f in home.faq
@@ -535,6 +625,82 @@ page "/"
       button "Get started", large, pill-orange, to "/docs/getting-started/"
       button "Star on GitHub", large, pill-light, to repo
 
+  Footer
+
+// ---------------- showcase ----------------
+style shot-card
+  background paper, radius 20, padding 8 8 14
+  hover lift 4, shadow hard
+
+style site-block
+  gap 22, padding 44 0 64, border-top 2 noir
+
+style site-frame
+  background noir, radius 24, border 2 noir, clip, height 760
+  mobile height 560
+
+page "/showcase"
+  seo "Made with Kaury — real sites, one file each", "A perfume launch in 3D, a gym, a restaurant, a drink brand: complete sites written in Kaury, running in the page. Read the code of each one, copy it, make it yours."
+  Header
+  section showcase-home
+    Eyebrow "Showcase"
+    title "Real sites.\n*One file each.*", big
+    text "Each site below is one .kaury file and a folder of pictures. It is running in the page: scroll inside, click, send its form. Then read its code.", lead
+    grid 3 columns, gap 14
+      tablet 2 columns
+      mobile 2 columns, gap 10
+      for s in sites
+        column gap 10, shot-card
+          image s.shot, "The first screen of {s.title}", cover, height 210
+            mobile height 110
+          row gap 8
+            link s.title, "#{s.id}", weight 700, plain, color noir
+            text s.kind, tag
+  for s, i in sites
+    section id s.id, padding 0 56
+      mobile padding 0 20
+      column site-block
+        grid columns 1.4 1, gap 32
+          tablet columns 1, gap 14
+          column gap 10
+            text "{s.kind} · {s.mood}", eyebrow
+            subtitle s.title, level 2, size 70
+          column gap 12, middle
+            text s.text, lead
+            row gap 6
+              for t in s.shows
+                text t, show-chip
+        box site-frame
+          embed s.path, "{s.title}, running", zoom 0.72, height 1056
+        row gap 10
+          button "Open it full screen ↗", pill-orange, to s.path
+          button (if copied == sources.list[i].raw then "Copied ✓" else "Copy the code"), pill-line -> copy-it sources.list[i].raw
+          text "{s.lines} lines of Kaury", mono, color soft, margin 0 0 0 auto
+        details "Read the code of {s.title}"
+          markdown "```kaury\n{sources.list[i].raw}\n```"
+  section starters
+    Eyebrow "Starters"
+    subtitle "Or start from *one command*.", big
+    text "What kaury new gives you, before you change a word. The blocks follow your colors and your fonts.", lead
+    grid 3 columns, gap 16
+      tablet columns 1
+      for t in showcase.starters
+        column lib-card
+          box tpl-frame
+            embed t.path, "{t.title}, the starter", zoom 0.5, height 1500
+          subtitle t.title, level 3, size 30, lib-label
+          text t.text, lib-label
+          text t.command, mono, color rust, lib-label
+          row gap 10, lib-label
+            button (if copied == t.command then "Copied ✓" else "Copy the command"), small, pill-orange -> copy-it t.command
+            button "Open it ↗", small, pill-line, to t.path
+  section more
+    column ai-card
+      subtitle "Start from *one of them*.", big
+      text "Every site here is in the repository, in examples/. Copy the folder, change the words and the pictures, and it is yours. Or take one of the six homepages of the library.", size 19
+      row gap 12
+        button "The six homepages", large, pill-dark, to "/templates/"
+        button "Get started", large, pill-line, to "/docs/getting-started/"
   Footer
 
 // ---------------- docs ----------------
@@ -556,7 +722,7 @@ page "/docs"
 
 page "/docs/{doc.slug}" for doc in docs
   seo "{doc.title} · Kaury docs", doc.description
-  head json-ld({ "@context": "https://schema.org", "@type": "TechArticle", headline: doc.title, description: doc.description, dateModified: doc.updated, url: "https://kaury.dev/docs/{doc.slug}/", isPartOf: { "@id": "https://kaury.dev/#site" }, about: { "@id": "https://kaury.dev/#language" }, inLanguage: "en" }, { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Docs", item: "https://kaury.dev/docs/" }, { "@type": "ListItem", position: 2, name: doc.title, item: "https://kaury.dev/docs/{doc.slug}/" }] })
+  head json-ld({ "@context": "https://schema.org", "@type": "TechArticle", headline: doc.title, description: doc.description, dateModified: doc.updated, url: "https://dev.kaury.studio/docs/{doc.slug}/", isPartOf: { "@id": "https://dev.kaury.studio/#site" }, about: { "@id": "https://dev.kaury.studio/#language" }, inLanguage: "en" }, { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Docs", item: "https://dev.kaury.studio/docs/" }, { "@type": "ListItem", position: 2, name: doc.title, item: "https://dev.kaury.studio/docs/{doc.slug}/" }] })
   Header
   section docs
     grid columns 1 3.6, gap 56
@@ -587,7 +753,7 @@ page "/blog"
 
 page "/blog/{post.slug}" for post in posts
   seo "{post.title} · Kaury blog", post.description
-  head json-ld({ "@context": "https://schema.org", "@type": "BlogPosting", headline: post.title, description: post.description, datePublished: post.date, dateModified: post.updated, url: "https://kaury.dev/blog/{post.slug}/", author: { "@type": "Organization", name: "Kaury Studio", url: "https://kaury.studio" }, about: { "@id": "https://kaury.dev/#language" }, inLanguage: "en" })
+  head json-ld({ "@context": "https://schema.org", "@type": "BlogPosting", headline: post.title, description: post.description, datePublished: post.date, dateModified: post.updated, url: "https://dev.kaury.studio/blog/{post.slug}/", author: { "@type": "Organization", name: "Kaury Studio", url: "https://kaury.studio" }, about: { "@id": "https://dev.kaury.studio/#language" }, inLanguage: "en" })
   Header
   section article, max-width 820
     row gap 10
@@ -599,6 +765,107 @@ page "/blog/{post.slug}" for post in posts
     row border-top 1 faint, padding 22 0 0 0, gap 12
       button "Try it in the playground", pill-orange, to "/playground/"
       button "Read the docs", pill-line, to "/docs/getting-started/"
+  Footer
+
+// ---------------- library ----------------
+function moods-of cat
+  cat.items.map(x -> x.style).unique()
+
+component LibCard cat
+  column lib-card
+    box lib-frame
+      embed cat.cover, cat.name, zoom 0.4, height 575
+    row gap 10, lib-label
+      subtitle cat.name, level 2, size 26
+      text "{cat.count}", tag
+    text cat.text, lib-label
+    link "Browse →", "/library/{cat.id}/", lib-label
+
+page "/library"
+  seo "Kaury library — ready-made pieces to copy", "Buttons, headers, heroes, cards, effects, sections and footers written in Kaury. See each one live, copy the code, make it yours."
+  Header
+  section library-home
+    Eyebrow "Library"
+    title "Copy a piece.\n*Make it yours.*", big
+    text "{library.count} pieces in {library.styles.length} styles. Each one is a real .kaury file: watch it run, then copy the code.", lead
+    column lib-card
+      box lib-frame-wide
+        embed lib-star.second, lib-star.name, zoom 0.5, height 880
+      row gap 10, lib-label
+        subtitle lib-star.name, level 2, size 34
+        text "{lib-star.count}", tag
+      text lib-star.text, lib-label
+      link "Browse →", "/library/{lib-star.id}/", lib-label
+    grid 3 columns, gap 16
+      tablet 2 columns
+      mobile columns 1
+      for c in lib-rest
+        LibCard c
+    column ai-card
+      subtitle "Need a *whole page*?", big
+      text "{tpl-items.length} homepages ready to copy: a restaurant, an agency, a product, a festival, a craftsman, a perfume house.", size 19
+      row gap 12
+        button "See the templates", large, pill-dark, to "/templates/"
+  Footer
+
+page "/library/{cat.id}" for cat in families
+  seo "{cat.name} in Kaury · library", cat.text
+  Header
+  section library
+    row gap 10
+      link "← Library" "/library/", eyebrow, plain
+      text "{cat.count} pieces", eyebrow, color soft
+    title cat.name, big
+    text cat.text, lead
+    row gap 8
+      for c in lib-cats
+        link c.name, "/library/{c.id}/", chip, current (c.id == cat.id)
+    row gap 8
+      button "All styles", small, tab-pill, selected (not moods-of(cat).contains(mood)) -> mood = ""
+      for s in moods-of(cat)
+        button s, small, tab-pill, selected (mood == s) -> mood = s
+    for it in cat.items
+      column piece, hidden (moods-of(cat).contains(mood) and it.style != mood)
+        row gap 12
+          subtitle it.title, level 2, size 30
+          text it.style, tag
+          text "{it.lines} lines", mono, color soft
+        box piece-frame
+          embed it.preview, it.title, piece-embed, height it.height
+        row gap 10
+          button (if copied == it.raw then "Copied ✓" else "Copy the code"), small, pill-orange -> copy-it it.raw
+          button "Open in the playground", small, pill-line, to "{it.edit}"
+        details "See the code"
+          markdown "```kaury\n{it.raw}\n```"
+  Footer
+
+// ---------------- templates ----------------
+component TplCard t
+  column lib-card
+    box tpl-frame
+      embed t.preview, t.title, zoom 0.5, height 1500
+    row gap 12, lib-label
+      subtitle t.title, level 2, size 30
+      text t.style, tag
+      text "{t.lines} lines", mono, color soft
+    row gap 10, lib-label
+      button (if copied == t.raw then "Copied ✓" else "Copy the code"), small, pill-orange -> copy-it t.raw
+      button "See it full size", small, pill-line, to "{t.preview}"
+
+page "/templates"
+  seo "Kaury templates — whole homepages in one file", "Six homepages written in Kaury: a restaurant, an agency, a product, a festival, a craftsman, a perfume house. Copy one, change the words and the colors."
+  Header
+  section templates-home
+    Eyebrow "Templates"
+    title "Whole homepages.\n*One file each.*", big
+    text "{tpl-items.length} homepages, each a single .kaury file: menu, hero, sections, form, footer. Copy one, change the words and the colors, and it is yours.", lead
+    grid 2 columns, gap 16
+      tablet columns 1
+      for t in tpl-items
+        TplCard t
+    row gap 12
+      button "Browse the pieces", large, pill-line, to "/library/"
+      button "Read the docs", large, pill-line, to "/docs/getting-started/"
   Footer
 
 // ---------------- reference ----------------
@@ -667,7 +934,7 @@ page "/for-ai"
     grid 3 columns, gap 16
       for p in home.ai
         column card-paper
-          subtitle p.t, level 3, size 26
+          subtitle p.t, level 2, size 26
           text p.d
     column prompt-card, tilt 0, max-width 860
       text "Prompt", eyebrow, color orange
@@ -677,6 +944,18 @@ page "/for-ai"
       button "kaury-ai.md", large, pill-line, to "/kaury-ai.md"
       button "llms-full.txt", large, pill-line, to "/llms-full.txt"
     text "Files for crawlers and agents: /llms.txt (index), /llms-full.txt (everything in one file), /kaury-ai.md (the specification), and a .md version of every docs page.", color soft
+  section skills
+    Eyebrow "Skills"
+    title "Syntax is not *taste*.", big
+    text "The specification teaches an assistant to write Kaury. A skill teaches it to design: one file it follows every time.", lead
+    column card-paper, max-width 860
+      text "kaury-taste", mono, color rust
+      subtitle "Design taste, in Kaury only.", level 2, size 30
+      text "It reads the brief, sets three dials (variance, motion, density), then removes what gives a generated site away. No CSS, no HTML: every example is Kaury and compiles. Adapted from Taste-Skill by Leonxlnx (MIT)."
+      row gap 12
+        button (if copied == skill-prompt then "Prompt copied ✓" else "Copy the prompt"), large, pill-orange -> copy-it skill-prompt
+        button "SKILL.md", large, pill-line, to "/skills/kaury-taste/SKILL.md"
+    text "Claude Code: save the file as ~/.claude/skills/kaury-taste/SKILL.md. Any other assistant: paste the prompt.", color soft
   section spec
     Eyebrow "The specification, as given to the models"
     markdown spec.body
@@ -689,6 +968,7 @@ page "/playground"
   section playground, full-width, padding 0
     embed "/play/", "Kaury playground", playground-frame
   section play-help, padding 24 56
+    title "Write Kaury on the left, see the site on the right.", size 26, tracking -0.5
     text "The Kaury compiler runs entirely in your browser. Copy the link to share your code. Open it full screen: /play/", color soft
 
 page "/404"

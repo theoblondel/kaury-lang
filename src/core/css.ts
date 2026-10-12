@@ -78,28 +78,49 @@ const SHADOWS: Record<string, string> = {
 const TEXT_HEADS = new Set(['title', 'subtitle', 'text', 'link', 'icon', 'item', 'links'])
 
 /** CSS declarations for one option; `transform` is returned apart (several options compose it). */
-export function declarations(head: string, opt: string, vals: (string | number | undefined)[], siteColors: Record<string, string>): { decl: Decl[]; transform?: string } {
+/** Options that accept a computed value (width (n), background (c)…) → the CSS property set live. */
+export const DYNAMIC_PROP: Record<string, string> = {
+  background: 'background', color: 'color', size: 'font-size', opacity: 'opacity', width: 'width', height: 'height',
+  tint: 'color', radius: 'border-radius', margin: 'margin', padding: 'padding', gap: 'gap',
+  'min-height': 'min-height', 'max-width': 'max-width', 'line-height': 'line-height', weight: 'font-weight', tracking: 'letter-spacing',
+}
+export const PX_UNIT = new Set(['size', 'width', 'height', 'radius', 'margin', 'padding', 'gap', 'min-height', 'max-width', 'tracking'])
+
+/**
+ * Where a narrower element sits: on the left of its place (the content column for what is directly in a
+ * section), in the middle inside something written with « center ». A section itself stays in the middle.
+ */
+const PLACE = 'var(--k-mx,var(--k-mi,0px))'
+
+/** CSS declarations for one option; `transform` is returned apart (several options compose it); `strong` ones win over the defaults of the base style. */
+/** `exact`: inside a rule written for one screen (mobile …, tablet …), a size is taken as it is. */
+export function declarations(head: string, opt: string, vals: (string | number | undefined)[], siteColors: Record<string, string>, exact = false): { decl: Decl[]; transform?: string; strong?: boolean } {
   const v0 = vals[0]
   switch (opt) {
     case 'tint': {
       const c = String(v0)
       if (TEXT_HEADS.has(head)) return { decl: [['color', c]] }
-      return { decl: [['background', c], ...autoContrast(c, siteColors)] }
+      return { decl: [['background', c], ...autoContrast(c, siteColors), ['--k-glow', c]] }
     }
     case 'background': {
       if (typeof v0 === 'string' && /\.(png|jpe?g|webp|avif|gif|svg)$/i.test(v0)) {
         const u = /^(\/|[a-z][a-z0-9+.-]*:)/i.test(v0) ? v0 : '/' + v0.replace(/^\.\//, '')
-        return { decl: [['background', `center/cover no-repeat url("${u}")`]] }
+        // the veil of “shade” is a layer of the same background: with no shade it is fully clear
+        const veil = 'linear-gradient(var(--k-shade-to,0deg),rgb(0 0 0/var(--k-shade-from,var(--k-shade,0))),rgb(0 0 0/var(--k-shade,0)))'
+        // the address is apart, so that the build can give its light versions, one per screen (cli/pictures.ts)
+        return { decl: [['--k-pic', `url("${u}")`], ['background', `${veil},center/cover no-repeat var(--k-pic)`]] }
       }
       const c = v0 === undefined ? 'transparent' : String(v0)
-      return { decl: [['background', c], ...autoContrast(c, siteColors)] }
+      return { decl: [['background', c], ...autoContrast(c, siteColors), ['--k-glow', c]] }
     }
     case 'color': return { decl: [['color', v0 === undefined ? 'inherit' : String(v0)]] }
     case 'font': return { decl: [['font-family', fontFamily(String(v0))]] }
     case 'size': {
-      if (typeof v0 === 'number' && v0 > 36) {
-        // big texts (titles, numbers, named styles) shrink on small screens by themselves
-        return { decl: [['font-size', `clamp(${Math.round(v0 * 0.48)}px, ${(v0 / 13).toFixed(2)}vw, ${v0}px)`]] }
+      if (typeof v0 === 'number' && v0 > 36 && !exact) {
+        // big texts (titles, numbers, named styles) shrink on small screens by themselves;
+        // not a size written for one screen: “mobile size 46” is 46 on a phone
+        // never under 30: a size just above 36 would otherwise end smaller on a phone than the text around it
+        return { decl: [['font-size', `clamp(${Math.max(30, Math.round(v0 * 0.48))}px, ${(v0 / 13).toFixed(2)}vw, ${v0}px)`]] }
       }
       return { decl: [['font-size', px(v0)]] }
     }
@@ -107,20 +128,22 @@ export function declarations(head: string, opt: string, vals: (string | number |
     case 'light': return { decl: [['font-weight', '300']] }
     case 'weight': return { decl: [['font-weight', String(v0)]] }
     case 'italic': return { decl: [['font-style', 'italic']] }
+    case 'upright': return { decl: [['font-style', 'normal']] }
     case 'underline': return { decl: [['text-decoration', 'underline']] }
     case 'plain': return { decl: [['text-decoration', 'none']] }
     case 'uppercase': return { decl: [['text-transform', 'uppercase'], ['letter-spacing', '.06em']] }
     case 'line-height': return { decl: [['line-height', String(v0)]] }
     case 'tracking': return { decl: [['letter-spacing', px(v0)]] }
     case 'align': return { decl: [['text-align', String(v0 ?? 'left')]] }
-    case 'center': return { decl: [['text-align', 'center'], ['align-items', 'center'], ['justify-content', 'center'], ['margin-inline', 'auto']] }
+    case 'center': return { decl: [['text-align', 'center'], ['align-items', 'center'], ['justify-content', 'center'], ['margin-inline', 'auto'], ['--k-mx', 'auto']] }
+    case 'middle': return { decl: [['align-self', 'center']] }
     case 'radius': return { decl: [['border-radius', px(v0)], ['overflow', 'hidden']] }
     case 'round': return { decl: [['border-radius', '999px']] }
     case 'shadow': {
       // shadow hard pink: the offset shadow of brutalist designs, in a color
       const c = vals.slice(1).find((x) => typeof x === 'string')
       if (v0 === 'hard' && c) return { decl: [['box-shadow', `6px 6px 0 ${c}`]] }
-      return { decl: [['box-shadow', SHADOWS[String(v0 ?? 'soft')] ?? (typeof v0 === 'number' ? `0 ${v0}px ${v0 * 3}px -${v0}px rgba(0,0,0,.25)` : SHADOWS.soft)]] }
+      return { decl: [['box-shadow', SHADOWS[v0 === 'smooth' ? 'soft' : String(v0 ?? 'soft')] ?? (typeof v0 === 'number' ? `0 ${v0}px ${v0 * 3}px -${v0}px rgba(0,0,0,.25)` : SHADOWS.soft)]] }
     }
     case 'glow':
     case 'text-glow': {
@@ -140,7 +163,9 @@ export function declarations(head: string, opt: string, vals: (string | number |
     case 'zoom': {
       // the element keeps the layout of a wider one: zoom 0.5 shows a desktop page in half the width
       const z = Number(v0) || 1
-      return { decl: [['zoom', String(z)], ['width', `calc(100% / ${z})`], ['max-width', 'none']] }
+      // a zoomed element set to the full width already fills it once scaled (its content is laid out 1/z wider):
+      // widening it again would push half of it out of its parent
+      return { decl: [['zoom', String(z)]] }
     }
     case 'mesh': {
       // a mesh gradient: soft colored lights melting into the background
@@ -157,7 +182,8 @@ export function declarations(head: string, opt: string, vals: (string | number |
     }
     case 'pin': {
       // pin bottom right, pin top 20 left 10%: placed over the parent
-      const d: Decl[] = [['position', 'absolute']]
+      // (“!important”: “front”, written with it, adds its level without taking the element back into the flow)
+      const d: Decl[] = [['position', 'absolute!important']]
       for (let i = 0; i < vals.length; i++) {
         const side = vals[i]
         if (typeof side === 'string' && ['top', 'bottom', 'left', 'right'].includes(side)) {
@@ -169,7 +195,7 @@ export function declarations(head: string, opt: string, vals: (string | number |
       return { decl: d }
     }
     case 'clip': return { decl: [['overflow', 'hidden']] }
-    case 'no-wrap': return { decl: [['flex-wrap', 'nowrap'], ['white-space', 'nowrap'], ['width', 'max-content!important'], ['max-width', 'none!important']] }
+    case 'no-wrap': return { decl: [['flex-wrap', 'nowrap'], ['white-space', 'nowrap'], ['--k-ws', 'pre'], ['width', 'max-content!important'], ['max-width', 'none!important']] }
     case 'grain': return { decl: [] }
     case 'border': {
       const w = typeof v0 === 'number' ? v0 : 1
@@ -179,14 +205,27 @@ export function declarations(head: string, opt: string, vals: (string | number |
     case 'margin': return { decl: [['margin', vals.map((x) => px(x)).join(' ')]] }
     case 'padding': return { decl: [['padding', vals.map((x) => px(x)).join(' ')]] }
     case 'gap': return { decl: [['gap', vals.map((x) => px(x)).join(' ')]] }
-    case 'width': return { decl: [['width', px(v0)], ['max-width', '100%']] }
+    case 'width': return { decl: [['width', px(v0)], ['max-width', '100%'], ['margin-inline', PLACE]], strong: true }
     case 'height': return { decl: [['height', px(v0)]] }
-    case 'max-width': return { decl: [['max-width', px(v0)], ['margin-inline', 'auto'], ['width', '100%']] }
+    // max-width only limits: it never moves the element (« center » does that)
+    case 'max-width': return { decl: [['max-width', px(v0)], ['margin-inline', PLACE]], strong: true }
     case 'min-height': return { decl: [['min-height', px(v0)]] }
     case 'fullscreen': return { decl: [['min-height', '100svh'], ['display', 'flex'], ['flex-direction', 'column'], ['justify-content', 'center']] }
     case 'full-width': return { decl: [['max-width', 'none'], ['width', '100%'], ['padding-inline', '0']] }
     case 'opacity': return { decl: [['opacity', String(v0)]] }
     case 'blur': return { decl: [['filter', `blur(${px(v0)})`]] }
+    case 'grayscale': return { decl: [['filter', `grayscale(${typeof v0 === 'number' ? v0 : 1})`]] }
+    case 'shade': {
+      // darkens the background picture; with a side, only toward that side (the rest of the picture stays clear)
+      const n = typeof v0 === 'number' ? v0 : 0.5
+      const side = vals.find((x) => typeof x === 'string')
+      // both ends are always written: a shade given for one screen replaces the one above entirely
+      const decl: [string, string][] = [['--k-shade', String(n)], ['--k-shade-from', side ? '0' : String(n)]]
+      if (side) decl.push(['--k-shade-to', `to ${side}`])
+      // on a picture darkened that much, a dark text can no longer be read
+      if (n >= 0.4) decl.push(['color', '#fff'])
+      return { decl }
+    }
     case 'glass': return { decl: [['background', 'color-mix(in srgb, var(--k-bg) 55%, transparent)'], ['backdrop-filter', 'blur(16px) saturate(1.4)'], ['-webkit-backdrop-filter', 'blur(16px) saturate(1.4)'], ['border', '1px solid color-mix(in srgb, var(--k-text) 10%, transparent)']] }
     case 'gradient': {
       const cols = vals.filter((x) => typeof x === 'string')
@@ -201,9 +240,9 @@ export function declarations(head: string, opt: string, vals: (string | number |
       // columns 3 → three equal columns; columns 2 1 → the first twice as wide
       if (vals.length > 1) return { decl: [['--k-columns', String(vals.length)], ['grid-template-columns', vals.map((v) => `minmax(0, ${v}fr)`).join(' ')]] }
       return { decl: [['--k-columns', String(v0)], ['grid-template-columns', `repeat(${v0}, minmax(0, 1fr))`]] }
-    case 'direction': return { decl: [['display', 'flex'], ['flex-direction', v0 === 'row' ? 'row' : 'column']] }
+    case 'direction': return { decl: v0 === 'row' ? [['display', 'flex'], ['flex-direction', 'row']] : [['display', 'flex'], ['flex-direction', 'column'], ['align-items', 'stretch']] }
     case 'hidden': return { decl: [['display', 'none']] }
-    case 'sticky': return { decl: [['position', 'sticky'], ['top', px(v0 ?? 0)], ['z-index', '50']] }
+    case 'sticky': return { decl: [['position', 'sticky!important'], ['top', px(v0 ?? 0)], ['z-index', '50']] }
     case 'front': return { decl: [['position', 'relative'], ['z-index', '10']] }
     case 'cursor': {
       const m: Record<string, string> = { pointer: 'pointer', arrow: 'default', text: 'text', none: 'none' }
@@ -253,7 +292,9 @@ const SYSTEM_STACKS: Record<string, string> = {
   titles: 'var(--k-font-titles)', text: 'var(--k-font)',
 }
 export function fontFamily(name: string): string {
-  return SYSTEM_STACKS[name.toLowerCase()] ?? `"${name}", var(--k-font-fallback)`
+  // “<name> fallback”: the device font scaled to the width of this one, written by the build (cli/fontmetrics.ts),
+  // so that the text does not move when the real font arrives. Where no such font is defined, the name is skipped.
+  return SYSTEM_STACKS[name.toLowerCase()] ?? `"${name}", "${name} fallback", var(--k-font-fallback)`
 }
 
 export function fontUrl(name: string): string | undefined {

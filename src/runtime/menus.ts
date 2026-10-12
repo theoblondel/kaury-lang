@@ -1,4 +1,4 @@
-// The only JavaScript of a static page: the phone menu button. Standalone, a few hundred bytes.
+// The only JavaScript of a static page: the phone menu button and the embeds. Standalone, a few hundred bytes.
 
 /** Adds the phone button to every menu of the page. */
 export function installMenus() {
@@ -29,4 +29,23 @@ function installMenu(nav: any) {
   addEventListener('keydown', (e) => {
     if (e.key === 'Escape') toggle(false)
   })
+}
+
+/**
+ * Static pages: an embed waits in data-src (see frame() in dom.ts); nothing reactive runs here,
+ * so this gives it its address when it comes near the screen.
+ */
+export function installFrames() {
+  const frames = document.querySelectorAll('iframe[data-src]:not([src])')
+  if (!frames.length) return
+  const load = (el: any) => el.setAttribute('src', el.getAttribute('data-src'))
+  if (typeof IntersectionObserver === 'undefined') return frames.forEach(load)
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue
+      io.unobserve(e.target)
+      load(e.target)
+    }
+  }, { rootMargin: '200px' })
+  frames.forEach((el) => io.observe(el))
 }

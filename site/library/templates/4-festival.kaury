@@ -1,0 +1,131 @@
+// Festival · neon
+// height 3400
+site "Lumen"
+  colors accent #FF2E88, cyan #2EF2FF, night #05040B, dusk #110E22
+  fonts "Satoshi", "Tanker"
+  lang "en"
+  style background night, color white, radius 0
+  seo "Lumen 2027", "Three nights of electronic music on the lake. 9 to 11 July 2027, Vevey."
+
+state day = 0
+let days = ["Fri 9", "Sat 10", "Sun 11"]
+let acts = [
+  { day: 0, name: "Marée Haute", time: "21:00", stage: "Lake" },
+  { day: 0, name: "Volta", time: "23:00", stage: "Lake" },
+  { day: 0, name: "Petit Feu", time: "01:00", stage: "Hangar" },
+  { day: 1, name: "Sœurs Nord", time: "20:30", stage: "Hangar" },
+  { day: 1, name: "Kilowatt", time: "22:30", stage: "Lake" },
+  { day: 1, name: "Minuit Rose", time: "00:30", stage: "Lake" },
+  { day: 2, name: "Aube", time: "19:00", stage: "Lake" },
+  { day: 2, name: "Dernier Train", time: "21:30", stage: "Lake" }
+]
+let passes = [
+  { name: "One night", price: 59, text: "Pick Friday, Saturday or Sunday." },
+  { name: "Three nights", price: 139, text: "The whole weekend, both stages.", featured: true },
+  { name: "Three nights + camp", price: 189, text: "A pitch by the water, showers, breakfast." }
+]
+let facts = [
+  { k: "Where", v: "Quai Perdonnet, Vevey" },
+  { k: "Doors", v: "18:00 every night" },
+  { k: "Train", v: "Extra trains until 03:00" },
+  { k: "Age", v: "16 and over" }
+]
+
+animation flicker, 3s, loop
+  from opacity 1
+  48% opacity 1
+  50% opacity 0.4
+  52% opacity 1
+  to opacity 1
+
+style neon-title
+  font "titles", size 230, line-height 0.82, uppercase, color accent, text-glow accent 34, center
+  tablet size 150
+  mobile size 86
+
+style kicker
+  uppercase, tracking 4, size 14, color cyan, text-glow cyan 12
+
+style ticket
+  background transparent, color cyan, border 2 cyan, glow cyan 18, uppercase, tracking 3, padding 18 34
+  hover background cyan, color night
+
+style head
+  font "titles", size 88, uppercase, line-height 0.9
+  mobile size 52
+
+style tab
+  background transparent, color white, border 2 #FFFFFF33, uppercase, tracking 2, padding 12 22, shadow none
+  selected border 2 accent, color accent, glow accent 14
+
+style act
+  padding 22 0, border-top 1 #FFFFFF22, gap 24
+  hover color accent
+
+style act-name
+  font "titles", size 60, uppercase, line-height 1
+  mobile size 34
+
+style pass
+  background dusk, padding 32, gap 14, border 2 #FFFFFF1F
+  current border 2 accent, glow accent 22
+  hover lift 6
+
+style fact
+  padding 24 0, border-top 1 #FFFFFF22, gap 6
+
+page "/"
+  section header
+    logo "Lumen"
+    links Lineup, Passes, Info
+    button "Get tickets", small, ticket, to "#passes"
+
+  scene sky, height 780, center, particles stars, background night
+    mobile height 620
+    text "9 · 10 · 11 July 2027 · Vevey, on the lake", kicker
+    title "Lumen", neon-title, flicker
+    button "Get tickets", large, ticket, to "#passes"
+
+  section lineup, padding 96 48
+    mobile padding 64 20
+    row gap 24
+      title "Lineup", head
+      row gap 8, margin 0 0 0 auto
+        for d, i in days
+          button d, tab, selected (day == i) -> day = i
+    column gap 0
+      for a in acts
+        row act, hidden (a.day != day)
+          text a.time, font "mono", color cyan, width 80
+          text a.name, act-name
+          text a.stage, margin 0 0 0 auto, uppercase, tracking 3, size 13
+
+  section passes, padding 0 48 96
+    mobile padding 0 20 64
+    title "Passes", head
+    grid 3 columns, gap 16
+      tablet columns 1
+      for p in passes
+        column pass, current (p.featured == true)
+          text p.name, uppercase, tracking 3, size 13, color cyan
+          text "CHF {p.price}", font "titles", size 72, line-height 1
+          text p.text, color #FFFFFFB3
+          button "Choose", ticket
+
+  section info, background dusk, padding 96 48
+    mobile padding 64 20
+    grid columns 1 1.4, gap 64
+      tablet columns 1
+      column gap 16
+        title "Before\nyou come", head
+        text "Bring a jumper: the lake gets cold after midnight.", color #FFFFFFB3, width 320
+      column gap 0
+        for f in facts
+          column fact
+            text f.k, uppercase, tracking 3, size 12, color accent
+            text f.v, size 24, weight 600
+
+  footer padding 40 48
+    mobile padding 32 20
+    text "© Lumen 2027", color #FFFFFF80
+    text "Made with Kaury", margin 0 0 0 auto, color #FFFFFF80

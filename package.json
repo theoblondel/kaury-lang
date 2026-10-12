@@ -1,6 +1,6 @@
 {
   "name": "@kaury/cli",
-  "version": "0.4.0",
+  "version": "1.0.0",
   "main": "dist/core.js",
   "scripts": {
     "build": "node scripts/build.mjs && tsx scripts/editor.ts",
@@ -68,7 +68,7 @@
   "engines": {
     "node": ">=18"
   },
-  "homepage": "https://kaury.dev",
+  "homepage": "https://dev.kaury.studio",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/theoblondel/kaury-lang.git"

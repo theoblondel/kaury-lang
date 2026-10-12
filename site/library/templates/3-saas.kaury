@@ -1,0 +1,175 @@
+// Product · minimal
+// height 3900
+site "Tally"
+  colors accent #2B59FF, ink #12131A, paper #F7F7F4, cloud #ECEDF2
+  fonts "General Sans", "Cabinet Grotesk"
+  lang "en"
+  style background paper, color ink, radius 16, max-width 1180
+  seo "Tally", "Invoices for people who work alone: write one in a minute, get paid by link."
+
+state yearly = false
+let lines = [
+  { what: "Brand workshop", amount: "1 200" },
+  { what: "Logo and type system", amount: "2 400" },
+  { what: "Guidelines", amount: "800" }
+]
+let steps = [
+  { title: "Write it", text: "Pick a client, add lines. Tally does the sums and the tax." },
+  { title: "Send the link", text: "Your client opens a page, not an attachment." },
+  { title: "Get paid", text: "Card or transfer. The invoice marks itself as paid." }
+]
+let plans = [
+  { name: "Solo", month: 0, text: "Five invoices a month.", cta: "Start free" },
+  { name: "Studio", month: 12, text: "Unlimited invoices, your logo, reminders.", cta: "Try Studio", featured: true },
+  { name: "Team", month: 29, text: "Five seats and shared clients.", cta: "Try Team" }
+]
+let faq = [
+  { q: "Is the free plan really free?", a: "Yes, with no card. Five invoices every month, forever." },
+  { q: "Which countries do you handle?", a: "Switzerland and the European Union, with the right tax lines and QR bills." },
+  { q: "Can I leave with my data?", a: "One click exports every invoice as PDF and CSV." }
+]
+
+style emphasis
+  color accent
+
+style display
+  font "titles", size 84, line-height 0.98, tracking -3, weight 800
+  tablet size 60
+  mobile size 42, tracking -2
+
+style head
+  font "titles", size 52, line-height 1, tracking -2, weight 800
+  mobile size 36
+
+style lead
+  size 20, line-height 1.5, color #12131AB3, width 480
+
+style primary
+  background accent, color white, weight 600
+  hover lift 2, shadow medium
+
+style quiet
+  background white, color ink, border 1 #12131A1F, weight 600
+  hover border 1 ink
+
+style invoice
+  background white, radius 20, padding 28, gap 0, shadow strong, tilt 2
+  tablet tilt 0
+
+style inv-line
+  padding 14 0, border-top 1 #12131A14
+
+style step
+  padding 26 0, border-top 1 #12131A1F, gap 24
+
+style num
+  font "mono", color accent, width 48
+
+style tile
+  background white, radius 20, padding 28, gap 10, border 1 #12131A12
+  text color #12131AB3
+
+style tile-dark
+  background ink, color white, radius 20, padding 28, gap 10
+  text color #FFFFFFB3
+
+style tile-accent
+  background accent, color white, radius 20, padding 28, gap 10
+
+style switch
+  background cloud, radius 999, padding 5, gap 4
+
+style seg
+  background transparent, color ink, radius 999, padding 9 18, shadow none, size 15
+  selected background ink, color white
+
+style plan
+  background white, radius 20, padding 28, gap 12, border 1 #12131A12
+  current background ink, color white
+  hover lift 4
+
+page "/"
+  section header
+    logo "Tally"
+    links Steps, Prices, Questions
+    button "Start free", small, primary, to "#prices"
+
+  section hero, padding 72 0
+    mobile padding 40 0
+    grid columns 1.1 0.9, gap 56
+      tablet columns 1
+      column gap 22
+        title "Invoices that get *paid*.", display
+          enters from bottom
+        text "For people who work alone. Write one in a minute, send a link, watch it turn green.", lead
+        row gap 12
+          button "Start free", large, primary, to "#prices"
+          button "See how it works", large, quiet, to "#steps"
+      column invoice
+        row padding 0 0 18 0
+          text "Invoice 2026-041", weight 700
+          text "Paid", margin 0 0 0 auto, color accent, weight 700
+        for l in lines
+          row inv-line
+            text l.what
+            text l.amount, margin 0 0 0 auto, font "mono"
+        row inv-line
+          text "Total CHF", weight 700
+          text "4 400", margin 0 0 0 auto, font "mono", weight 700
+
+  section steps, padding 56 0
+    title "Three steps. No accountant.", head
+    column gap 0
+      for s, i in steps
+        row step
+          text "0{i + 1}", num
+          subtitle s.title, level 3, size 26, width 240
+          text s.text, color #12131AB3, width 460
+
+  section why, padding 56 0
+    grid columns 1.4 1, gap 16
+      tablet columns 1
+      column tile-dark, min-height 260
+        subtitle "Reminders that stay polite.", level 3, size 34
+        text "Tally nudges late clients for you, on the days you choose, in your own words."
+      column gap 16
+        column tile-accent
+          subtitle "QR bills, built in.", level 3, size 24
+        column tile
+          subtitle "Your logo, your colors.", level 3, size 24
+          text "Clients see you, not us."
+
+  section prices, padding 56 0
+    row gap 20
+      title "Simple prices.", head
+      row switch, margin 0 0 0 auto
+        button "Monthly", seg, selected (not yearly) -> yearly = false
+        button "Yearly, 2 months free", seg, selected yearly -> yearly = true
+    grid 3 columns, gap 16
+      tablet columns 1
+      for p in plans
+        column plan, current (p.featured == true)
+          text p.name, weight 700
+          row gap 6
+            text "CHF {if yearly then p.month * 10 else p.month}", font "titles", size 48, weight 800, line-height 1
+            text (if yearly then "/ year" else "/ month"), opacity 0.6
+          text p.text, opacity 0.7
+          button p.cta, primary
+
+  section questions, padding 56 0
+    grid columns 1 1.5, gap 48
+      tablet columns 1
+      title "Questions.", head
+      column gap 0
+        for f in faq
+          details f.q
+            text f.a, color #12131AB3
+
+  section start, padding 56 0 96
+    column tile-accent, padding 64 48, gap 20, center
+      title "Send your first invoice today.", head, center
+      button "Start free", large, background white, color accent, weight 700, to "#prices"
+
+  footer padding 32 48, border-top 1 #12131A1F
+    text "© 2026 Tally SA, Zurich", color #12131A99
+    text "Made with Kaury", margin 0 0 0 auto, color #12131A99

@@ -60,6 +60,8 @@ try {
   for (const id of ['first-contentful-paint', 'largest-contentful-paint', 'total-blocking-time', 'cumulative-layout-shift', 'speed-index']) {
     console.log(`  ${a[id].title}: ${a[id].displayValue}`)
   }
+  // KAURY_AUDIT=layout-shifts,cls-culprits-insight: prints what those audits found, as it is
+  for (const id of (process.env.KAURY_AUDIT ?? '').split(',').filter(Boolean)) console.log(id, JSON.stringify(a[id]?.details ?? null).slice(0, 2500))
   if (process.argv.includes('--detail')) {
     for (const id of ['render-blocking-insight', 'network-dependency-tree-insight', 'lcp-breakdown-insight']) {
       const d = a[id]?.details

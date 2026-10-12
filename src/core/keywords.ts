@@ -30,7 +30,7 @@ const TABLE: Record<string, string[]> = {
   continue: [],
   true: ['vrai'],
   false: ['faux'],
-  none: ['rien', 'null', 'nothing'],
+  none: ['rien', 'aucun', 'null', 'nothing'],
   and: ['et'],
   or: ['ou'],
   not: ['non'],
@@ -46,12 +46,12 @@ const TABLE: Record<string, string[]> = {
   page: [],
   component: ['composant'],
   section: [],
-  header: ['entete'],
-  footer: ['pied'],
+  header: ['entete', 'en-tete'],
+  footer: ['pied', 'pied-de-page'],
   nav: [],
   grid: ['grille'],
   column: ['colonne'],
-  row: ['ligne'],
+  row: ['ligne', 'rangee'],
   box: ['boite'],
   card: ['carte'],
   title: ['titre'],
@@ -65,9 +65,9 @@ const TABLE: Record<string, string[]> = {
   button: ['bouton'],
   form: ['formulaire'],
   field: ['champ', 'input'],
-  textarea: ['zone'],
-  select: ['choix'],
-  checkbox: ['case'],
+  textarea: ['zone', 'zone-texte', 'zone-de-texte'],
+  select: ['choix', 'liste-deroulante'],
+  checkbox: ['case', 'case-a-cocher'],
   list: ['liste'],
   item: ['element'],
   icon: ['icone'],
@@ -158,10 +158,11 @@ const VALUES: Record<string, string[]> = {
   // shadows, alignment, cursors, field types
   medium: ['moyenne', 'moyen'],
   strong: ['forte', 'fort'],
+  hard: ['dure', 'dur'],
   inner: ['interieure'],
   center: ['centre'],
   justify: ['justifie'],
-  pointer: ['main', 'hand'],
+  pointer: ['main', 'pointeur', 'hand'],
   arrow: ['fleche'],
   number: ['nombre'],
   password: ['motdepasse'],
@@ -199,6 +200,11 @@ export function isKeyword(word: string, expected: string): boolean {
 
 export function allKeywords(): string[] {
   return Object.keys(TABLE)
+}
+
+/** The value words (smooth, sunset, pointer…), canonical forms. */
+export function valueWords(): string[] {
+  return Object.keys(VALUES)
 }
 
 export function aliasesOf(c: string): string[] {

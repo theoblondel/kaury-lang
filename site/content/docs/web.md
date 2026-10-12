@@ -59,7 +59,7 @@ A color alone colors the text of text elements and the background of blocks. On 
 |---|---|
 | `section [name]`, `header`, `footer`, `nav` | parts of the page (`section flavors` → `#flavors`) |
 | `box`, `column`, `row`, `grid` | layout |
-| `title`, `subtitle`, `text`, `icon` | text (`level 2` → `<h2>`) |
+| `title`, `subtitle`, `text`, `icon` | text. The first `title` of a page is its `<h1>`, the next ones are `<h2>` by themselves; `level 3` → `<h3>` |
 | `image`, `video` | media (`cover`, `autoplay`, `loop`…) |
 | `link`, `links`, `logo`, `button` | navigation and actions |
 | `card` | a card with title, image, text |
@@ -80,6 +80,10 @@ card
 
 Useful ones: `size`, `bold`, `align center`, `radius`, `round`, `shadow soft|medium|strong`, `border 1 gray`, `padding`, `margin`, `gap`, `max-width`, `fullscreen`, `glass`, `gradient c1 c2 [angle]`, `text-gradient c1 c2`, `opacity`, `blur`, `sticky`, `hover …`, `animate fade`. Numbers without unit are pixels.
 
+With photographs: `background "hall.jpg", shade 0.6` darkens a background picture so the text in front can be read (`shade 0.9 bottom` toward one side only); `grayscale` shows a picture in black and white, and `hover grayscale 0` gives its colors back; `middle` puts a text in the middle of the photograph beside it. `upright` takes the italic of an emphasis away.
+
+The compiler reads what a visitor would not: a text whose color is too pale for the background of the box it is in gets a warning, with a shade next to it that works.
+
 ## Responsive
 
 ```kaury
@@ -88,7 +92,7 @@ grid 4 columns, gap 24
   mobile 1 columns
 ```
 
-`mobile`, `tablet`, `desktop` take options for that size — or, with a block below, content shown only there. By default grids fold, titles shrink and menus collapse on small screens.
+`mobile`, `tablet`, `desktop` take options for that size — or, with a block below, content shown only there. By default grids fold, titles shrink and menus collapse on small screens. `tablet` is from 641 to 1024 pixels and does not include phones. A size written for one screen is exact: `mobile size 46`.
 
 ## Interactions
 

@@ -26,10 +26,10 @@
   #problems{max-height:40%;overflow:auto;margin:0;padding:0;font:13px/1.5 var(--mono);white-space:pre-wrap;color:var(--noir);background:var(--orange);border-top:2px solid var(--noir)}
   #problems:not(:empty){padding:14px 18px}
   iframe{width:100%;height:100%;border:0;background:#fff}
-  /* ?embed: only the result, for the examples of kaury.dev */
+  /* ?embed: only the result, for the examples of dev.kaury.studio */
   .embed header,.embed .code{display:none}
   .embed main{grid-template-columns:1fr;grid-template-rows:1fr;height:100%}
-  @media (max-width:800px){main{grid-template-columns:1fr;grid-template-rows:1fr 1fr}.code{border-right:0;border-bottom:2px solid var(--noir)}}
+  @media (max-width:800px){.status{flex-basis:100%;min-height:1.5em}main{grid-template-columns:1fr;grid-template-rows:1fr 1fr}.code{border-right:0;border-bottom:2px solid var(--noir)}}
 </style>
 </head>
 <body>
@@ -65,7 +65,7 @@ page "/"
     text "Click: the double computes itself ({double})."
     button "I like it {likes}", large -> likes += 1
     if likes >= 5
-      text "You really like it!", bold, orange
+      text "You really like it!", bold, color #C2410C
 `,
   scene: `page "/"
   scene fullscreen, particles stars, background night, immediate
@@ -172,6 +172,13 @@ document.getElementById('share').addEventListener('click', async () => {
   location.hash = btoa(unescape(encodeURIComponent(src.value)))
   await navigator.clipboard?.writeText(location.href)
   status.textContent = 'link copied'
+})
+// the examples of dev.kaury.studio swap the code by changing only the hash: no reload happens, so follow it
+window.addEventListener('hashchange', () => {
+  const code = fromLink()
+  if (code == null || code === src.value) return
+  src.value = code
+  runIt()
 })
 runIt()
 </script>

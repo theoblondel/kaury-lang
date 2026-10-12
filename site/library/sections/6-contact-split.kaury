@@ -1,6 +1,6 @@
 // Contact, split · luxury
 site "Contact split"
-  colors ink #1A1714, paper #F3EEE6, clay #B5502E
+  colors ink #1A1714, paper #F3EEE6, clay #B04D2C
   fonts "Satoshi", "Gambetta"
   style background paper, color ink
 

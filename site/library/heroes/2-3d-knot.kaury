@@ -8,7 +8,7 @@ style emphasis
   color orange
 
 page "/"
-  scene hero, fullscreen, center, immediate, particles stars, mesh #7B5CFF55 #FF6A2B44
+  scene hero, fullscreen, center, particles stars, mesh #7B5CFF55 #FF6A2B44
     light dramatic
     camera follows mouse
     object knot "knot", color orange, metal, size 1.6, position 0 0 -2

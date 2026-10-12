@@ -144,3 +144,23 @@ site.kaury:4:10 — "conut" does not exist. Did you mean "count"?
 ```
 
 Every error has the line, the underlined word and a fix. `kaury check --json` gives the same errors to editors and AI assistants.
+
+Nothing passes in silence:
+
+- **Habits from other languages get the Kaury form.** `font-size 20` answers `in Kaury: size 20`; `h1 "Title"` answers `in Kaury: title "…"`; `&&` answers `"&&" is written "and"`. The same goes for `div`, `onClick`, `=>`, `===`, `var`, `elif`, a `:` after an option, a forgotten comma.
+- **Values are checked.** An option that takes a number refuses a word (`size large`), an option that takes a color refuses what is not one (`color FF0000`), a function called with too few or too many values says which ones it takes.
+- **The pages are rendered.** `kaury check` and `kaury build` display every page: what only fails at that moment (calling something on an empty value) is reported at its `.kaury` line, and the build stops instead of publishing a page with a hole in it.
+
+## Empty values
+
+`none` is the empty value. Reading a property of an empty value gives nothing: `user.name` shows nothing while `user` is `none`, and the page fills in when the value arrives. Calling something on an empty value is a mistake, said with its line: test first.
+
+```kaury
+state user = none
+
+page "/"
+  title "Hello {user.name}"
+  if user
+    text user.name.upper()
+  button "Log in" -> user = { name: "Ada" }
+```

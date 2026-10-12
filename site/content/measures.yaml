@@ -1,0 +1,30 @@
+# Lighthouse, performance score, on the showcase sites as kaury build makes them (scripts/measure.mjs).
+# Written by hand from real runs: change the date with the numbers.
+date: 12 October 2026
+others: 100
+list:
+  - name: Terre
+    phone: 99
+    phone-bar: 99%
+    desktop: 100
+    desktop-bar: 100%
+  - name: Relay
+    phone: 99
+    phone-bar: 99%
+    desktop: 100
+    desktop-bar: 100%
+  - name: Forge
+    phone: 99
+    phone-bar: 99%
+    desktop: 100
+    desktop-bar: 100%
+  - name: Nuit
+    phone: 96
+    phone-bar: 96%
+    desktop: 100
+    desktop-bar: 100%
+  - name: Chez Lina
+    phone: 95
+    phone-bar: 95%
+    desktop: 100
+    desktop-bar: 100%

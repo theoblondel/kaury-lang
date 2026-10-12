@@ -4,8 +4,8 @@
 // builds the page on the server, hydrates the server HTML in the browser, and re-renders later.
 
 import type { Command, Expr, Stmt, Binding, ResolvedOption, Pos } from './ast.js'
-import { canon, canonValue } from './keywords.js'
-import { declarations, hexOf, isLight, literal, bestText, fontFamily } from './css.js'
+import { canon, canonValue, stripAccents } from './keywords.js'
+import { declarations, hexOf, isLight, literal, bestText, fontFamily, DYNAMIC_PROP, PX_UNIT } from './css.js'
 import { globalSpec, kauryMethod, PROPERTIES } from './globals.js'
 import type { ModuleInfo } from './checker.js'
 import { ELEMENTS } from './vocabulary.js'
@@ -33,6 +33,8 @@ export interface Output {
   fonts: string[]
   site: { name?: string; lang?: string; base?: string }
   assets: string[] // import "style.css" / "script.js": stylesheets and browser scripts of the whole site
+  /** the classes made while each page was written (prefix-from … prefix-to): no other page can ever show them */
+  own: { prefix: string; pages: { path: string; from: number; to: number; looks: string[] }[]; named: string[] }
   mails: string[] // addresses written in « form mail "…" »: the only ones the site's mail endpoint accepts (with those seen while rendering)
 }
 
@@ -56,12 +58,7 @@ export function assetPath(s: string): string {
 // options that are not styles (handled by the element itself)
 const NON_STYLE = new Set(['level', 'alt', 'cover', 'loop', 'muted', 'autoplay', 'controls', 'to', 'outline', 'ghost', 'large', 'small',
   'disabled', 'new-tab', 'type', 'required', 'label', 'rows', 'image', 'position', 'rotation', 'fallback', 'shadows', 'fog', 'ground',
-  'particles', 'distance', 'volume', 'animation', 'immediate', 'class', 'look', 'tag', 'attr', 'id', 'html', 'selected', 'current', 'open'])
-const DYNAMIC_PROP: Record<string, string> = {
-  background: 'background', color: 'color', size: 'font-size', opacity: 'opacity', width: 'width', height: 'height',
-  tint: 'color', radius: 'border-radius', margin: 'margin', padding: 'padding', gap: 'gap',
-}
-const PX_UNIT = new Set(['size', 'width', 'height', 'radius', 'margin', 'padding', 'gap'])
+  'particles', 'distance', 'volume', 'animation', 'immediate', 'class', 'look', 'look-if', 'tag', 'attr', 'id', 'html', 'selected', 'current', 'open'])
 const TEXT_HEADS = new Set(['title', 'subtitle', 'text', 'link', 'icon', 'item'])
 /** “style header”, “style emphasis”…: the elements a named style restyles everywhere. */
 const ELEMENT_SELECTOR: Record<string, string> = {
@@ -72,11 +69,13 @@ const PART_SELECTOR: Record<string, string> = {
   title: '.k-title,h1,h2,h3,h4', subtitle: '.k-subtitle', text: '.k-text,p', link: 'a:not(.k-logo,.k-button)', image: 'img', button: '.k-button',
   icon: '.k-icon', code: ':not(pre)>code', block: 'pre', list: 'ul,ol', item: 'li', table: 'table', cell: 'th,td',
   quote: 'blockquote', summary: 'summary', emphasis: 'em', logo: '.k-logo',
+  field: '.k-field,.k-textarea,.k-select', label: '.k-label',
 }
 
 /** States of a named style → CSS. */
 const STATE_SELECTOR: Record<string, string> = {
-  selected: '[aria-selected="true"]', current: '[aria-current="page"]', open: '[open]', focus: ':focus-visible',
+  // selected: a tab in a list of tabs (aria-selected), or a button that is on (aria-pressed) — see the tabs below
+  selected: ':is([aria-selected="true"],[aria-pressed="true"])', current: '[aria-current="page"]', open: '[open]', focus: ':focus-visible',
   pressed: ':active', disabled: ':disabled', checked: ':checked',
 }
 
@@ -97,11 +96,47 @@ class Generator {
   private fonts = new Set<string>()
   private assets: string[] = []
   private mails: string[] = []
+  private ownPages: { path: string; from: number; to: number; looks: string[] }[] = []
+  /** what each page and each component writes: the styles and animations named in it, the components it calls */
+  private parts = new Map<string, { looks: Set<string>; calls: Set<string> }>()
+
+  /** Reads what was written since a line: the named styles (ks-, ka-) and the components called. */
+  private written(since: number): { looks: Set<string>; calls: Set<string> } {
+    const text = this.lines.slice(since).join('\n')
+    return {
+      looks: new Set([...text.matchAll(/\bk[sa]-[\w-]+/g)].map((m) => m[0])),
+      calls: new Set([...text.matchAll(/\$k\.component\([^,]+, ([\w$]+)/g)].map((m) => m[1])),
+    }
+  }
+
+  /** The named styles a page can ever show: its own, and those of every component it calls, however deep. */
+  private reach(start: { looks: Set<string>; calls: Set<string> }): string[] {
+    const looks = new Set(start.looks)
+    const seen = new Set<string>()
+    const todo = [...start.calls]
+    while (todo.length) {
+      const name = todo.pop()!
+      if (seen.has(name)) continue
+      seen.add(name)
+      const part = this.parts.get(name)
+      if (!part) continue
+      part.looks.forEach((l) => looks.add(l))
+      todo.push(...part.calls)
+    }
+    return [...looks]
+  }
   private site: { name?: string; lang?: string; base?: string } = {}
   private prefix: string
   private declared = new Set<Binding>()
   private imagesInPage = 0
+  /** The titles that come after the main heading of their page (or of their component): written as level 2. */
+  private laterTitles = new WeakSet<Command>()
+  /** Whether a component of this file brings a title of its own (Hero does). */
+  private titled = new Map<string, boolean>()
+  private components = new Map<string, Stmt[]>()
   private repeated = 0 // inside a component or a loop: the same line makes many images
+  private storing = 0 // on the left of an “=”: plain accesses (JavaScript refuses “a?.b = 1”)
+  private tabs = new WeakSet<Command>() // buttons with “selected” whose container is their list of tabs
 
   constructor(private info: ModuleInfo, file: string) {
     let h = 0
@@ -134,6 +169,9 @@ class Generator {
     const pages: string[] = []
     let siteObj = '{}'
     this.implicitDeclarations(prog, true)
+    for (const i of prog) if (i.k === 'component') this.components.set(i.name, i.body)
+    for (const name of this.components.keys()) this.bringsTitle(name)
+    for (const i of prog) if (i.k === 'page') this.mainHeading(i.body, false)
     for (const i of prog) {
       if (i.k === 'import' || i.k === 'command') continue
       if (i.k === 'page') {
@@ -149,6 +187,7 @@ class Generator {
     // UI lines at file level (without a page) → implicit page "/"
     const loose = prog.filter((i) => i.k === 'command')
     if (loose.length && !this.info.pages.some((p) => p.path === '/')) {
+      this.mainHeading(loose, false)
       pages.push(this.page({ k: 'page', path: '/', body: loose, pos: loose[0].pos }))
     }
     this.emit(`export const $pages = [${pages.join(', ')}]`)
@@ -165,7 +204,55 @@ class Generator {
       site: this.site,
       assets: this.assets,
       mails: this.mails,
+      // (a page is written before the components that come after it in the file: what it reaches is read at the end)
+      own: {
+        prefix: this.prefix,
+        pages: this.ownPages.map((p) => ({ ...p, looks: this.reach(this.parts.get('page ' + p.path) ?? { looks: new Set(), calls: new Set() }) })),
+        named: [...new Set([...this.parts.values()].flatMap((p) => [...p.looks]))],
+      },
     }
+  }
+
+  /**
+   * One main heading per page. “title” is written for every part of a page, and only one of them is its subject, for
+   * a screen reader and for a search engine: the first title sure to be there is the <h1>, the next ones are <h2>
+   * (“level” on the line decides otherwise). A title that shows in one case only (a menu that opens) takes no place,
+   * and the sides of a choice are one place. Returns whether a main heading is sure to be there after these lines.
+   */
+  private mainHeading(body: Stmt[], seen: boolean): boolean {
+    for (const s of body) {
+      if (s.k === 'command') {
+        const m = s.meaning
+        if (m?.kind === 'component') {
+          if (this.bringsTitle(s.head)) seen = true
+        } else if (s.head === 'markdown') {
+          // a text that brings its own “# Title” under the title of the page: one level down (decided when it is shown)
+          if (seen) this.laterTitles.add(s)
+        } else if (s.head === 'title' && !m?.options.some((o) => o.name === 'tag')) {
+          const level = m?.options.find((o) => o.name === 'level')?.values[0]
+          if (level) {
+            if (level.k === 'number' && level.v === 1) seen = true
+          } else if (seen) this.laterTitles.add(s)
+          else seen = true
+        }
+        seen = this.mainHeading(s.children, seen)
+      } else if (s.k === 'if') {
+        const sides = [s.then, ...s.elifs.map((x) => x.body), s.else ?? []].map((side) => this.mainHeading(side, seen))
+        seen = sides.every(Boolean)
+      } else if (s.k === 'for') seen = this.mainHeading(s.body, seen)
+    }
+    return seen
+  }
+
+  private bringsTitle(name: string): boolean {
+    const known = this.titled.get(name)
+    if (known !== undefined) return known
+    const body = this.components.get(name)
+    if (!body) return false
+    this.titled.set(name, false) // a component that uses itself
+    const brings = this.mainHeading(body, false)
+    this.titled.set(name, brings)
+    return brings
   }
 
   private importStmt(i: Extract<Stmt, { k: 'import' }>) {
@@ -249,6 +336,7 @@ class Generator {
           const v = THEME[o.name] ? literal(o.values[0], this.info.colors) : undefined
           if (v === undefined) return true
           this.css.push(`:root{${THEME[o.name]}:${typeof v === 'number' ? v + 'px' : v}}`)
+          if (o.name === 'radius') this.css.push(`:root{--k-button-radius:${typeof v === 'number' ? v + 'px' : v}}`)
           return false
         })
       }
@@ -285,6 +373,8 @@ class Generator {
   // ---------------------------------------------------------------- pages
   private page(i: Extract<Stmt, { k: 'page' }>): string {
     const fn = this.fresh('page')
+    const firstClass = this.classes + 1
+    const firstLine = this.lines.length
     const params = [...i.path.matchAll(/:([\p{L}_][\p{L}\p{N}_-]*)/gu)].map((m) => m[1])
     this.imagesInPage = 0
     const item = i.each ? `const ${jsName(i.each.variable)} = $route.item` : ''
@@ -346,6 +436,8 @@ class Generator {
     const each = i.each
       ? `, each: () => ${this.ex(i.each.source)}, pathOf: (${jsName(i.each.variable)}) => ${this.ex(i.address!)}`
       : ''
+    this.ownPages.push({ path: i.path, from: firstClass, to: this.classes, looks: [] })
+    this.parts.set('page ' + i.path, this.written(firstLine))
     return `{ path: ${JSON.stringify(i.path)}${each}, render: ${fn}, seo: ($route) => { ${prelude} return ${seo} }, lang: ($route) => { ${prelude} return ${lang} }, alternates: ($route) => { ${prelude} return ${alternates} }, head: ($route) => { ${prelude} return ${head} }, transition: ${transition} }`
   }
 
@@ -568,12 +660,29 @@ class Generator {
       if (b && (b.kind === 'state' || b.kind === 'derived')) return `${jsName(e.name)}.v`
       return jsName(e.name)
     }
-    return this.ex(e)
+    this.storing++
+    try {
+      return this.ex(e)
+    } finally {
+      this.storing--
+    }
+  }
+
+  /**
+   * Reading a property of an empty value gives nothing (“user.name” while “user” is none) instead of stopping
+   * the page: data that has not arrived yet is the usual case, not a mistake. Values that are never empty
+   * (Math, route, mouse…) keep the plain access.
+   */
+  private dot(object: Expr, optional?: boolean): string {
+    if (this.storing) return '.'
+    if (optional) return '?.'
+    return object.k === 'name' && (object.binding?.kind === 'js' || object.binding?.kind === 'kaury') ? '.' : '?.'
   }
 
   // ---------------------------------------------------------------- components
   private component(i: Extract<Stmt, { k: 'component' }>) {
     const ex = i.exported ? 'export ' : ''
+    const firstLine = this.lines.length
     this.emit(`${ex}function ${jsName(i.name)}($p = {}, $parent) {`, i.pos)
     this.indent++
     for (const p of i.params) {
@@ -587,6 +696,7 @@ class Generator {
     this.indent--
     this.emit('}')
     this.emit(`${jsName(i.name)}.$params = ${JSON.stringify(i.params.map((p) => p.name))}`)
+    this.parts.set(jsName(i.name), this.written(firstLine))
   }
 
   // ---------------------------------------------------------------- UI
@@ -609,6 +719,16 @@ class Generator {
     if (rules.length && ctx.parent) {
       const cls = this.newClass()
       const dynamic = this.styleRules('.' + cls, parentHead, rules)
+      // one of your styles named on a style line (“style wide”, or “wide” alone under the element): its class
+      for (const r of rules) {
+        if (r.head !== 'style') continue
+        for (const o of r.meaning!.options) {
+          const look = o.name === 'look' && o.values[0]?.k === 'text' ? literal(o.values[0], {}) : undefined
+          if (typeof look !== 'string') continue
+          if (parentHead === 'component') this.emit(`$k.rootClass(${ctx.parent}, $start, ${JSON.stringify(look)})`)
+          else this.emit(`${ctx.parent}.classList.add(${JSON.stringify(look)})`)
+        }
+      }
       if (parentHead === 'component') {
         this.emit(`$k.rootClass(${ctx.parent}, $start, ${JSON.stringify(cls)})`)
         for (const d of dynamic) this.emit(`for (const $r of $k.rootNodes(${ctx.parent}, $start)) $k.style($r, ${JSON.stringify(d[0])}, () => ${d[1]})`)
@@ -675,9 +795,15 @@ class Generator {
   private optionsToCss(sel: string, head: string, options: ResolvedOption[], media: string | undefined, dynamic: [string, string][]) {
     const normal: string[] = []
     const hover: string[] = []
+    const strong: string[] = []
     const tr: string[] = []
     const trHover: string[] = []
     let explicitColor = false
+    const ownMargin = options.some((o) => o.name === 'margin')
+    // “pin” and “sticky” place the element: “front”, written on the same line, only adds its level
+    const placed = options.some((o) => o.name === 'pin' || o.name === 'sticky')
+    // “direction column” gives its children the whole width; “center”, written on the same line, keeps them centered
+    const centered = options.some((o) => o.name === 'center')
     for (const o of options) {
       const isHover = o.name.startsWith('hover:')
       const name = isHover ? o.name.slice(6) : o.name
@@ -694,10 +820,13 @@ class Generator {
         }
         continue
       }
-      const { decl, transform } = declarations(head, name, vals, this.info.colors)
+      const { decl, transform, strong: isStrong } = declarations(head, name, vals, this.info.colors, !!media)
       if (name === 'color') explicitColor = true
-      const into = isHover ? hover : normal
+      const into = isHover ? hover : isStrong ? strong : normal
       for (const [p, v] of decl) {
+        if (p === 'margin-inline' && isStrong && ownMargin) continue
+        if (p === 'position' && name === 'front' && placed) continue
+        if (p === 'align-items' && name === 'direction' && centered) continue
         if (p === 'color' && explicitColor && name !== 'color' && !isHover) continue
         if (p === 'font-family') {
           const m = /^"([^"]+)"/.exec(v)
@@ -709,10 +838,11 @@ class Generator {
     }
     if (tr.length) normal.push(`transform:${tr.join(' ')}`)
     if (trHover.length) hover.push(`transform:${trHover.join(' ')}`)
-    const add = (s: string, decls: string[]) => {
+    const add = (s: string, decls: string[], twice = false) => {
       if (!decls.length) return
-      // inside a mobile/tablet rule, double the class to win over the defaults
-      if (media && /^\.[\w-]+$/.test(s)) s = s + s
+      // inside a mobile/tablet rule, double the class to win over the defaults;
+      // a width given by the author also wins over the width the base style gives to what is in a section
+      if (/^\.[\w-]+$/.test(s)) s = s + (media ? s : '') + (twice ? s : '')
       const rule = `${s}{${decls.join(';')}}`
       this.css.push(media ? `${media}{${rule}}` : rule)
     }
@@ -722,8 +852,9 @@ class Generator {
       if (!page) normal.push('position:relative')
     }
     add(sel, dedupe(normal))
+    add(sel, dedupe(strong), true)
     if (hover.length) {
-      add(sel, ['transition:transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s, background .35s, color .35s, opacity .35s'])
+      add(sel, ['transition:transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s, background .35s, color .35s, opacity .35s, filter .35s'])
       add(`${sel}:hover`, dedupe(hover))
     }
   }
@@ -885,7 +1016,7 @@ class Generator {
     }
     if (head === 'scene') {
       this.emit(`const ${n} = $k.scene(${parent}, ${this.objectOptions(m.options.filter((o) => ['height', 'background', 'fog', 'ground', 'particles', 'immediate'].includes(o.name)))})`, c.pos)
-      if (m.objectName) this.emit(`${n}.id = ${JSON.stringify(m.objectName)}`)
+      if (m.objectName) this.emit(`${n}.id = ${JSON.stringify(stripAccents(m.objectName))}`)
       this.styleClass(n, head, m.options, ['height', 'background', 'fog', 'ground', 'particles', 'immediate'])
       this.childrenOf(c, { ...ctx, parent: n, target: n, parentHead: head })
       this.emit(`$k.sceneReady(${n})`)
@@ -909,9 +1040,10 @@ class Generator {
       button: 'button', form: 'form', field: 'input', textarea: 'textarea', select: 'select', checkbox: 'input', list: 'ul',
       item: 'li', icon: 'span', divider: 'hr', spacer: 'div', slot: 'div', markdown: 'div',
     } as Record<string, string>)[head] ?? 'div'
-    if (head === 'title') {
+    if (head === 'title' || head === 'subtitle') {
       const lvl = opt('level')?.values[0]
       if (lvl?.k === 'number') tag = `h${Math.min(6, Math.max(1, lvl.v))}`
+      else if (this.laterTitles.has(c)) tag = 'h2'
     }
     if (head === 'button' && opt('to')) tag = 'a'
     {
@@ -920,6 +1052,8 @@ class Generator {
       if (typeof tv === 'string' && /^[a-z][a-z0-9-]*$/.test(tv)) tag = tv
     }
     let classes = [`k-${head}`]
+    // a title lowered to <h2> because another one leads the page keeps the size of a title
+    if (tag === 'h2' && this.laterTitles.has(c)) classes.push('k-same')
     if (m.objectName) classes.push(`k-${head}-${m.objectName}`)
     for (const v of ['outline', 'ghost', 'large', 'small']) if (opt(v)) classes.push(`k-${v}`)
     // own classes replace the default look (the menu keeps the classes its script needs)
@@ -932,12 +1066,13 @@ class Generator {
       else dynamicClass = own
     }
     // look "name": a class of your own added to the default look (styled in a css block)
-    let dynamicLook: Expr | undefined
-    const look = opt('look')?.values[0]
-    if (look) {
+    const dynamicLooks: Expr[] = []
+    for (const lo of m.options.filter((o) => o.name === 'look')) {
+      const look = lo.values[0]
+      if (!look) continue
       const l = look.k === 'text' ? literal(look, {}) : undefined
       if (typeof l === 'string') classes.push(...l.split(/\s+/).filter(Boolean))
-      else dynamicLook = look
+      else dynamicLooks.push(look)
     }
 
     // fields with a label: the label wraps the field
@@ -960,17 +1095,33 @@ class Generator {
       this.emit(`const ${labelText} = $k.h(${into}, "span")`)
       this.text(labelText, label)
     }
-    if (m.objectName) this.emit(`${n}.id = ${JSON.stringify(m.objectName)}`)
+    if (m.objectName) this.emit(`${n}.id = ${JSON.stringify(stripAccents(m.objectName))}`)
     if (dynamicClass) this.emit(`$k.classes(${n}, () => ${this.ex(dynamicClass)})`)
-    if (dynamicLook) this.emit(`$k.classes(${n}, () => ${this.ex(dynamicLook)})`)
+    for (const dl of dynamicLooks) this.emit(`$k.classes(${n}, () => ${this.ex(dl)})`)
+    // a named style under a condition: card-wide (i == 0)
+    for (const lo of m.options.filter((o) => o.name === 'look-if')) {
+      this.emit(`$k.classes(${n}, () => (${this.ex(lo.values[1])}) ? ${JSON.stringify(literal(lo.values[0], {}))} : "")`)
+    }
     if (opt('id')) this.attr(n, 'id', opt('id')!.values[0])
+    // buttons with “selected” written in a row, a column, a box or a grid are its tabs: the container is their
+    // list (role tablist), without a role to write by hand. Elsewhere, such a button is one that is on or off.
+    if (['row', 'column', 'box', 'grid'].includes(head)) {
+      const mine = tabButtons(c.children)
+      const role = m.options.find((o) => o.name === 'attr' && literal(o.values[0], {}) === 'role')
+      if (mine.length && (!role || literal(role.values[1], {}) === 'tablist')) {
+        for (const b of mine) this.tabs.add(b)
+        if (!role) this.emit(`${n}.setAttribute("role", "tablist")`)
+      }
+    }
+    const pressed = head === 'button' && !this.tabs.has(c)
     // states driven by a condition: hidden (x), selected (tab == 1), current (…), open (…)
-    for (const [o, a, on, off] of [['hidden', 'hidden', 'true', 'null'], ['selected', 'aria-selected', '"true"', '"false"'], ['current', 'aria-current', '"page"', 'null'], ['open', 'open', 'true', 'null']] as const) {
+    for (const [o, a0, on, off] of [['hidden', 'hidden', 'true', 'null'], ['selected', 'aria-selected', '"true"', '"false"'], ['current', 'aria-current', '"page"', 'null'], ['open', 'open', 'true', 'null']] as const) {
+      const a = o === 'selected' && pressed ? 'aria-pressed' : a0
       const v = opt(o)?.values[0]
       if (v && literal(v, {}) === undefined) this.emit(`$k.attr(${n}, ${JSON.stringify(a)}, () => (${this.ex(v)}) ? ${on} : ${off})`)
       else if (opt(o) && o !== 'hidden') this.emit(`${n}.setAttribute(${JSON.stringify(a)}, ${on === 'true' ? '""' : on})`)
-      // a selected button is a tab (aria-selected belongs to tabs)
-      if (o === 'selected' && opt(o) && head === 'button') this.emit(`${n}.setAttribute("role", "tab")`)
+      // a selected button in a list of tabs is a tab (aria-selected belongs to tabs)
+      if (o === 'selected' && opt(o) && head === 'button' && !pressed) this.emit(`${n}.setAttribute("role", "tab")`)
     }
     for (const a of m.options.filter((o) => o.name === 'attr')) {
       const nameLit = a.values[0]?.k === 'text' ? literal(a.values[0], {}) : a.values[0]?.k === 'name' ? (a.values[0] as any).name : undefined
@@ -1014,7 +1165,7 @@ class Generator {
         const alt = opt('alt')?.values[0] ?? p[1]
         if (alt) this.attr(n, 'alt', alt)
         else this.emit(`${n}.alt = ""`)
-        this.image(n, p[0])
+        this.image(n, p[0], false, c)
         if (opt('cover')) this.emit(`${n}.classList.add("k-cover")`)
         break
       }
@@ -1056,15 +1207,23 @@ class Generator {
         break
       }
       case 'links': {
+        // a word whose section is on another page (one menu for the whole site): the address of that page, the home page first
+        const elsewhere = (word: string) => {
+          const id = word.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+          const there = this.info.anchors.filter((x) => x.id === id)
+          const hit = there.find((x) => x.page === '/') ?? there[0]
+          return hit ? `, ${JSON.stringify(`${hit.page === '/' ? '/' : hit.page}#${id}`)}` : ''
+        }
         for (const x of p) {
           const a = this.fresh()
           this.emit(`const ${a} = $k.h(${n}, "a", "k-nav-link")`)
           if (x.k === 'name' && (!x.binding || x.binding.kind === 'component')) {
             this.emit(`$k.setText(${a}, ${JSON.stringify(x.name.replace(/-/g, ' '))})`)
-            this.emit(`$k.autoLink(${a}, ${JSON.stringify(x.name)})`)
+            this.emit(`$k.autoLink(${a}, ${JSON.stringify(x.name)}${elsewhere(x.name)})`)
           } else if (x.k === 'text') {
             this.text(a, x)
-            this.emit(`$k.autoLink(${a}, ${JSON.stringify(String(literal(x, {}) ?? ''))})`)
+            const word = String(literal(x, {}) ?? '')
+            this.emit(`$k.autoLink(${a}, ${JSON.stringify(word)}${elsewhere(word)})`)
           } else this.text(a, x)
         }
         // in a header: collapsible menu on phones
@@ -1108,7 +1267,7 @@ class Generator {
         this.emit(`$k.slot(${n}, $p.$slot)`)
         break
       case 'markdown':
-        if (p[0]) this.emit(`$k.markdown(${n}, () => ${this.ex(p[0])})`)
+        if (p[0]) this.emit(`$k.markdown(${n}, () => ${this.ex(p[0])}${this.laterTitles.has(c) ? ', true' : ''})`)
         break
       case 'field':
       case 'textarea':
@@ -1146,17 +1305,23 @@ class Generator {
     if (head === 'form') this.emit(`$k.form(${n})`)
   }
 
-  private image(n: string, src: Expr, eager = false) {
+  private image(n: string, src: Expr, eager = false, c?: Command) {
     // the first images of a page are probably visible at once: they load first (logos aside)
     let priority = 1
-    if (this.repeated) priority = 0
+    // an image hidden on a screen (mobile hidden) waits: loaded first, it would be downloaded where nobody sees it
+    const hidden = !!c && (c.meaning!.options.some((o) => o.name === 'hidden') ||
+      c.children.some((x) => x.k === 'command' && x.meaning?.kind === 'screen' && x.meaning.options.some((o) => o.name === 'hidden')))
+    if (this.repeated || hidden) priority = 0
     else if (!eager) {
       priority = this.imagesInPage === 0 ? 2 : this.imagesInPage < 3 ? 1 : 0
       this.imagesInPage++
     }
     const l = src.k === 'text' ? literal(src, {}) : undefined
     const value = typeof l === 'string' ? JSON.stringify(assetPath(l)) : `() => ${this.ex(src)}`
-    this.emit(`$k.img(${n}, ${value}, ${priority})`)
+    // a width written in pixels is the place the image takes: the browser picks a file of that size
+    const w = c?.meaning!.options.find((o) => o.name === 'width')?.values[0]
+    const width = w?.k === 'number' && !w.unit && w.v > 0 ? `, ${w.v}` : ''
+    this.emit(`$k.img(${n}, ${value}, ${priority}${width})`)
   }
 
   private field(c: Command, n: string) {
@@ -1169,16 +1334,18 @@ class Generator {
     if (c.head === 'field' || c.head === 'textarea') {
       if (p[1]) this.attr(n, 'placeholder', p[1])
       const type = opt('type')?.values[0]
-      const types: Record<string, string> = { text: 'text', email: 'email', number: 'number', password: 'password', date: 'date', tel: 'tel', url: 'url', search: 'search' }
+      const types: Record<string, string> = { text: 'text', email: 'email', number: 'number', range: 'range', password: 'password', date: 'date', time: 'time', tel: 'tel', url: 'url', search: 'search' }
       const tv = type?.k === 'name' ? types[canonValue(type.name)] ?? 'text' : 'text'
       if (c.head === 'field') this.emit(`${n}.type = ${JSON.stringify(tv)}`)
       if (opt('rows')) this.emit(`${n}.rows = ${this.ex(opt('rows')!.values[0])}`)
-      if (ref) this.emit(`$k.bind(${n}, () => ${ref}, ($v) => { ${ref} = $v }${tv === 'number' ? ', "number"' : ''})`)
+      // a number or a slider: its bounds on the input, and a number in the state
+      for (const bound of ['min', 'max', 'step']) if (opt(bound)?.values[0]) this.attr(n, bound, opt(bound)!.values[0])
+      if (ref) this.emit(`$k.bind(${n}, () => ${ref}, ($v) => { ${ref} = $v }${tv === 'number' || tv === 'range' ? ', "number"' : ''})`)
       if (!opt('label') && p[1]) this.attr(n, 'aria-label', p[1])
     } else if (c.head === 'select') {
       const choices = p.slice(1)
       this.emit(`$k.options(${n}, () => [${choices.map((x) => (x.k === 'list' ? `...${this.ex(x)}` : x.k === 'name' && x.binding ? `...$k.toList(${this.ex(x)})` : this.ex(x))).join(', ')}])`)
-      if (ref) this.emit(`$k.bind(${n}, () => ${ref}, ($v) => { ${ref} = $v })`)
+      if (ref) this.emit(`$k.bindSelect(${n}, () => ${ref}, ($v) => { ${ref} = $v })`)
       if (!opt('label') && st?.k === 'name') this.emit(`${n}.setAttribute("aria-label", ${JSON.stringify(st.name)})`)
     } else if (c.head === 'checkbox') {
       this.emit(`${n}.type = "checkbox"`)
@@ -1217,6 +1384,8 @@ class Generator {
   private attr(n: string, name: string, e: Expr) {
     let l = e.k === 'text' ? literal(e, {}) : undefined
     if (l !== undefined && (name === 'src' || name === 'poster')) l = assetPath(String(l))
+    // “#réalisations”: a section named with an accent has its id without it
+    if (typeof l === 'string' && name === 'href' && l.includes('#')) l = l.slice(0, l.indexOf('#')) + stripAccents(l.slice(l.indexOf('#')))
     if (l !== undefined) this.emit(`${n}.setAttribute(${JSON.stringify(name)}, ${JSON.stringify(String(l))})`)
     else if (name === 'src' || name === 'poster') this.emit(`$k.attr(${n}, ${JSON.stringify(name)}, () => $k.path(${this.ex(e)}))`)
     else this.emit(`$k.attr(${n}, ${JSON.stringify(name)}, () => ${this.ex(e)})`)
@@ -1293,18 +1462,29 @@ class Generator {
         // always between parentheses: “() => ({ … })” is an object, “() => { … }” would be a block
         return `({ ${e.props.map((p) => (p.spread ? `...${this.ex(p.value)}` : `${jsKey(p.key)}: ${this.ex(p.value)}`)).join(', ')} })`
       case 'member': {
-        const o = this.ex(e.object)
+        // a number written as it is goes between parentheses: “0.float” is not JavaScript, “(0).float” is
+        const o = e.object.k === 'number' ? `(${this.ex(e.object)})` : this.ex(e.object)
         const m = kauryMethod(e.prop)
         if (m && PROPERTIES.has(m)) return `$k.prop(${o}, ${JSON.stringify(m)}, ${JSON.stringify(e.prop)})`
-        if (/^[\p{L}_$][\p{L}\p{N}_$]*$/u.test(e.prop)) return `${o}${e.optional ? '?.' : '.'}${e.prop}`
-        return `${o}${e.optional ? '?.' : ''}[${JSON.stringify(e.prop)}]`
+        const dot = this.dot(e.object, e.optional)
+        if (/^[\p{L}_$][\p{L}\p{N}_$]*$/u.test(e.prop)) return `${o}${dot}${e.prop}`
+        return `${o}${dot === '?.' ? '?.' : ''}[${JSON.stringify(e.prop)}]`
       }
       case 'index':
-        return `${this.ex(e.object)}[${this.ex(e.index)}]`
+        return `${this.ex(e.object)}${this.dot(e.object) === '?.' ? '?.' : ''}[${this.ex(e.index)}]`
       case 'call': {
         if (e.fn.k === 'member') {
           const m = kauryMethod(e.fn.prop)
           if (m) return `$k.m(${this.ex(e.fn.object)}, ${JSON.stringify(m)}, ${JSON.stringify(e.fn.prop)}${e.args.map((a) => ', ' + this.ex(a)).join('')})`
+        }
+        // calling something on an empty value is a mistake, said at once: the receiver is read first, then called
+        // (“a?.b.c()” would skip the call in silence), unless the code asks for it with “?.”
+        if ((e.fn.k === 'member' || e.fn.k === 'index') && !this.storing && !askedOptional(e.fn)) {
+          const o = this.ex(e.fn.object)
+          const receiver = o.includes('?.') ? `(${o})` : o
+          const access = e.fn.k === 'index' ? `[${this.ex(e.fn.index)}]`
+            : /^[\p{L}_$][\p{L}\p{N}_$]*$/u.test(e.fn.prop) ? `.${e.fn.prop}` : `[${JSON.stringify(e.fn.prop)}]`
+          return `${receiver}${access}(${e.args.map((a) => this.ex(a)).join(', ')})`
         }
         if (e.fn.k === 'name' && e.fn.binding?.kind === 'kaury' && e.fn.binding.name === 'persist') {
           // persist "cart", cart: pass the state itself, not its value
@@ -1367,8 +1547,36 @@ function isImage(e: Expr): boolean {
 
 function dedupe(decls: string[]): string[] {
   const seen = new Map<string, string>()
-  for (const d of decls) seen.set(d.slice(0, d.indexOf(':')), d)
+  // several filters on one line add up (grayscale, blur 4): the second does not erase the first
+  const filters = new Map<string, string>()
+  for (const d of decls) {
+    const prop = d.slice(0, d.indexOf(':'))
+    if (prop === 'filter') {
+      const value = d.slice(prop.length + 1)
+      filters.set(value.slice(0, value.indexOf('(')), value)
+      seen.set(prop, `filter:${[...filters.values()].join(' ')}`)
+    } else seen.set(prop, d)
+  }
   return [...seen.values()]
+}
+
+/** The buttons with “selected” written directly in a container, also through its “if” and “for” lines. */
+function tabButtons(body: Stmt[]): Command[] {
+  const out: Command[] = []
+  for (const i of body) {
+    if (i.k === 'command' && i.head === 'button' && i.meaning?.options.some((o) => o.name === 'selected')) out.push(i)
+    else if (i.k === 'for') out.push(...tabButtons(i.body))
+    else if (i.k === 'if') out.push(...tabButtons(i.then), ...i.elifs.flatMap((x) => tabButtons(x.body)), ...tabButtons(i.else ?? []))
+  }
+  return out
+}
+
+/** Does this chain of accesses contain a “?.” written by the author (who accepts that the rest is skipped)? */
+function askedOptional(e: Expr): boolean {
+  if (e.k === 'member') return !!e.optional || askedOptional(e.object)
+  if (e.k === 'index') return askedOptional(e.object)
+  if (e.k === 'call') return askedOptional(e.fn)
+  return false
 }
 
 export function hasAwait(e: Expr): boolean {

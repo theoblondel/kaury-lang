@@ -2,6 +2,7 @@
 // Three.js behind the scenes; light, camera, shadows and animations have good defaults.
 // The work is split into small steps so the page never freezes while the 3D starts.
 
+import { sideways } from './place.js'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
@@ -360,7 +361,8 @@ async function createWorld(host: HTMLElement, settings: Record<string, any>, sin
         base.ry = rad(Number(o.rotation[1] ?? 0))
         base.rz = rad(Number(o.rotation[2] ?? 0))
       }
-      pivot.position.set(base.x, base.y, base.z)
+      // on a narrow screen, what stands to the side comes back toward the middle (place.ts)
+      pivot.position.set(sideways(base.x, cam.aspect), base.y, base.z)
       scene.add(pivot)
       const top = (size.y * scale) / 2
       pivots.push({ pivot, el })
@@ -412,7 +414,7 @@ async function createWorld(host: HTMLElement, settings: Record<string, any>, sin
       body.apply = (t) => {
         const p = Math.min(1, (performance.now() - intro.start) / intro.duration)
         const e = reducedMotion() ? 1 : spring(p)
-        pivot.position.set(base.x + t.x / 100 + from.x * (1 - e), base.y - t.y / 100 + from.y * (1 - e), base.z + t.z / 100)
+        pivot.position.set(sideways(base.x, cam.aspect) + t.x / 100 + from.x * (1 - e), base.y - t.y / 100 + from.y * (1 - e), base.z + t.z / 100)
         pivot.rotation.set(base.rx + rad(t.rx), base.ry + rad(t.ry), base.rz + rad(t.rz))
         pivot.scale.setScalar(t.s * (from.s + (1 - from.s) * e))
       }
