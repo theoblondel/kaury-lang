@@ -3,7 +3,7 @@
 // rebuilding it (faster, no flash, the largest image stays the same). Any difference → full re-render.
 
 import { effect, root, untracked, batch, raw, onCleanup, markDynamic } from "./reactive.js"
-import { t, toList, call, toNumber } from './utils.js'
+import { t, toList, call, toNumber, closeWord, local, splitLanguage, languageList } from './utils.js'
 
 export const inBrowser = () => typeof window !== 'undefined' && !(globalThis as any).__kaurySSR
 
@@ -128,7 +128,7 @@ export function attr(el: any, name: string, fn: () => unknown) {
   effect(() => {
     const v = fn()
     if (v === false || v === null || v === undefined || (v === '' && name === 'id')) el.removeAttribute(name)
-    else el.setAttribute(name, v === true ? '' : ADDRESS.has(name) ? withBase(name === 'href' ? plainHash(String(v)) : String(v)) : String(v))
+    else el.setAttribute(name, v === true ? '' : ADDRESS.has(name) ? withBase(name === 'href' ? local(plainHash(String(v))) : String(v)) : String(v))
     if (name === 'disabled') el.disabled = !!v
   })
 }
@@ -418,6 +418,50 @@ export function bindCheck(el: any, read: () => unknown, write: (v: boolean) => v
   if (inBrowser()) el.addEventListener('change', () => batch(() => write(el.checked)))
 }
 
+/**
+ * dialog booking: a window over the page while its state is true. The browser's own <dialog> keeps the focus
+ * inside and puts the rest of the page out of reach; Escape, the × button and a click beside the window close it,
+ * and closing sets the state back to false.
+ */
+export function dialog(el: any, close: any, read: () => unknown, write: (v: boolean) => void) {
+  markDynamic()
+  close.type = 'button'
+  close.setAttribute('aria-label', closeWord())
+  setText(close, '×')
+  if (!inBrowser()) return
+  let tries = 0
+  const show = () => {
+    if (el.open || !read()) return
+    // a page being built is not in the document yet: shown as soon as it is
+    if (!el.isConnected) {
+      if (tries++ < 60) requestAnimationFrame(show)
+      return
+    }
+    if (typeof el.showModal === 'function') el.showModal()
+    else el.setAttribute('open', '')
+  }
+  effect(() => {
+    if (read()) {
+      tries = 0
+      untracked(show)
+    } else if (el.open) {
+      if (typeof el.close === 'function') el.close()
+      else el.removeAttribute('open')
+    }
+  })
+  // Escape, el.close(), a form inside with method "dialog": the state follows
+  el.addEventListener('close', () => {
+    if (untracked(read)) batch(() => write(false))
+  })
+  close.addEventListener('click', () => batch(() => write(false)))
+  // a click on the dark around the window (the window itself keeps its clicks, its padding too)
+  el.addEventListener('click', (e: any) => {
+    if (e.target !== el) return
+    const r = el.getBoundingClientRect()
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) batch(() => write(false))
+  })
+}
+
 export function options(el: any, list: () => unknown[]) {
   effect(() => {
     const vals = list()
@@ -476,7 +520,7 @@ export function setPaths(c: string[]) {
 /** `elsewhere`: where the section of that name is when it is on another page (“/#about”), known by the compiler. */
 export function autoLink(a: any, word: string, elsewhere?: string) {
   if (/^(https?:|mailto:|tel:|\/|#)/.test(word)) {
-    a.setAttribute('href', withBase(word))
+    a.setAttribute('href', withBase(local(word)))
     if (/^https?:/.test(word)) {
       a.setAttribute('target', '_blank')
       a.setAttribute('rel', 'noopener')
@@ -510,8 +554,28 @@ export function resolveLinks(pageRoot: any) {
       // not in this page: the page that has a section of that name (“/#about”), else the name as it is
       href = near ? '#' + near : elsewhere ?? '#' + s
     }
-    a.setAttribute('href', withBase(href))
+    a.setAttribute('href', withBase(local(href)))
   }
+}
+
+const LANGUAGE_NAMES: Record<string, string> = { fr: 'Français', en: 'English', de: 'Deutsch', it: 'Italiano', es: 'Español', pt: 'Português', nl: 'Nederlands', rm: 'Rumantsch' }
+
+/** languages: the same page in each language of the site (FR · EN), the one shown marked as current. */
+export function languages(nav: any, path: string) {
+  const { list, current } = languageList()
+  nav.setAttribute('aria-label', list[current] === 'fr' ? 'Langue' : 'Language')
+  const bare = splitLanguage(path)[1]
+  list.forEach((l, j) => {
+    const a = h(nav, 'a', 'k-language')
+    const href = j ? `/${l}${bare === '/' ? '/' : bare}` : bare
+    a.setAttribute('href', withBase(href))
+    a.setAttribute('hreflang', l)
+    a.setAttribute('lang', l)
+    a.setAttribute('aria-label', LANGUAGE_NAMES[l.slice(0, 2)] ?? l)
+    if (j === current) a.setAttribute('aria-current', 'true')
+    else a.removeAttribute('aria-current')
+    setText(a, l.slice(0, 2).toUpperCase())
+  })
 }
 
 /** Menu of links: on phones it folds behind a button (installed at start, static pages included). */

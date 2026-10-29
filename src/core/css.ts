@@ -15,6 +15,8 @@ export function literal(e: Expr | undefined, siteColors: Record<string, string>)
     case 'color':
       return e.v
     case 'text':
+      // a text translated in a site of several languages is chosen by each page: never a fixed value
+      if (e.translated) return undefined
       if (e.parts.every((m) => typeof m === 'string')) return (e.parts as string[]).join('')
       return undefined
     case 'name': {

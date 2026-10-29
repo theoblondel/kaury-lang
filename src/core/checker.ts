@@ -11,6 +11,7 @@ import {
 import { JS_GLOBALS, KAURY_FUNCTIONS, kauryGlobal, kauryNames } from './globals.js'
 import { literal, hexOf, contrast, DYNAMIC_PROP } from './css.js'
 import { lineHabit, optionHabit, valueHabit } from './habits.js'
+import { type Dictionary, holes, textKey } from './translate.js'
 
 type ScopeKind = 'module' | 'page' | 'component' | 'function' | 'block' | 'lambda' | 'action'
 
@@ -56,6 +57,10 @@ export interface ModuleInfo {
   gos: { path: string; pos: Pos }[]
   /** what each page names (section about, id "prices", the heading of a block): a menu word finds its section on another page */
   anchors: { page: string; id: string }[]
+  /** a site in several languages (lang "fr", "en"): its languages, the first one being that of the file */
+  languages: string[]
+  /** the texts of the file and their translations (translate "en") */
+  dictionary: Dictionary
 }
 
 /** "Our prices" → "our-prices": the name a heading gives to its section (same rule as the runtime). */
@@ -82,6 +87,8 @@ export function check(program: Stmt[], options: { file?: string } = {}): {
 const NAMED_CONTAINERS = ['section', 'box', 'grid', 'row', 'column', 'scene', 'card', 'form', 'list', 'header', 'footer', 'nav']
 const ALWAYS_NAMED = ['section', 'scene', 'header', 'footer', 'nav']
 const FIELD_HEADS = ['field', 'textarea', 'select', 'checkbox']
+/** Elements whose first word is a state of the page: the value a field fills, the true/false a dialog follows. */
+const STATE_HEADS = [...FIELD_HEADS, 'dialog']
 /** Elements whose first item is their content (a text, an image…). */
 const CONTENT_HEADS = new Set(['title', 'subtitle', 'text', 'item', 'icon', 'button', 'link', 'image', 'video', 'card', 'logo', 'markdown', 'details', 'embed'])
 /** Units written after a number: glued to it (20px, 50%, 2rem). */
@@ -108,7 +115,7 @@ const SITE_SETTINGS = ['colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'seo
 class Checker {
   errors: KauryError[] = []
   warnings: KauryError[] = []
-  info: ModuleInfo = { pages: [], components: [], immersion: false, threeD: false, lottie: false, colors: {}, exports: [], files: [], reads: [], gos: [], anchors: [] }
+  info: ModuleInfo = { pages: [], components: [], immersion: false, threeD: false, lottie: false, colors: {}, exports: [], files: [], reads: [], gos: [], anchors: [], languages: [], dictionary: new Map() }
   /** the page being read, when its address is fixed ("/shop", not "/product/:id") */
   private page?: string
   /** the first word of the line being read, when the line is a call or a name (tittle "Hi") */
@@ -142,6 +149,7 @@ class Checker {
   module(prog: Stmt[]) {
     const s = new Scope('module')
     for (const i of prog) if (i.k === 'site') this.readSiteColors(i.body)
+    this.readLanguages(prog)
     this.hoist(prog, s)
     // pages and components are displayed after the file is loaded:
     // they are checked last, so they see everything declared in the file
@@ -155,6 +163,7 @@ class Checker {
       seen.set(pg.path, pg.pos)
     }
     this.checkAccent()
+    this.unusedTranslations()
     if (this.info.pages.length && !this.info.exports.length) {
       for (const [name, pos] of this.styleDefs) {
         if (!this.usedStyles.has(name)) {
@@ -168,6 +177,91 @@ class Checker {
         this.warn(b.pos, msg(`the state ${q(name)} is never used.`, `l'état ${q(name)} n'est jamais utilisé.`), msg('remove it, or show it somewhere.', 'supprime-le, ou affiche-le quelque part.'))
       }
     }
+  }
+
+  /** lang "fr", "en" in site, and the translate blocks: read before the pages, which use them wherever they are written. */
+  private readLanguages(prog: Stmt[]) {
+    for (const i of prog) {
+      if (i.k !== 'site') continue
+      for (const c of i.body) {
+        if (c.k !== 'command' || c.head !== 'lang') continue
+        const codes = c.items.flatMap((it) => it.atoms).map((a) => (a.k === 'text' && a.parts.every((p) => typeof p === 'string') ? (a.parts as string[]).join('') : undefined))
+        if (codes.length > 1 && codes.every((x): x is string => !!x)) this.info.languages = codes
+      }
+    }
+    const langs = this.info.languages
+    for (const i of prog) {
+      if (i.k !== 'translate') continue
+      if (!langs.length) {
+        this.err(i.pos, msg(`the site has one language: to translate it into ${q(i.lang)}, give it its languages, the one of the file first.`, `le site a une seule langue : pour le traduire en ${q(i.lang)}, donne-lui ses langues, celle du fichier d'abord.`),
+          `site "…"\n  lang "fr", "${i.lang}"`)
+        continue
+      }
+      if (i.lang === langs[0]) {
+        this.err(i.pos, msg(`${q(i.lang)} is the language the file is written in: its texts need no translation.`, `${q(i.lang)} est la langue dans laquelle le fichier est écrit : ses textes n'ont pas besoin de traduction.`),
+          msg(`translate into the other languages of the site: ${langs.slice(1).map((l) => `translate "${l}"`).join(', ')}`, `traduis dans les autres langues du site : ${langs.slice(1).map((l) => `translate "${l}"`).join(', ')}`))
+        continue
+      }
+      if (!langs.includes(i.lang)) {
+        this.err(i.pos, msg(`${q(i.lang)} is not one of the languages of the site (${langs.join(', ')}).`, `${q(i.lang)} n'est pas une des langues du site (${langs.join(', ')}).`),
+          `lang ${[...langs, i.lang].map((l) => `"${l}"`).join(', ')}`)
+        continue
+      }
+      for (const pair of i.pairs) {
+        const key = textKey(pair.from)
+        const own = holes(pair.from)
+        const missing = [...holes(pair.to).keys()].filter((k) => !own.has(k))
+        if (missing.length) {
+          this.err(pair.pos, msg(`the translation reads {${missing[0]}}, which the text it translates does not have.`, `la traduction lit {${missing[0]}}, que le texte qu'elle traduit n'a pas.`),
+            msg(`between braces, a translation uses the values of its text: ${[...own.keys()].map((k) => `{${k}}`).join(' ') || 'here, none'}`, `entre accolades, une traduction reprend les valeurs de son texte : ${[...own.keys()].map((k) => `{${k}}`).join(' ') || 'ici, aucune'}`))
+          continue
+        }
+        let byLang = this.info.dictionary.get(key)
+        if (!byLang) this.info.dictionary.set(key, (byLang = new Map()))
+        const before = byLang.get(i.lang)
+        if (before) {
+          this.warn(pair.pos, msg(`this text is already translated into ${q(i.lang)} on line ${before.pos.line}: this line wins.`, `ce texte est déjà traduit en ${q(i.lang)} ligne ${before.pos.line} : cette ligne l'emporte.`),
+            msg('keep one translation per text.', 'garde une seule traduction par texte.'))
+        }
+        byLang.set(i.lang, { to: pair.to, pos: pair.pos, used: false })
+      }
+    }
+  }
+
+  /** A translation of a text the file does not have: a text changed since, or written differently. */
+  private unusedTranslations() {
+    const unused = new Set([...this.info.dictionary].filter(([, byLang]) => [...byLang.values()].every((t) => !t.used)).map(([k]) => k))
+    // the texts the file does say, to point at the one meant
+    const said = [...this.info.dictionary.keys()].filter((k) => !unused.has(k)).concat([...this.said])
+    for (const key of unused) {
+      for (const [lang, t] of this.info.dictionary.get(key)!) {
+        const near = closest(key, said)
+        this.warn(t.pos, msg(`no text of the file says ${q(key)}: this translation into ${q(lang)} is never used.`, `aucun texte du fichier ne dit ${q(key)} : cette traduction en ${q(lang)} ne sert jamais.`),
+          near ? msg(`the file says ${q(near)}: write it the same way, letter for letter.`, `le fichier dit ${q(near)} : écris-le de la même façon, lettre pour lettre.`)
+            : msg('a text is found by what it says, letter for letter: copy it from the line where it is written, or remove this one.', 'un texte est trouvé par ce qu\'il dit, lettre pour lettre : copie-le depuis la ligne où il est écrit, ou supprime celle-ci.'))
+      }
+    }
+  }
+
+  /** the texts written in the file (a site in several languages): a translation that matches none is compared to them */
+  private said = new Set<string>()
+
+  /**
+   * In a site of several languages, a text shown in the page that has no translation into one of them:
+   * its page in that language shows it as it is written.
+   */
+  private untranslated(e: Expr | undefined) {
+    const langs = this.info.languages
+    if (!langs.length || e?.k !== 'text') return
+    const key = textKey(e)
+    const plain = e.parts.filter((p): p is string => typeof p === 'string').join('')
+    // a file, an address, a code, a number: nothing to translate
+    if (!/\p{L}{2}/u.test(plain) || MEDIA_FILE.test(plain) || /^(\/|#|https?:|mailto:|tel:)/.test(plain.trim())) return
+    const have = this.info.dictionary.get(key)
+    const missing = langs.slice(1).filter((l) => !have?.has(l))
+    if (!missing.length) return
+    this.warn(e.pos, msg(`${q(key)} has no translation into ${missing.map(q).join(', ')}: that page shows it as it is written.`, `${q(key)} n'a pas de traduction en ${missing.map(q).join(', ')} : cette page l'affiche tel qu'il est écrit.`),
+      msg(`add it to the block translate "${missing[0]}": "${key}" "…"`, `ajoute-le au bloc translate "${missing[0]}" : "${key}" "…"`))
   }
 
   private readSiteColors(body: Stmt[]) {
@@ -298,7 +392,7 @@ class Checker {
         } else if (i.k === 'command' && host.isView()) {
           // the first word of a field is the state it fills: known in the whole page, above the form too
           // (the thank-you message written before the form that asks for the name)
-          const first = FIELD_HEADS.includes(i.head) ? i.items[0]?.atoms[0] : undefined
+          const first = STATE_HEADS.includes(i.head) ? i.items[0]?.atoms[0] : undefined
           if (first?.k === 'name' && !s.find(first.name) && !explicit.has(first.name) && !kauryGlobal(first.name) && !JS_GLOBALS.has(first.name)
             && !elementOption(i.head, first.name) && (i.items[0].atoms.length > 1 || !styleOption(first.name))) {
             const b = this.declare(host, first.name, 'state', i.items[0].pos)
@@ -491,6 +585,9 @@ class Checker {
         this.page = undefined
         break
       }
+      case 'translate':
+        // read with the languages of the site, before the pages (readLanguages)
+        break
       case 'site': {
         if (i.name) this.expr(i.name, s)
         for (const c of i.body) {
@@ -587,9 +684,20 @@ class Checker {
     switch (e.k) {
       case 'number': case 'color': case 'bool': case 'none':
         return
-      case 'text':
+      case 'text': {
         for (const m of e.parts) if (typeof m !== 'string') this.expr(m, s)
+        if (this.info.languages.length) {
+          // a text with a translation: chosen in each page by its language
+          const key = textKey(e)
+          this.said.add(key)
+          const byLang = this.info.dictionary.get(key)
+          if (byLang) {
+            e.translated = true
+            for (const t of byLang.values()) t.used = true
+          }
+        }
         return
+      }
       case 'name': {
         const b = s.find(e.name)
         if (b) {
@@ -698,6 +806,8 @@ class Checker {
         positional.push(a)
       }
       c.meaning = { kind: 'component', positional, options: [] }
+      // what a block shows: its heading, its texts
+      for (const x of positional) this.untranslated(x)
       if (['Hero', 'Cta', 'Contact', 'Pricing'].includes(head)) this.usesButtons = true
       // a ready-made block is the section named after its heading (Pricing plans, "Prices" → #prices); Contact is #contact
       if (this.page) {
@@ -756,7 +866,7 @@ class Checker {
       }
       // the first word of a field is the state it fills, even when an option has that name (select size "S", "M", "L")
       // (“type” and “label” stay the options of the field: field type email)
-      if (word && FIELD_HEADS.includes(head) && it === c.items[0] && a.length > 1 && styleOption(word) && !elementOption(optionHead, word)) {
+      if (word && STATE_HEADS.includes(head) && it === c.items[0] && a.length > 1 && styleOption(word) && !elementOption(optionHead, word)) {
         let b = s.find(word)
         if (!b) {
           const host = s.host()
@@ -883,7 +993,7 @@ class Checker {
           positional.push(...a)
           continue
         }
-        if (FIELD_HEADS.includes(head) && !positional.length && it === c.items[0]) {
+        if (STATE_HEADS.includes(head) && !positional.length && it === c.items[0]) {
           // the first name of a field is the state it fills: created if it does not exist
           // (further on the line, an unknown word is a mistake: input type "email", placeholder "…")
           const host = s.host()
@@ -937,6 +1047,27 @@ class Checker {
       }
     }
     c.meaning = { kind, positional, options, objectName }
+    if (this.info.languages.length) {
+      // what the page shows: its texts, the description of an image, the hint of a field, a heading of a block
+      // (a logo is a name: it stays as it is in every language)
+      if ((kind === 'element' && head !== 'logo' && (CONTENT_HEADS.has(head) || ['dialog', 'field', 'textarea', 'checkbox'].includes(head))) || head === 'seo') {
+        for (const x of positional) this.untranslated(x)
+      }
+      if (head === 'links') {
+        // the words of a menu are shown: “links Accueil, Carte” is translated like texts (“Accueil” “Home”)
+        for (const x of positional) {
+          if (x.k === 'text') this.untranslated(x)
+          else if (x.k === 'name' && (!x.binding || x.binding.kind === 'component')) {
+            const label = x.name.replace(/-/g, ' ')
+            this.said.add(label)
+            const byLang = this.info.dictionary.get(label)
+            for (const t of byLang?.values() ?? []) t.used = true
+            this.untranslated({ k: 'text', parts: [label], pos: x.pos })
+          }
+        }
+      }
+      for (const o of options) if (['label', 'alt'].includes(o.name)) this.untranslated(o.values[0])
+    }
     if (head === 'button') this.checkButtonText(c, options)
     if (this.page && kind === 'element') {
       if (objectName && head !== 'object' && head !== 'character') this.info.anchors.push({ page: this.page, id: objectName })

@@ -195,7 +195,7 @@ export const UNIVERSAL_OPTIONS: Record<string, OptionSpec> = {
   open: o('e?', ['ouvert'], 'a details element shown open', 'un details affiché ouvert', 'details "Price?", open'),
   html: o('e?', [], 'content written in HTML (trusted text only)', 'contenu écrit en HTML (texte de confiance uniquement)', 'text "Hello<br>world", html'),
 }
-const UNIVERSAL_HEADS = new Set(['details', 'embed', 'section', 'header', 'footer', 'nav', 'grid', 'column', 'row', 'box', 'card', 'title', 'subtitle', 'text', 'image', 'video', 'link', 'links', 'logo', 'button', 'form', 'field', 'textarea', 'select', 'checkbox', 'list', 'item', 'icon', 'divider', 'spacer', 'markdown'])
+const UNIVERSAL_HEADS = new Set(['details', 'dialog', 'languages', 'embed', 'section', 'header', 'footer', 'nav', 'grid', 'column', 'row', 'box', 'card', 'title', 'subtitle', 'text', 'image', 'video', 'link', 'links', 'logo', 'button', 'form', 'field', 'textarea', 'select', 'checkbox', 'list', 'item', 'icon', 'divider', 'spacer', 'markdown'])
 
 export const MOTIONS: Record<string, OptionSpec> = {
   spin: o('*', [], 'spins: spin, spin 90/s, spin on scroll, spin x', 'tourne sur lui-même : tourne, tourne 90/s, tourne au defilement', 'spin on scroll'),
@@ -257,6 +257,8 @@ export const ELEMENTS: Record<string, ElementSpec> = {
   spacer: e('div', 'special', 'empty space', 'espace vide', 'spacer 48'),
   markdown: e('div', 'text', 'Markdown text rendered as rich text (titles, lists, links)', 'texte Markdown affiché en texte riche (titres, listes, liens)', 'markdown post.body'),
   details: e('details', 'container', 'a question or title that opens on click to show what is below', 'une question ou un titre qui s\'ouvre au clic', 'details "Is it free?"'),
+  languages: e('nav', 'special', 'links to this page in the other languages of the site (FR · EN)', 'liens vers cette page dans les autres langues du site (FR · EN)', 'languages'),
+  dialog: e('dialog', 'container', 'a window over the page, shown while its state is true (open name, close name)', 'une fenêtre par-dessus la page, affichée tant que son état est vrai (open nom, close nom)', 'dialog booking, "Book a table"'),
   embed: e('iframe', 'media', 'another page shown inside this one (map, video, app)', 'une autre page affichée dans celle-ci', 'embed "https://…", "Map of the shop"'),
   slot: e('div', 'special', 'inside a component: where the content given between its lines goes', 'dans un composant : là où va le contenu donné entre ses lignes', 'slot'),
   scene: e('div', 'immersion', '2D or 3D immersive area', 'zone immersive 2D ou 3D', 'scene'),

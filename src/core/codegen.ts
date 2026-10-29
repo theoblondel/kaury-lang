@@ -8,6 +8,7 @@ import { canon, canonValue, stripAccents } from './keywords.js'
 import { declarations, hexOf, isLight, literal, bestText, fontFamily, DYNAMIC_PROP, PX_UNIT } from './css.js'
 import { globalSpec, kauryMethod, PROPERTIES } from './globals.js'
 import type { ModuleInfo } from './checker.js'
+import { holdsTranslation, pathIn, textKey, translatedText } from './translate.js'
 import { ELEMENTS } from './vocabulary.js'
 
 const JS_RESERVED = new Set([
@@ -182,6 +183,13 @@ class Generator {
         siteObj = this.siteDecl(i)
         continue
       }
+      if (i.k === 'translate') continue
+      if (i.k === 'let' && this.info.languages.length && i.binding?.kind === 'const' && holdsTranslation(i.value)) {
+        // a value of the file with translated texts (a list of dishes): made once per language, when a page reads it
+        i.binding.perLanguage = true
+        this.emit(`${i.exported ? 'export ' : ''}const ${jsName(i.name)} = $k.perLanguage(() => ${this.ex(i.value)})`, i.pos)
+        continue
+      }
       this.statement(i, { view: false })
     }
     // UI lines at file level (without a page) → implicit page "/"
@@ -225,6 +233,10 @@ class Generator {
         const m = s.meaning
         if (m?.kind === 'component') {
           if (this.bringsTitle(s.head)) seen = true
+        } else if (s.head === 'dialog') {
+          // a window that opens on demand is never the subject of the page: its titles are <h2>, and it takes no place
+          this.mainHeading(s.children, true)
+          continue
         } else if (s.head === 'markdown') {
           // a text that brings its own “# Title” under the title of the page: one level down (decided when it is shown)
           if (seen) this.laterTitles.add(s)
@@ -297,6 +309,8 @@ class Generator {
         case 'lang':
           props.push(`lang: ${this.ex(p0[0])}`)
           this.site.lang = String(literal(p0[0], {}) ?? 'en')
+          // lang "fr", "en": a site in several languages, the first one being that of the file
+          if (this.info.languages.length) props.push(`langs: ${JSON.stringify(this.info.languages)}`)
           break
         case 'url':
           props.push(`url: ${this.ex(p0[0])}`)
@@ -438,6 +452,19 @@ class Generator {
       : ''
     this.ownPages.push({ path: i.path, from: firstClass, to: this.classes, looks: [] })
     this.parts.set('page ' + i.path, this.written(firstLine))
+    const langs = this.info.languages
+    if (langs.length && i.path !== '/404') {
+      // a site in several languages: the page once per language (“/menu”, “/en/menu”), the same code for all;
+      // its texts are chosen by the language of the address, and it names its versions in the other languages
+      return langs.map((l, j) => {
+        const eachJ = i.each
+          ? `, each: () => ${this.ex(i.each.source)}, pathOf: (${jsName(i.each.variable)}) => ${j ? `${JSON.stringify('/' + l)} + ` : ''}${this.ex(i.address!)}`
+          : ''
+        const langJ = lang === 'null' ? JSON.stringify(l) : lang
+        const altJ = alternates === 'null' ? '$k.alternates($route.path)' : alternates
+        return `{ path: ${JSON.stringify(pathIn(i.path, l, j === 0))}${eachJ}, render: ${fn}, seo: ($route) => { ${prelude} return ${seo} }, lang: ($route) => { ${prelude} return ${langJ} }, alternates: ($route) => { ${prelude} return ${altJ} }, head: ($route) => { ${prelude} return ${head} }, transition: ${transition} }`
+      }).join(', ')
+    }
     return `{ path: ${JSON.stringify(i.path)}${each}, render: ${fn}, seo: ($route) => { ${prelude} return ${seo} }, lang: ($route) => { ${prelude} return ${lang} }, alternates: ($route) => { ${prelude} return ${alternates} }, head: ($route) => { ${prelude} return ${head} }, transition: ${transition} }`
   }
 
@@ -1034,7 +1061,7 @@ class Generator {
       return
     }
     let tag = ({
-      details: 'details', embed: 'iframe',
+      details: 'details', dialog: 'dialog', languages: 'nav', embed: 'iframe',
       section: 'section', header: 'header', footer: 'footer', nav: 'nav', grid: 'div', column: 'div', row: 'div', box: 'div',
       card: 'article', title: 'h1', subtitle: 'h2', text: 'p', image: 'img', video: 'video', link: 'a', links: 'nav', logo: 'a',
       button: 'button', form: 'form', field: 'input', textarea: 'textarea', select: 'select', checkbox: 'input', list: 'ul',
@@ -1218,11 +1245,14 @@ class Generator {
           const a = this.fresh()
           this.emit(`const ${a} = $k.h(${n}, "a", "k-nav-link")`)
           if (x.k === 'name' && (!x.binding || x.binding.kind === 'component')) {
-            this.emit(`$k.setText(${a}, ${JSON.stringify(x.name.replace(/-/g, ' '))})`)
+            const label = x.name.replace(/-/g, ' ')
+            // in a site of several languages, the word of the menu is translated like a text (“Accueil” “Home”)
+            if (this.info.dictionary.has(label) && this.info.languages.length) this.text(a, { k: 'text', parts: [label], pos: x.pos, translated: true })
+            else this.emit(`$k.setText(${a}, ${JSON.stringify(label)})`)
             this.emit(`$k.autoLink(${a}, ${JSON.stringify(x.name)}${elsewhere(x.name)})`)
           } else if (x.k === 'text') {
             this.text(a, x)
-            const word = String(literal(x, {}) ?? '')
+            const word = x.parts.every((m) => typeof m === 'string') ? (x.parts as string[]).join('') : ''
             this.emit(`$k.autoLink(${a}, ${JSON.stringify(word)}${elsewhere(word)})`)
           } else this.text(a, x)
         }
@@ -1231,7 +1261,7 @@ class Generator {
         break
       }
       case 'logo': {
-        this.emit(`${n}.setAttribute("href", "/"); ${n}.setAttribute("aria-label", ${JSON.stringify(this.site.name ? `${this.site.name} — home` : 'Home')})`)
+        this.emit(`${this.info.languages.length ? `$k.attr(${n}, "href", () => "/")` : `${n}.setAttribute("href", "/")`}; ${n}.setAttribute("aria-label", ${JSON.stringify(this.site.name ? `${this.site.name} — home` : 'Home')})`)
         const x = p[0]
         if (x && isImage(x)) {
           const i2 = this.fresh()
@@ -1255,6 +1285,25 @@ class Generator {
         const s2 = this.fresh()
         this.emit(`const ${s2} = $k.h(${n}, "summary", "k-summary")`)
         if (p[0]) this.text(s2, p[0])
+        break
+      }
+      case 'languages':
+        // the same page in each language of the site
+        this.emit(`$k.languages(${n}, $k.route.path)`)
+        break
+      case 'dialog': {
+        // dialog booking, "Book a table": a window over the page while “booking” is true (open booking, close booking)
+        const st = p[0]
+        const ref = st && st.k === 'name' ? this.target(st) : undefined
+        const x = this.fresh()
+        this.emit(`const ${x} = $k.h(${n}, "button", "k-dialog-close")`)
+        if (p[1]) {
+          const t2 = this.fresh()
+          this.emit(`const ${t2} = $k.h(${n}, "h2", "k-dialog-title")`)
+          this.text(t2, p[1])
+          this.attr(n, 'aria-label', p[1])
+        }
+        if (ref) this.emit(`$k.dialog(${n}, ${x}, () => ${ref}, ($v) => { ${ref} = $v })`)
         break
       }
       case 'embed':
@@ -1386,7 +1435,8 @@ class Generator {
     if (l !== undefined && (name === 'src' || name === 'poster')) l = assetPath(String(l))
     // “#réalisations”: a section named with an accent has its id without it
     if (typeof l === 'string' && name === 'href' && l.includes('#')) l = l.slice(0, l.indexOf('#')) + stripAccents(l.slice(l.indexOf('#')))
-    if (l !== undefined) this.emit(`${n}.setAttribute(${JSON.stringify(name)}, ${JSON.stringify(String(l))})`)
+    if (l !== undefined && !(name === 'href' && this.info.languages.length)) this.emit(`${n}.setAttribute(${JSON.stringify(name)}, ${JSON.stringify(String(l))})`)
+    else if (l !== undefined) this.emit(`$k.attr(${n}, "href", () => ${JSON.stringify(String(l))})`)
     else if (name === 'src' || name === 'poster') this.emit(`$k.attr(${n}, ${JSON.stringify(name)}, () => $k.path(${this.ex(e)}))`)
     else this.emit(`$k.attr(${n}, ${JSON.stringify(name)}, () => ${this.ex(e)})`)
   }
@@ -1428,6 +1478,16 @@ class Generator {
         if (!e.unit || ['ms', 'px', 'deg', '/s'].includes(e.unit)) return String(e.v)
         return JSON.stringify(`${e.v}${e.unit}`)
       case 'text': {
+        if (e.translated) {
+          // one version per language of the site, in their order: the page takes its own
+          const byLang = this.info.dictionary.get(textKey(e))
+          const plain = { ...e, translated: false }
+          const versions = this.info.languages.map((l, j) => {
+            const t = j ? byLang?.get(l) : undefined
+            return this.ex(t ? translatedText(e, t.to) : plain)
+          })
+          return `$k.tr(${versions.join(', ')})`
+        }
         if (e.parts.every((m) => typeof m === 'string')) return JSON.stringify((e.parts as string[]).join(''))
         return '`' + e.parts.map((m) => (typeof m === 'string' ? m.replace(/[`\\]|\$\{/g, (x) => '\\' + x) : `\${$k.t(${this.ex(m)})}`)).join('') + '`'
       }
@@ -1440,6 +1500,7 @@ class Generator {
       case 'name': {
         const b = e.binding
         if (!b) return jsName(e.name)
+        if (b.perLanguage) return `${jsName(e.name)}()`
         switch (b.kind) {
           case 'state':
           case 'derived':

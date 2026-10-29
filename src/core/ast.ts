@@ -20,12 +20,14 @@ export interface Binding {
   /** what comes from content files: the files it is read from, and whether this name is one entry (post) or the list (posts) */
   content?: { source: string; entry: boolean }
   params?: { names: string[]; required: number } // a function: the values it takes
+  /** a value of the file that holds texts translated in a site of several languages: one value per language */
+  perLanguage?: boolean
 }
 
 // ---------- Expressions ----------
 export type Expr =
   | { k: 'number'; v: number; unit?: string; pos: Pos }
-  | { k: 'text'; parts: (string | Expr)[]; pos: Pos }
+  | { k: 'text'; parts: (string | Expr)[]; pos: Pos; translated?: boolean }
   | { k: 'color'; v: string; pos: Pos }
   | { k: 'bool'; v: boolean; pos: Pos }
   | { k: 'none'; pos: Pos }
@@ -66,6 +68,7 @@ export type Stmt =
   | { k: 'component'; name: string; params: Param[]; body: Stmt[]; exported?: boolean; pos: Pos }
   | { k: 'page'; path: string; address?: Expr; each?: { variable: string; source: Expr }; body: Stmt[]; pos: Pos }
   | { k: 'site'; name?: Expr; body: Stmt[]; pos: Pos }
+  | { k: 'translate'; lang: string; pairs: { from: Extract<Expr, { k: 'text' }>; to: Extract<Expr, { k: 'text' }>; pos: Pos }[]; pos: Pos }
   | Command
 
 export interface Param {

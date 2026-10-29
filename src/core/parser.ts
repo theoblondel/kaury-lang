@@ -23,7 +23,7 @@ export const UI_HEADS = new Set([
   // web
   'section', 'header', 'footer', 'nav', 'grid', 'column', 'row', 'box', 'card', 'title', 'subtitle',
   'text', 'image', 'video', 'link', 'links', 'logo', 'button', 'form', 'field', 'textarea', 'select', 'checkbox',
-  'list', 'item', 'icon', 'divider', 'spacer', 'slot', 'markdown', 'details', 'embed', 'style', 'mobile', 'tablet', 'desktop', 'seo',
+  'list', 'item', 'icon', 'divider', 'spacer', 'slot', 'markdown', 'details', 'dialog', 'languages', 'embed', 'style', 'mobile', 'tablet', 'desktop', 'seo',
   'colors', 'font', 'fonts', 'lang', 'favicon', 'url', 'alternate', 'head', 'wrapper', 'base',
   // immersion
   'scene', 'object', 'character', 'light', 'camera', 'on', 'follows', 'enters', 'spin', 'float', 'jump',
@@ -414,6 +414,9 @@ class Parser {
         case 'site':
           if (!this.assignmentFollows()) return this.site()
           break
+        case 'translate':
+          if (this.peek(1).t === 'text' && !this.assignmentFollows()) return this.translateBlock()
+          break
       }
       if (this.isUiHead()) return this.command()
       // the reflex of CSS: “padding 80 48” alone under its element (or “radius 20” in “site”) is its style
@@ -731,6 +734,47 @@ class Parser {
     this.endOfLine()
     const body = this.optionalBlock('site')
     return { k: 'site', name, body, pos: this.pos(t) }
+  }
+
+  /** translate "en", then one line per text: the text written in the file, its translation. */
+  private translateBlock(): Stmt {
+    const t = this.next()
+    const l = this.peek()
+    const lang = this.primary(SIMPLE)
+    const example = 'translate "en"\n  "Réserver une table" "Book a table"'
+    if (lang.k !== 'text' || !lang.parts.every((p) => typeof p === 'string') || !/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test((lang.parts as string[]).join(''))) {
+      throw this.error(l, msg('“translate” is followed by the code of a language: "en", "de", "fr-CH".', '« translate » est suivi du code d\'une langue : "en", "de", "fr-CH".'), example)
+    }
+    this.endOfLine()
+    const pairs: Extract<Stmt, { k: 'translate' }>['pairs'] = []
+    if (this.peek().t !== 'indent') {
+      throw this.error(this.peek(), msg('“translate” expects its texts below, one per line: the text of the file, then its translation.', '« translate » attend ses textes dessous, un par ligne : le texte du fichier, puis sa traduction.'), example)
+    }
+    this.next()
+    while (this.peek().t !== 'dedent' && this.peek().t !== 'eof') {
+      if (this.peek().t === 'newline') {
+        this.next()
+        continue
+      }
+      const at = this.peek()
+      try {
+        const from = this.primary(SIMPLE)
+        if (this.isOp(',') || this.isOp('->') || this.isOp('=')) this.next()
+        const to = this.peek().t === 'newline' || this.peek().t === 'eof' || this.peek().t === 'dedent' ? undefined : this.primary(SIMPLE)
+        if (from.k !== 'text' || to?.k !== 'text') {
+          throw this.error(at, msg('a line of “translate” holds two texts: the one written in the file, then its translation.', 'une ligne de « translate » tient deux textes : celui écrit dans le fichier, puis sa traduction.'), '"Réserver une table" "Book a table"')
+        }
+        this.endOfLine()
+        pairs.push({ from, to, pos: this.pos(at) })
+      } catch (e) {
+        if (!this.errors) throw e
+        this.errors.push(e as any)
+        while (!['newline', 'eof', 'dedent'].includes(this.peek().t)) this.next()
+        if (this.peek().t === 'newline') this.next()
+      }
+    }
+    if (this.peek().t === 'dedent') this.next()
+    return { k: 'translate', lang: (lang.parts as string[]).join(''), pairs, pos: this.pos(t) }
   }
 
   // ---------- UI lines ----------

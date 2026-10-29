@@ -10,6 +10,69 @@ export function setLocale(l: string | undefined) {
   if (l) locale = l
 }
 
+// ---- a site in several languages (lang "fr", "en"): the page being shown has one of them
+let languages: string[] = []
+let current = 0
+/** The languages of the site, the first one being that of the file. */
+export function setLanguages(list: string[] | undefined) {
+  languages = list ?? []
+}
+/** The language of the page being shown: its texts are chosen from it. */
+export function setPageLanguage(lang: string | null | undefined) {
+  current = Math.max(0, lang ? languages.indexOf(lang) : 0)
+}
+/** A text in each language of the site, in their order: the one of the page (the text of the file when there is no other). */
+export function tr(...versions: unknown[]): unknown {
+  return versions[current] ?? versions[0]
+}
+/** A value of the file that holds translated texts: made once per language, the first time a page reads it. */
+export function perLanguage<T>(make: () => T): () => T {
+  const made = new Map<number, T>()
+  return () => {
+    if (!made.has(current)) made.set(current, make())
+    return made.get(current)!
+  }
+}
+/** "/en" on a page in English when French is the first language; nothing on a page in the first language. */
+export function languagePrefix(): string {
+  return current > 0 ? '/' + languages[current] : ''
+}
+/** Splits an address of the site into its language and the address in the first language: "/en/menu" → ["en", "/menu"]. */
+export function splitLanguage(path: string): [string, string] {
+  for (const l of languages.slice(1)) {
+    if (path === '/' + l || path === '/' + l + '/') return [l, '/']
+    if (path.startsWith('/' + l + '/')) return [l, path.slice(l.length + 1)]
+  }
+  return [languages[0] ?? '', path]
+}
+/**
+ * An address of the site written in the file ("/menu", "/#prices") leads to the same page in the language of the page.
+ * A file ("/photo.jpg"), another site, an address already in a language are left alone.
+ */
+export function local(url: string): string {
+  const p = languagePrefix()
+  if (!p || !url.startsWith('/') || url.startsWith('//') || url.startsWith('/_kaury/')) return url
+  if (/\.[a-z0-9]{2,5}$/i.test(url.split(/[?#]/)[0])) return url
+  if (splitLanguage(url)[0] !== languages[0]) return url
+  return p + url
+}
+/** The versions of a page in every language (<link rel="alternate" hreflang>): from its address in any of them. */
+export function alternates(path: string): [string, string][] {
+  // written like the canonical address of each page: “/carte/”, “/en/carte/”
+  const bare = splitLanguage(path)[1].replace(/\/?$/, '/')
+  return languages.map((l, j) => [l, j ? `/${l}${bare}` : bare])
+}
+/** The site's languages, and the one of the page shown. */
+export function languageList(): { list: string[]; current: number } {
+  return { list: languages, current }
+}
+
+/** The word for “close” in the language of the site (the button of a dialog says it to a screen reader). */
+export function closeWord(): string {
+  const words: Record<string, string> = { fr: 'Fermer', de: 'Schließen', it: 'Chiudi', es: 'Cerrar', pt: 'Fechar', nl: 'Sluiten' }
+  return words[locale.slice(0, 2).toLowerCase()] ?? 'Close'
+}
+
 export function t(v: unknown): string {
   if (v === null || v === undefined) return ''
   if (Array.isArray(v)) return v.map(t).join(', ')

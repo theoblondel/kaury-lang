@@ -141,6 +141,9 @@ export const ELEMENT_HABITS: Record<string, Habit> = {
   textbox: FIELD, textfield: FIELD, 'text-field': FIELD, 'input-field': FIELD,
   dropdown: h('select size "S", "M", "L"'),
   accordion: h('details "Is it free?"', 'what is indented below shows on click', 'ce qui est indenté dessous s\'affiche au clic'),
+  modal: h('dialog booking, "Book a table"', 'a window over the page: button "Book" -> open booking', 'une fenêtre par-dessus la page : bouton "Réserver" -> open booking'),
+  popup: h('dialog booking, "Book a table"', 'a window over the page: button "Book" -> open booking', 'une fenêtre par-dessus la page : bouton "Réserver" -> open booking'),
+  lightbox: h('dialog photo, "Photo"', 'a window over the page: button "See" -> open photo', 'une fenêtre par-dessus la page : bouton "Voir" -> open photo'),
   canvas: h('object "knot"', 'a 3D shape, or a .glb file', 'une forme 3D, ou un fichier .glb'),
   audio: h('sound "ambient.mp3", loop'), music: h('sound "ambient.mp3", loop'),
 }

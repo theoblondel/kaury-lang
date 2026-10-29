@@ -4,11 +4,11 @@ export { state, derived, effect, batch, root, untracked, reactive, raw, onCleanu
 export {
   t, print, load, send, sum, average, min, max, round, floor, ceil, abs, sqrt, random, pick, length, now, toText, toNumber, toDate, formatNumber,
   price, formatDate, shuffle, range, toList, delay, every, later, persist, copy, vibrate, scrollTo, share, equal, has, prop, m,
-  confetti, NetworkError, setLocale, jsonLd, plus, base64, encodeUrl,
+  confetti, NetworkError, setLocale, jsonLd, plus, base64, encodeUrl, tr, perLanguage, alternates,
 } from './utils.js'
 export {
   h, setText, text, attr, style, px, path, img, on, when, each, component, mark, rootNodes, rootClass, slot, bind, bindSelect, bindCheck,
-  options, form, card, frame, autoLink, resolveLinks, mobileMenu, installMenus, markdown, html, classes, imageSize, inBrowser, slug,
+  options, dialog, languages, form, card, frame, autoLink, resolveLinks, mobileMenu, installMenus, markdown, html, classes, imageSize, inBrowser, slug,
 } from './dom.js'
 export { serverCollection, clientCollection, rawItems } from './content.js'
 export { mail, mailId, mailAddresses, MAIL_ENDPOINT } from './mail.js'

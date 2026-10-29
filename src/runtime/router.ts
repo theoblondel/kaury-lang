@@ -7,7 +7,7 @@
 import { root, batch, takeDynamic, adopted } from './reactive.js'
 import { inBrowser, resolveLinks, setPaths, setHydrating, HydrationMismatch, checkLeftovers, installMenus, withBase } from './dom.js'
 import { startGlobals, route } from './motion.js'
-import { setLocale } from './utils.js'
+import { setLocale, setLanguages, setPageLanguage, local } from './utils.js'
 import { rawItems, takeUsedCollections, peek } from './content.js'
 
 type Route = { path: string; params: Record<string, string>; item?: any }
@@ -24,7 +24,7 @@ export interface KauryPage {
 }
 export interface KauryModule {
   $pages: KauryPage[]
-  $site: { name?: string; lang?: string; seo?: any; transition?: string; favicon?: string; url?: string; head?: string }
+  $site: { name?: string; lang?: string; langs?: string[]; seo?: any; transition?: string; favicon?: string; url?: string; head?: string }
 }
 
 let releaseCurrent: (() => void) | null = null
@@ -102,9 +102,14 @@ export interface RenderInfo {
 
 /** Renders a page into a container (browser or server). With hydrate, adopts the HTML already there. */
 export function renderPage(m: KauryModule, path: string, target: any, hydrate = false): RenderInfo {
+  setLanguages(m.$site.langs)
+  setPageLanguage(null)
   setPaths(allPaths(m))
-  setLocale(m.$site.lang)
   const r = findPage(m.$pages, path)
+  // the language of the page: its texts, its dates and prices, the word of its buttons
+  const pageLang = r?.page.lang?.({ path, params: r.params, item: r.item }) ?? null
+  setLocale(pageLang ?? m.$site.lang)
+  setPageLanguage(pageLang)
   batch(() => {
     route.path = path
     route.params = r?.params ?? {}
@@ -196,7 +201,7 @@ export function start(m: KauryModule, selector = '#app') {
 
 /** Goes to another page (a real navigation, with the native transition). */
 export function go(path: string) {
-  if (inBrowser()) location.href = withBase(path)
+  if (inBrowser()) location.href = withBase(local(path))
 }
 
 /** SEO setting coming from inside a page. */

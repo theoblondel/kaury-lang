@@ -31,7 +31,7 @@ const OPS = ['**=', '...', '->', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=',
 const CLOSER: Record<string, string> = { '(': ')', '[': ']', '{': '}' }
 /** Words whose line opens a block: a “{” at the end of such a line is a block brace of JavaScript, not an object. */
 const BLOCK_WORDS = new Set(['function', 'if', 'else', 'for', 'while', 'try', 'catch', 'page', 'component', 'site', 'style', 'animation',
-  'section', 'header', 'footer', 'nav', 'box', 'column', 'row', 'grid', 'card', 'form', 'list', 'scene', 'details'])
+  'section', 'header', 'footer', 'nav', 'box', 'column', 'row', 'grid', 'card', 'form', 'list', 'scene', 'details', 'dialog'])
 /** Signs of JavaScript and C that are never Kaury (longest first): each one gets its own answer. */
 const FOREIGN_SIGNS = ['===', '!==', '&&', '||', '=>', '++', '--', '/*', ';', '`']
 

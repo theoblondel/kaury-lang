@@ -34,6 +34,10 @@ test('building the Crush site: server-rendered HTML, automatic links, SEO files'
   assert.ok(existsSync(join(out, 'story', 'index.html')))
   assert.ok(existsSync(join(out, 'mascot.glb')))
   for (const f of ['sitemap.xml', 'robots.txt', 'llms.txt', '.htaccess', '_headers']) assert.ok(existsSync(join(out, f)), f)
+  // a site whose address is https: http:// is sent there, before any other rule
+  const htaccess = readFileSync(join(out, '.htaccess'), 'utf8')
+  assert.match(htaccess, /RewriteCond %\{HTTPS\} !=on\n\s*RewriteRule \^ https:\/\/%\{HTTP_HOST\}%\{REQUEST_URI\} \[L,R=301\]/)
+  assert.ok(htaccess.indexOf('HTTPS} !=on') < htaccess.indexOf('kaury-mail'))
   assert.match(html, /--k-accent:#EA4374/)
   // accent too light for white text: dark text is chosen automatically (WCAG)
   assert.match(html, /--k-on-accent:#16151a/)
@@ -51,6 +55,8 @@ test('a static page loads almost no JavaScript, and no 3D', async () => {
   const code = readFileSync(join(r.dir, '_kaury', js), 'utf8')
   assert.doesNotMatch(code, /WebGLRenderer/)
   assert.ok(code.length < 3_000, `the static page JS weighs ${code.length} bytes`)
+  // no https address: no redirection (a test on a local Apache keeps working)
+  assert.doesNotMatch(readFileSync(join(r.dir, '.htaccess'), 'utf8'), /HTTPS/)
 })
 
 test('the generator writes mobile CSS that wins over the defaults', () => {
